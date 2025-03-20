@@ -4,6 +4,7 @@ from src.core.kubernetes.cluster_manager import ClusterManager
 from src.core.providers.provider_factory import ProviderFactory
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.api.schemas.cluster import ClusterCreateSchema, ClusterSchema, ClusterCreateResponseSchema
+from src.core.kubernetes.cluster_state import ClusterState
 
 router = APIRouter()
 
@@ -20,7 +21,7 @@ async def create_cluster(cluster: ClusterCreateSchema, background_tasks: Backgro
 
     background_tasks.add_task(cluster_manager.create_cluster, cluster_id, provider, cluster_config)
 
-    return {'id': cluster_id, 'status': 'provisioning'}
+    return {'id': cluster_id, 'status': ClusterState.PROVISIONING}
 
 
 @router.get("/clusters/{cluster_id}", response_model=ClusterSchema)

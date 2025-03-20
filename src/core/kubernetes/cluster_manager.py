@@ -6,6 +6,7 @@ from src.storage.models.cluster import Cluster
 from pathlib import Path
 from src.core.providers.provider_factory import ProviderFactory
 from traceback import format_exc
+from src.core.kubernetes.cluster_state import ClusterState
 
 class ClusterManager(object):
     _instance = None
@@ -29,7 +30,7 @@ class ClusterManager(object):
             kubeconfig_path="",
             num_of_master_nodes=cluster_config.num_of_master_nodes,
             num_of_worker_nodes=cluster_config.num_of_worker_nodes,
-            status="provisioning"
+            status=ClusterState.PROVISIONING
         )
 
         return self.storage.save_cluster(cluster)
@@ -40,13 +41,13 @@ class ClusterManager(object):
         try:
             cluster = await provider.create_cluster(cluster_config)
 
-            await self.update_cluster(cluster_id, {"status": "running", "kubeconfig_path": str(cluster.kubeconfig_path)})
+            await self.update_cluster(cluster_id, {"status": ClusterState.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path)})
 
         except Exception as e:
             print(f"Error while creating cluster: {e}")
             print(format_exc())
 
-            await self.update_cluster(cluster_id, {"status": "failed"})
+            await self.update_cluster(cluster_id, {"status": ClusterState.FAILED})
 
     def get_cluster_kubeconfig(self, cluster_id: int):
         kubeconfig_path = Path(self.storage.get_cluster(cluster_id).kubeconfig_path)
