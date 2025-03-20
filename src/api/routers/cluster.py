@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status, Depends
 from fastapi.background import BackgroundTasks
 from src.core.kubernetes.cluster_manager import ClusterManager
 from src.core.providers.provider_factory import ProviderFactory
@@ -8,12 +8,20 @@ from src.core.kubernetes.cluster_state import ClusterState
 
 router = APIRouter()
 
-# TODO: add dependency on cluster manager for all endpoints
+cluster_manager = ClusterManager()
+
+
+def get_cluster_manager():
+    return cluster_manager
+
 
 @router.post("/clusters/", response_model=ClusterCreateResponseSchema, status_code=status.HTTP_202_ACCEPTED)
-async def create_cluster(cluster: ClusterCreateSchema, background_tasks: BackgroundTasks) -> ClusterCreateResponseSchema:
+async def create_cluster(
+    cluster: ClusterCreateSchema,
+    background_tasks: BackgroundTasks,
+    cluster_manager: ClusterManager = Depends(get_cluster_manager)
+) -> ClusterCreateResponseSchema:
     print(f'Received request to create cluster: {cluster}')
-    cluster_manager = ClusterManager()
     provider = ProviderFactory.get_provider(cluster.provider)
     cluster_config = ClusterConfiguration(cluster.name, cluster.num_of_master_nodes, cluster.num_of_worker_nodes)
 
@@ -25,8 +33,10 @@ async def create_cluster(cluster: ClusterCreateSchema, background_tasks: Backgro
 
 
 @router.get("/clusters/{cluster_id}", response_model=ClusterSchema)
-def get_cluster(cluster_id: int):
-    cluster_manager = ClusterManager()
+def get_cluster(
+    cluster_id: int,
+    cluster_manager: ClusterManager = Depends(get_cluster_manager)
+):
     cluster = cluster_manager.get_cluster(cluster_id)
     if not cluster:
         raise HTTPException(status_code=404, detail="Cluster not found")
@@ -34,8 +44,10 @@ def get_cluster(cluster_id: int):
 
 
 @router.get("/clusters/{cluster_id}/kubeconfig", response_model=str)
-def get_cluster_kubeconfig(cluster_id: int):
-    cluster_manager = ClusterManager()
+def get_cluster_kubeconfig(
+    cluster_id: int,
+    cluster_manager: ClusterManager = Depends(get_cluster_manager)
+):
     cluster_kubeconfig = cluster_manager.get_cluster_kubeconfig(cluster_id)
 
     if not cluster_kubeconfig:
@@ -45,14 +57,15 @@ def get_cluster_kubeconfig(cluster_id: int):
 
 
 @router.get("/clusters/", response_model=list[ClusterSchema])
-def get_clusters():
-    cluster_manager = ClusterManager()
-
+def get_clusters(
+    cluster_manager: ClusterManager = Depends(get_cluster_manager)
+):
     return cluster_manager.get_clusters()
 
 
 @router.delete("/clusters/{cluster_id}", status_code=status.HTTP_200_OK)
-def delete_cluster(cluster_id: int):
-    cluster_manager = ClusterManager()
-
+def delete_cluster(
+    cluster_id: int,
+    cluster_manager: ClusterManager = Depends(get_cluster_manager)
+):
     cluster_manager.delete_cluster(cluster_id)
