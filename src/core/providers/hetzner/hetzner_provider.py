@@ -12,7 +12,7 @@ from traceback import format_exc
 
 from jinja2 import Environment, FileSystemLoader
 from pathlib import Path
-
+import os
 
 class HetznerProvider(BaseProvider):
     def __init__(self):
