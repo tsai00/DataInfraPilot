@@ -1,8 +1,8 @@
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.providers.base_provider import BaseProvider
 from src.core.kubernetes.configuration import ClusterConfiguration
-from src.storage.app_storage import SQLiteStorage
-from src.storage.models.cluster import Cluster
+from src.database.handlers.sqlite_handler import SQLiteHandler
+from src.database.models.cluster import Cluster
 from pathlib import Path
 from src.core.providers.provider_factory import ProviderFactory
 from traceback import format_exc
@@ -15,7 +15,7 @@ class ClusterManager(object):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
 
-            cls.storage = SQLiteStorage()
+            cls.storage = SQLiteHandler(f"sqlite:///{str(Path(Path(__file__).parent.parent.parent.parent.absolute(), 'app.db'))}")
             # logger
         return cls._instance
 
