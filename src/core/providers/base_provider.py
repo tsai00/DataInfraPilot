@@ -1,6 +1,12 @@
+from __future__ import annotations
+
 from abc import abstractmethod, ABC
 from src.core.kubernetes.configuration import ClusterConfiguration
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 
 class BaseProvider(ABC):
     name: str
@@ -10,7 +16,7 @@ class BaseProvider(ABC):
         pass
 
     @abstractmethod
-    def create_cluster(self, cluster_config: ClusterConfiguration):
+    def create_cluster(self, cluster_config: ClusterConfiguration) -> KubernetesCluster:
         pass
 
     @abstractmethod
