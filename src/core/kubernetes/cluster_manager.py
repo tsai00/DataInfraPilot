@@ -43,6 +43,7 @@ class ClusterManager(object):
 
             await self.update_cluster(cluster_id, {"status": ClusterState.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path)})
 
+            cluster.install_traefik_dashboard()
         except Exception as e:
             print(f"Error while creating cluster: {e}")
             print(format_exc())
