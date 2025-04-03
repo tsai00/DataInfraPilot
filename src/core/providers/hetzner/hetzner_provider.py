@@ -14,9 +14,14 @@ from jinja2 import Environment, FileSystemLoader
 from pathlib import Path
 import os
 
+
 class HetznerProvider(BaseProvider):
+    name = 'hetzner'
+
     def __init__(self):
         self.client = Client(token=os.environ.get('HCLOUD_TOKEN'))
+
+        super().__init__()
 
     async def _wait_until_server_is_initialised(self, server_id):
         while True:
