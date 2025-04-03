@@ -13,6 +13,7 @@ class ClusterCreateSchema(BaseModel):
 class ClusterSchema(ClusterCreateSchema):
     id: int
     status: str
+    access_ip: str
     created_at: datetime
 
     class Config:
@@ -20,5 +21,5 @@ class ClusterSchema(ClusterCreateSchema):
 
 
 class ClusterCreateResponseSchema(BaseModel):
-    id: int
+    name: str
     status: str
