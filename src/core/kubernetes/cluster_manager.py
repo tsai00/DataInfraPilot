@@ -1,12 +1,19 @@
+from datetime import datetime
+
+from src.core.apps.airflow_application import AirflowApplication, AirflowConfig
+from src.core.apps.base_application import BaseApplication
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.providers.base_provider import BaseProvider
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.database.handlers.sqlite_handler import SQLiteHandler
 from src.database.models.cluster import Cluster
+from src.database.models.cluster_application import ClusterApplication
+from src.core.apps.application_config import ApplicationConfig
 from pathlib import Path
 from src.core.providers.provider_factory import ProviderFactory
 from traceback import format_exc
 from src.core.kubernetes.cluster_state import ClusterState
+
 
 class ClusterManager(object):
     _instance = None
@@ -33,17 +40,28 @@ class ClusterManager(object):
             status=ClusterState.PROVISIONING
         )
 
-        return self.storage.save_cluster(cluster)
+        return self.storage.create_cluster(cluster)
 
-    async def create_cluster(self, cluster_id: int, provider: BaseProvider, cluster_config: ClusterConfiguration):
+    async def create_cluster(self, provider: BaseProvider, cluster_config: ClusterConfiguration):
         print(f'Will create cluster {cluster_config}')
+
+        cluster = Cluster(
+            name=cluster_config.name,
+            provider=provider.name,
+            region="",
+            num_of_master_nodes=cluster_config.num_of_master_nodes,
+            num_of_worker_nodes=cluster_config.num_of_worker_nodes,
+            status=ClusterState.PROVISIONING
+        )
+
+        cluster_id = self.storage.create_cluster(cluster)
 
         try:
             cluster = await provider.create_cluster(cluster_config)
 
-            await self.update_cluster(cluster_id, {"status": ClusterState.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path)})
+            await self.update_cluster(cluster_id, {"status": ClusterState.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path), 'access_ip': cluster.access_ip})
 
-            cluster.install_traefik_dashboard()
+            cluster.expose_traefik_dashboard()
         except Exception as e:
             print(f"Error while creating cluster: {e}")
             print(format_exc())
@@ -55,8 +73,11 @@ class ClusterManager(object):
 
         return kubeconfig_path.read_text()
 
-    async def update_cluster(self, cluster_id: int, cluster_data: str):
+    async def update_cluster(self, cluster_id: int, cluster_data: dict):
         self.storage.update_cluster(cluster_id, cluster_data)
+
+    async def update_cluster_application(self, cluster_application_id: int, cluster_application_data: dict):
+        self.storage.update_cluster_application(cluster_application_id, cluster_application_data)
 
     def get_cluster(self, cluster_id: int):
         return self.storage.get_cluster(cluster_id)
@@ -65,8 +86,6 @@ class ClusterManager(object):
         return self.storage.get_clusters()
 
     def delete_cluster(self, cluster_id: int):
-        cluster = self.storage.get_cluster(cluster_id)
-
         provider = ProviderFactory.get_provider('hetzner')
         provider.delete_cluster()
 
@@ -77,3 +96,65 @@ class ClusterManager(object):
 
     def find_disparencies_in_clusters_state(self):
         pass
+
+    # TODO: probably rename to distinguish between get all applications anf get cluster applications
+    def get_applications(self):
+        return self.storage.get_applications()
+
+    def get_application(self, application_id: int):
+        return self.storage.get_application(application_id)
+
+    async def deploy_application(self, cluster_id: int, application_config: ApplicationConfig):
+        try:
+            print(f"Deploying application to cluster {cluster_id}, config: {application_config}")
+
+            cluster_from_db = self.get_cluster(cluster_id)
+
+            if not cluster_from_db:
+                raise ValueError(f"Cluster {cluster_id} was not found")
+
+            application = self.get_application(application_config.id)
+
+            if not application:
+                raise ValueError(f"Application {application_config.id} was not found")
+
+            cluster = KubernetesCluster.from_db_model(cluster_from_db)
+
+            application_config.config['webserver_hostname'] = cluster.access_ip
+
+            application_instance = self._get_application_instance(application_config)
+
+            cluster_application = ClusterApplication(
+                cluster_id=cluster_from_db.id,
+                application_id=application.id,
+                status="deploying",
+                installed_at=datetime.now(),
+                config=application_instance.chart_values
+            )
+
+            cluster_application_id = self.storage.create_cluster_application(cluster_application)
+
+            chart_installed = await cluster.install_chart(application_instance.helm_chart, application_instance.chart_values)
+
+            if chart_installed:
+                print(f"Successfully deployed application {application.name} to cluster {cluster_from_db.name}")
+                await self.update_cluster_application(cluster_application_id, {"status": ClusterState.RUNNING})
+            else:
+                print(f"Failed to deploy application {application.name} to cluster {cluster_from_db.name}")
+                await self.update_cluster_application(cluster_application_id, {"status": ClusterState.FAILED})
+
+        except Exception as e:
+            print(f"Error during application deployment: {e}")
+            #raise
+
+    def _get_application_instance(self, application_config: ApplicationConfig) -> BaseApplication:
+        if application_config.id == 1:
+            return AirflowApplication(AirflowConfig(**application_config.config))
+        else:
+            raise ValueError(f"Unsupported application: {application_config.id}")
+
+    def get_cluster_applications(self, cluster_id: int):
+        return self.storage.get_cluster_applications(cluster_id)
+
+    def get_cluster_application(self, cluster_id: int, application_id: int):
+        return self.storage.get_cluster_application(cluster_id, application_id)

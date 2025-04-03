@@ -2,8 +2,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class ChartConfig:
+class HelmChart:
     name: str
     repo_url: str
     version: str
-    values: dict
