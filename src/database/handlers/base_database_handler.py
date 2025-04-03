@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 class BaseDatabaseHandler(ABC):
     @abstractmethod
-    def save_cluster(self, data):
+    def create_cluster(self, data):
         pass
 
     @abstractmethod
