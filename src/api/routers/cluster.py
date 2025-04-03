@@ -4,7 +4,9 @@ from src.core.kubernetes.cluster_manager import ClusterManager
 from src.core.providers.provider_factory import ProviderFactory
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.api.schemas.cluster import ClusterCreateSchema, ClusterSchema, ClusterCreateResponseSchema
+from src.api.schemas.application import ClusterApplicationCreateSchema, ApplicationSchema, ClusterApplicationSchema
 from src.core.kubernetes.cluster_state import ClusterState
+from src.core.apps.application_config import ApplicationConfig
 
 router = APIRouter()
 
@@ -25,11 +27,9 @@ async def create_cluster(
     provider = ProviderFactory.get_provider(cluster.provider)
     cluster_config = ClusterConfiguration(cluster.name, cluster.num_of_master_nodes, cluster.num_of_worker_nodes)
 
-    cluster_id = cluster_manager.create_cluster_entry(cluster_config)
+    background_tasks.add_task(cluster_manager.create_cluster, provider, cluster_config)
 
-    background_tasks.add_task(cluster_manager.create_cluster, cluster_id, provider, cluster_config)
-
-    return {'id': cluster_id, 'status': ClusterState.PROVISIONING}
+    return {'name': cluster_config.name, 'status': ClusterState.PROVISIONING}
 
 
 @router.get("/clusters/{cluster_id}", response_model=ClusterSchema)
@@ -69,3 +69,42 @@ def delete_cluster(
     cluster_manager: ClusterManager = Depends(get_cluster_manager)
 ):
     cluster_manager.delete_cluster(cluster_id)
+
+
+@router.post("/clusters/{cluster_id}/applications", response_model=dict, status_code=status.HTTP_202_ACCEPTED)
+async def deploy_application(
+    cluster_id: int,
+    application: ClusterApplicationCreateSchema,
+    background_tasks: BackgroundTasks,
+    cluster_manager: ClusterManager = Depends(get_cluster_manager)
+) -> dict:
+    print(f'Received request to deploy app: {application}')
+
+    application_config = ApplicationConfig(application.id, application.config)
+
+    background_tasks.add_task(cluster_manager.deploy_application, cluster_id, application_config)
+
+    return {'result': 'ok', 'status': ClusterState.PROVISIONING}
+
+
+@router.get("/clusters/{cluster_id}/applications", response_model=list[ClusterApplicationSchema])
+async def get_cluster_applications(
+    cluster_id: int,
+    cluster_manager: ClusterManager = Depends(get_cluster_manager)
+) -> list[ClusterApplicationCreateSchema]:
+    print('Request to get cluster applications')
+    cluster_applications = cluster_manager.get_cluster_applications(cluster_id)
+
+    return cluster_applications
+
+
+@router.get("/clusters/{cluster_id}/applications/{application_id}", response_model=ClusterApplicationSchema)
+async def get_cluster_application(
+        cluster_id: int,
+        application_id: int,
+        cluster_manager: ClusterManager = Depends(get_cluster_manager)
+) -> ClusterApplicationCreateSchema:
+    cluster_application = cluster_manager.get_cluster_application(cluster_id, application_id)
+
+    return cluster_application
+
