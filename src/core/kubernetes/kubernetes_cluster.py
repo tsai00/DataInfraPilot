@@ -1,9 +1,15 @@
+from typing import Any
+
+import yaml
+
+from src.core.config import PATH_TO_K3S_YAML_CONFIGS
 from src.core.providers.base_provider import BaseProvider
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.core.kubernetes.kubernetes_client import KubernetesClient
 from pyhelm3 import Client
 from pathlib import Path
-from src.core.kubernetes.chart_config import ChartConfig
+from src.core.kubernetes.chart_config import HelmChart
+from src.database.models.cluster import Cluster
 
 
 class KubernetesCluster:
@@ -17,25 +23,55 @@ class KubernetesCluster:
     def get_pods(self):
         pass
 
-    async def install_chart(self, chart_config: ChartConfig, namespace: str):
-        print(f"Installing {chart_config.name}...")
-        chart = await self._helm_client.get_chart(
-            chart_config.name,
-            repo=chart_config.repo_url,
-            version=chart_config.version
-        )
+    async def install_chart(self, helm_chart: HelmChart, values: dict[str, Any] = None, namespace: str = None):
+        values = values or {}
+        namespace = namespace or helm_chart.name.lower()
 
-        result = await self._helm_client.install_or_upgrade_release(
-            chart_config.name,
-            chart,
-            chart_config.values,
-            namespace=namespace,
-        )
+        print(f"Installing {helm_chart.name}... with values: {values}")
+        try:
+            chart = await self._helm_client.get_chart(
+                helm_chart.name,
+                repo=helm_chart.repo_url,
+                version=helm_chart.version
+            )
+        except Exception as e:
+            msg = f"Failed to get chart: {e}"
+            print(msg)
+            raise ValueError(msg)
 
-        print(f"{chart_config.name} installation complete: {result.status}")
+        try:
+            result = await self._helm_client.install_or_upgrade_release(
+                helm_chart.name,
+                chart,
+                values,
+                create_namespace=True,
+                namespace=namespace.lower(),
+            )
+        except Exception as e:
+            msg = f"Failed to install chart: {e}"
+            print(msg)
+            raise ValueError(msg)
 
-    def install_traefik_dashboard(self):
-        self._client.install_from_yaml(Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes', 'traefik-dashboard.yaml'))
+        print(f"{helm_chart.name} installation complete: {result.status}")
+
+        return True
+
+    def expose_traefik_dashboard(self):
+        path_to_template = Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes', 'traefik-dashboard.yaml')
+
+        try:
+            self._client.install_from_yaml(path_to_template, with_custom_objects=True)
+            print('Traefik dashboard exposed successfully!')
+        except Exception as e:
+            print(f"Failed to expose traefik dashboard: {e}")
 
     def apply_files(self):
         pass
+
+    @classmethod
+    def from_db_model(cls, cluster: Cluster):
+        return cls(
+            ClusterConfiguration(cluster.name, cluster.num_of_master_nodes, cluster.num_of_worker_nodes),
+            cluster.access_ip,
+            cluster.kubeconfig_path
+        )
