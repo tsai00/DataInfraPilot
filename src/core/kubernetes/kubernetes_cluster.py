@@ -57,7 +57,7 @@ class KubernetesCluster:
         return True
 
     def expose_traefik_dashboard(self):
-        path_to_template = Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes', 'traefik-dashboard.yaml')
+        path_to_template = Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes', 'traefik-dashboard-ingress-route.yaml')
 
         try:
             self._client.install_from_yaml(path_to_template, with_custom_objects=True)
