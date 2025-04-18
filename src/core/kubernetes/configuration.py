@@ -1,4 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from src.api.schemas.cluster import ClusterPool
 
 
 # TODO add ClusterInfo dataclass and rename this to ClusterInputConfiguration
@@ -7,5 +9,4 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class ClusterConfiguration:
     name: str = 'k8s-cluster'
-    num_of_master_nodes: int = 1
-    num_of_worker_nodes: int = 3
+    pools: list[ClusterPool] = field(default_factory=list)

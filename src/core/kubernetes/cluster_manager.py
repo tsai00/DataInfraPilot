@@ -29,28 +29,13 @@ class ClusterManager(object):
     def check_cluster_status(self):
         pass
 
-    def create_cluster_entry(self, cluster_config: ClusterConfiguration):
-        cluster = Cluster(
-            name=cluster_config.name,
-            provider="test",
-            region="test",
-            kubeconfig_path="",
-            num_of_master_nodes=cluster_config.num_of_master_nodes,
-            num_of_worker_nodes=cluster_config.num_of_worker_nodes,
-            status=ClusterState.PROVISIONING
-        )
-
-        return self.storage.create_cluster(cluster)
-
     async def create_cluster(self, provider: BaseProvider, cluster_config: ClusterConfiguration):
         print(f'Will create cluster {cluster_config}')
 
         cluster = Cluster(
             name=cluster_config.name,
             provider=provider.name,
-            region="",
-            num_of_master_nodes=cluster_config.num_of_master_nodes,
-            num_of_worker_nodes=cluster_config.num_of_worker_nodes,
+            pools=[x.to_dict() for x in cluster_config.pools],
             status=ClusterState.PROVISIONING
         )
 

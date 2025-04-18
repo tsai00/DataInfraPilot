@@ -71,7 +71,7 @@ class KubernetesCluster:
     @classmethod
     def from_db_model(cls, cluster: Cluster):
         return cls(
-            ClusterConfiguration(cluster.name, cluster.num_of_master_nodes, cluster.num_of_worker_nodes),
+            ClusterConfiguration(cluster.name, cluster.pools),
             cluster.access_ip,
             cluster.kubeconfig_path
         )
