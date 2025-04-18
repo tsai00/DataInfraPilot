@@ -12,11 +12,17 @@ class ApplicationSchema(BaseModel):
         orm_mode = True
 
 
-class ClusterApplicationSchema(BaseModel):
+class ClusterApplicationCreateSchema(BaseModel):
     id: int
+    config: dict
+
+    class Config:
+        orm_mode = True
+
+
+class ClusterApplicationSchema(ClusterApplicationCreateSchema):
     cluster_id: int
     application_id: int
-    config: dict
     status: str
     installed_at: datetime
 
@@ -24,10 +30,6 @@ class ClusterApplicationSchema(BaseModel):
         orm_mode = True
 
 
-class ClusterApplicationCreateSchema(BaseModel):
-    id: int
-    config: dict
 
-    class Config:
-        orm_mode = True
+
 

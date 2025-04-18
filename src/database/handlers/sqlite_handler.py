@@ -1,8 +1,9 @@
 from datetime import datetime
+from typing import Type
 
 from src.database.handlers.base_database_handler import BaseDatabaseHandler
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, joinedload
+from sqlalchemy.orm import sessionmaker, joinedload, selectinload
 from src.database.models import BaseModel, Cluster, ClusterApplication, Application
 
 
@@ -35,15 +36,15 @@ class SQLiteHandler(BaseDatabaseHandler):
 
             return cluster_id
 
-    def get_cluster(self, cluster_id) -> Cluster:
+    def get_cluster(self, cluster_id) -> Type[Cluster] | None:
         with self.session() as session:
-            cluster = session.query(Cluster).filter_by(id=cluster_id).first()
+            cluster = session.query(Cluster).filter_by(id=cluster_id).options(joinedload(Cluster.cluster_applications)).first()
 
             return cluster or None
 
-    def get_clusters(self) -> list[Cluster]:
+    def get_clusters(self) -> list[Type[Cluster]]:
         with self.session() as session:
-            clusters = session.query(Cluster).all()
+            clusters = session.query(Cluster).options(joinedload(Cluster.cluster_applications)).all()
 
             return clusters
 
@@ -51,7 +52,7 @@ class SQLiteHandler(BaseDatabaseHandler):
         with self.session() as session:
             cluster = session.query(Cluster).filter_by(id=cluster_id).first()
             if cluster:
-                session.delete(cluster)  # This triggers ORM-level cascade
+                session.delete(cluster)
                 session.commit()
 
     def update_cluster(self, cluster_id, updated_data: dict):
@@ -59,13 +60,13 @@ class SQLiteHandler(BaseDatabaseHandler):
             session.query(Cluster).filter_by(id=cluster_id).update(updated_data)
             session.commit()
 
-    def get_application(self, application_id) -> Application:
+    def get_application(self, application_id) -> Type[Application] | None:
         with self.session() as session:
             application = session.query(Application).filter_by(id=application_id).first()
 
             return application or None
 
-    def get_applications(self) -> list[Application]:
+    def get_applications(self) -> list[Type[Application]]:
         with self.session() as session:
             applications = session.query(Application).all()
 
@@ -85,7 +86,7 @@ class SQLiteHandler(BaseDatabaseHandler):
             session.query(ClusterApplication).filter_by(id=cluster_application_id).update(updated_data)
             session.commit()
 
-    def get_cluster_applications(self, cluster_id: int) -> list[ClusterApplication]:
+    def get_cluster_applications(self, cluster_id: int) -> list[Type[ClusterApplication]]:
         with self.session() as session:
             cluster_applications = (
                 session.query(ClusterApplication)
@@ -98,7 +99,7 @@ class SQLiteHandler(BaseDatabaseHandler):
             )
             return cluster_applications
 
-    def get_cluster_application(self, cluster_id: int, application_id: int) -> ClusterApplication:
+    def get_cluster_application(self, cluster_id: int, application_id: int) -> Type[ClusterApplication] | None:
         with self.session() as session:
             cluster_application = session.query(ClusterApplication).filter_by(cluster_id=cluster_id, application_id=application_id).first()
 
