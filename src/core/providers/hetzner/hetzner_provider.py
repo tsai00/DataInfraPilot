@@ -218,7 +218,15 @@ class HetznerProvider(BaseProvider):
         local_config.write_text(text.replace('127.0.0.1', master_plane_node['ip']))
         print(f'run export KUBECONFIG={str(local_config)}')
 
-        return KubernetesCluster(cluster_config, master_plane_node['ip'], local_config)
+        cluster = KubernetesCluster(cluster_config, master_plane_node['ip'], local_config)
+
+        hcloud_secret_template = environment.get_template('kubernetes/hetzner-token-secret.yaml')
+        hcloud_secret_rendered = hcloud_secret_template.render(hcloud_token=HCLOUD_TOKEN)
+
+        cluster.create_object_from_content(yaml.safe_load(hcloud_secret_rendered))
+        cluster.install_csi('hetzner-csi')
+
+        return cluster
 
     async def _download_kubeconfig(self, ip, username, password, remote_path, local_path):
         try:
