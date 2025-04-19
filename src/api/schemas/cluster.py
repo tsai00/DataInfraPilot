@@ -16,6 +16,7 @@ class ClusterPool(BaseModel):
 
 class ClusterCreateSchema(BaseModel):
     name: str
+    k3s_version: str
     provider: str
     pools: list[ClusterPool]
 

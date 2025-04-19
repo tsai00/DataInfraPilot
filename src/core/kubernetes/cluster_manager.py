@@ -34,6 +34,7 @@ class ClusterManager(object):
 
         cluster = Cluster(
             name=cluster_config.name,
+            k3s_version=cluster_config.k3s_version,
             provider=provider.name,
             pools=[x.to_dict() for x in cluster_config.pools],
             status=ClusterState.PROVISIONING

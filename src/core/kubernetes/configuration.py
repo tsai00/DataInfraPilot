@@ -8,5 +8,6 @@ from src.api.schemas.cluster import ClusterPool
 
 @dataclass(frozen=True)
 class ClusterConfiguration:
-    name: str = 'k8s-cluster'
+    name: str
+    k3s_version: str
     pools: list[ClusterPool] = field(default_factory=list)

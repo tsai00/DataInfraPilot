@@ -28,6 +28,7 @@ class Cluster(BaseModel):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
     name: Mapped[str] = mapped_column(nullable=False)
+    k3s_version: Mapped[str] = mapped_column(nullable=False)
     provider: Mapped[str] = mapped_column(nullable=False)
     pools: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
     status: Mapped[str] = mapped_column(nullable=False)

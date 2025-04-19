@@ -118,7 +118,11 @@ class HetznerProvider(BaseProvider):
         control_plane_placement_group = await self._create_placement_group(control_plane_pool_name)
 
         control_plane_node_template = environment.get_template('cloud-init-master.yml')
-        control_plane_node_content = control_plane_node_template.render(k3s_token=K3S_TOKEN, pool_name=control_plane_pool_name)
+        control_plane_node_content = control_plane_node_template.render(
+            k3s_token=K3S_TOKEN,
+            k3s_version=cluster_config.k3s_version,
+            pool_name=control_plane_pool_name,
+        )
 
         master_plane_node = await self._create_server(
             name=f"{cluster_config.name}-control-plane-node-1",
@@ -155,7 +159,12 @@ class HetznerProvider(BaseProvider):
             self._create_server(
                 name=f"{cluster_config.name}-worker-node-{i}",
                 node_type=HetznerNodeType[pool.node_type.upper()],
-                user_data=worker_node_content,
+                user_data=worker_node_template.render(
+                    k3s_token=K3S_TOKEN,
+                    k3s_version=cluster_config.k3s_version,
+                    master_ip=master_plane_ip,
+                    pool_name=pool.name,
+                ),
                 node_region=HetznerRegion[pool.region.upper()],
                 placement_group=await self._create_placement_group(f'{cluster_config.name}-{pool.name}')
             )
