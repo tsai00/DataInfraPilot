@@ -65,6 +65,18 @@ class KubernetesCluster:
         except Exception as e:
             print(f"Failed to expose traefik dashboard: {e}")
 
+    def install_csi(self, csi_provider: str):
+        path_to_template = Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes', f'{csi_provider}.yaml')
+
+        try:
+            self._client.install_from_yaml(path_to_template)
+            print(f'CSI {csi_provider} installed successfully!')
+        except Exception as e:
+            print(f"Failed to install CSI {csi_provider}: {e}")
+
+    def create_object_from_content(self, yaml_content: dict | list[dict]):
+        self._client.install_from_content(yaml_content)
+
     def apply_files(self):
         pass
 

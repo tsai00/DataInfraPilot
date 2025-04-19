@@ -1,3 +1,5 @@
+import traceback
+
 from kubernetes import client, config, utils
 from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.exceptions import NotFoundError
@@ -24,16 +26,28 @@ class KubernetesClient:
 
         self._clients = KubernetesClients()
 
+    def install_from_content(self, yaml_content: dict | list[dict]):
+        if isinstance(yaml_content, dict):
+            yaml_content = [yaml_content]
+
+        try:
+            utils.create_from_yaml(self._clients.Api, yaml_objects=yaml_content)
+            print(f'Custom object installed successfully!')
+        except Exception as e:
+            print(f'Error while installing object: {e}')
+            print(traceback.format_exc())
+
     def install_from_yaml(self, path_to_yaml: Path, with_custom_objects: bool = False):
         if path_to_yaml.is_dir():
             utils.create_from_directory(self._clients.CustomObjects, str(path_to_yaml))
         else:
-            manifest = yaml.safe_load(path_to_yaml.read_text())
             if with_custom_objects:
                 print('Applying custom objects')
+                manifest = yaml.safe_load(path_to_yaml.read_text())
                 self._apply_simple_item(manifest)
             else:
-                utils.create_from_yaml(self._clients.CustomObjects, str(path_to_yaml))
+                manifest = [x for x in yaml.safe_load_all(path_to_yaml.read_text())]
+                utils.create_from_yaml(self._clients.Api, yaml_objects=manifest)
 
     def _apply_simple_item(self, manifest: dict, verbose: bool = False):
         api_version = manifest.get("apiVersion")
