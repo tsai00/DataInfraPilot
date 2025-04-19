@@ -1,5 +1,7 @@
+import yaml
+from hcloud.networks import NetworkSubnet, Network
 from hcloud.placement_groups import PlacementGroup, CreatePlacementGroupResponse
-from hcloud.servers import Server, CreateServerResponse
+from hcloud.servers import ServerCreatePublicNetwork
 
 from src.core.providers.base_provider import BaseProvider
 import asyncssh
@@ -67,7 +69,41 @@ class HetznerProvider(BaseProvider):
 
             await asyncio.sleep(5)
 
-    async def _create_server(self, name: str, node_type: HetznerNodeType, node_region: HetznerRegion, user_data: str, placement_group: PlacementGroup) -> dict:
+    async def _install_k3s(self, ip, username, content):
+        try:
+            async with asyncssh.connect(ip, username=username, password=SSH_PASSWORD, known_hosts=None) as ssh:
+                result = await ssh.run(content, check=True)
+
+                print("K3s installed successfully.")
+        except Exception as e:
+            print(f"SSH connection failed: {e}")
+
+    async def _create_network(self, name: str) -> Network:
+        try:
+            network = self.client.networks.create(
+                name=name,
+                ip_range='10.0.0.0/16',
+                subnets=[NetworkSubnet(ip_range='10.0.1.0/24', network_zone='eu-central', type='cloud')]
+            )
+        except APIException as e:
+            # TODO: add general exception handler, mapping Hetzner error (uniqueness_error, protected, ...)
+            if e.code == 'uniqueness_error':
+                print(f'Placement Group with name "{name}" already exists')
+                return self.client.networks.get_by_name(name)
+
+            raise
+
+        return network
+
+    async def _create_server(
+            self, name: str,
+            node_type: HetznerNodeType,
+            node_region: HetznerRegion,
+            user_data: str,
+            placement_group: PlacementGroup,
+            networks: list[Network],
+            enable_public_ip: bool = False,
+    ) -> dict:
         print(f"Creating server {name}...")
 
         try:
@@ -77,7 +113,9 @@ class HetznerProvider(BaseProvider):
                 image=Image(name="ubuntu-22.04"),
                 user_data=user_data,
                 location=Location(name=node_region),
-                placement_group=placement_group
+                placement_group=placement_group,
+                networks=networks,
+                public_net=ServerCreatePublicNetwork(enable_ipv4=enable_public_ip, enable_ipv6=enable_public_ip)
             )
         except APIException as e:
             if e.code == 'uniqueness_error':
@@ -109,6 +147,8 @@ class HetznerProvider(BaseProvider):
         return placement_group_response.placement_group
 
     async def create_cluster(self, cluster_config: ClusterConfiguration) -> KubernetesCluster:
+        private_network = await self._create_network(f'{cluster_config.name}-network')
+
         environment = Environment(
             loader=FileSystemLoader(Path(Path(__file__).parent.parent.parent.resolve(), 'templates')), autoescape=True
         )
@@ -129,31 +169,13 @@ class HetznerProvider(BaseProvider):
             node_type=HetznerNodeType[control_plane_pool.node_type.upper()],
             user_data=control_plane_node_content,
             node_region=HetznerRegion[control_plane_pool.region.upper()],
-            placement_group=control_plane_placement_group
+            placement_group=control_plane_placement_group,
+            networks=[private_network],
+            enable_public_ip=True
         )
 
         worker_node_template = environment.get_template('cloud-init-worker.yml')
-        worker_node_content = worker_node_template.render(k3s_token=K3S_TOKEN, master_ip=master_plane_node['ip'],
-                                                                 pool_name=control_plane_pool_name)
-
-        total_num_of_nodes = sum(x.number_of_nodes for x in cluster_config.pools[1:])
-        print(f'Total nodes to create: {total_num_of_nodes}')
-
-        tasks_dry = [
-            {
-                "name": f"{cluster_config.name}-worker-node-{i}",
-                "node_type": pool.node_type.upper(),
-                "node_region": pool.region.upper(),
-                "placement_group": f'{cluster_config.name}-{pool.name}'
-            }
-            for i, pool in enumerate(
-                pool
-                for pool in cluster_config.pools[1:]
-                for _ in range(pool.number_of_nodes)
-            )
-        ]
-
-        print(f'will create the following ndoes: {tasks_dry}')
+        master_plane_ip = master_plane_node['ip']
 
         tasks = [
             self._create_server(
@@ -166,7 +188,9 @@ class HetznerProvider(BaseProvider):
                     pool_name=pool.name,
                 ),
                 node_region=HetznerRegion[pool.region.upper()],
-                placement_group=await self._create_placement_group(f'{cluster_config.name}-{pool.name}')
+                placement_group=await self._create_placement_group(f'{cluster_config.name}-{pool.name}'),
+                networks=[private_network],
+                enable_public_ip=True
             )
             for i, pool in enumerate(
                 pool
@@ -176,7 +200,6 @@ class HetznerProvider(BaseProvider):
         ]
 
         worker_nodes = await asyncio.gather(*tasks)
-        print(worker_nodes)
 
         for s in [master_plane_node] + worker_nodes:
             print(f"{s['name']} ({s['ip']})")
@@ -209,8 +232,8 @@ class HetznerProvider(BaseProvider):
     def delete_cluster(self):
         servers = self.client.servers.get_all()
         placement_groups = self.client.placement_groups.get_all()
+        networks = self.client.networks.get_all()
 
-        for x in servers + placement_groups:
+        for x in servers + placement_groups + networks:
             x.delete()
             print(f'Removed resource {x}')
-
