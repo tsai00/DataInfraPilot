@@ -49,6 +49,21 @@ class ClusterManager(object):
             await self.update_cluster(cluster_id, {"status": DeploymentStatus.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path), 'access_ip': cluster.access_ip})
 
             cluster.expose_traefik_dashboard()
+
+            print("Installing Longhorn")
+            longhorn_chart = HelmChart(name='longhorn', repo_url='https://charts.longhorn.io', version='1.8.1')
+            values = {
+                "defaultSettings": {
+                    "defaultDataPath": "/var/longhorn"
+                },
+                "persistence": {
+                    "defaultFsType": "ext4",
+                    "defaultClassReplicaCount": 2,
+                    "defaultClass": False
+                }
+            }
+            await cluster.install_chart(longhorn_chart, values)
+            print("Installed Longhorn successfully")
         except Exception as e:
             print(f"Error while creating cluster: {e}")
             print(format_exc())
