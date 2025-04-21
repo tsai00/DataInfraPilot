@@ -65,3 +65,6 @@ class KubernetesClient:
             crd_api.create(body=manifest, namespace=namespace)
             if verbose:
                 print(f"{namespace}/{resource_name} created")
+
+    def delete_namespace(self, namespace: str):
+        self._clients.Core.delete_namespace(namespace)

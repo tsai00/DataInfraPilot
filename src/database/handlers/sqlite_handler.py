@@ -81,6 +81,13 @@ class SQLiteHandler(BaseDatabaseHandler):
 
             return cluster_application_id
 
+    def delete_cluster_application(self, cluster_id, application_id):
+        with self.session() as session:
+            cluster_application = session.query(ClusterApplication).filter_by(cluster_id=cluster_id, application_id=application_id).first()
+            if cluster_application:
+                session.delete(cluster_application)
+                session.commit()
+
     def update_cluster_application(self, cluster_application_id: int, updated_data: dict):
         with self.session() as session:
             session.query(ClusterApplication).filter_by(id=cluster_application_id).update(updated_data)

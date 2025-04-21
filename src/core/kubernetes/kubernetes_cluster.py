@@ -56,6 +56,14 @@ class KubernetesCluster:
 
         return True
 
+    async def uninstall_chart(self, helm_chart: HelmChart, namespace: str = None):
+        namespace = namespace or helm_chart.name.lower()
+        print(f'Will uninstall chart {helm_chart.name}')
+        await self._helm_client.uninstall_release(helm_chart, namespace=namespace)
+
+        self._client.delete_namespace(namespace)
+        print(f'Successfully uninstalled chart {helm_chart.name}')
+
     def expose_traefik_dashboard(self):
         path_to_template = Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes', 'traefik-dashboard-ingress-route.yaml')
 

@@ -12,7 +12,8 @@ from src.core.apps.application_config import ApplicationConfig
 from pathlib import Path
 from src.core.providers.provider_factory import ProviderFactory
 from traceback import format_exc
-from src.core.kubernetes.cluster_state import ClusterState
+from src.core.kubernetes.deployment_status import DeploymentStatus
+from src.core.kubernetes.chart_config import HelmChart
 
 
 class ClusterManager(object):
@@ -132,6 +133,26 @@ class ClusterManager(object):
         except Exception as e:
             print(f"Error during application deployment: {e}")
             #raise
+
+    async def remove_application(self, cluster_id: int, application_id: int):
+        cluster_from_db = self.get_cluster(cluster_id)
+
+        if not cluster_from_db:
+            raise ValueError(f"Cluster {cluster_id} was not found")
+
+        cluster = KubernetesCluster.from_db_model(cluster_from_db)
+
+        if application_id == 1:
+            # TODO: solve this so there is no need to initalise dummy app config when retrieving helm chart
+            helm_chart = AirflowApplication(AirflowConfig(version="2.10.3", webserver_hostname='', instance_name='')).helm_chart
+        else:
+            raise ValueError('Unsupported application')
+
+        cluster = KubernetesCluster.from_db_model(cluster_from_db)
+
+        await cluster.uninstall_chart(helm_chart)
+
+        self.storage.delete_cluster_application(cluster_id, application_id)
 
     def _get_application_instance(self, application_config: ApplicationConfig) -> BaseApplication:
         if application_config.id == 1:

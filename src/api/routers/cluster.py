@@ -84,7 +84,16 @@ async def deploy_application(
 
     background_tasks.add_task(cluster_manager.deploy_application, cluster_id, application_config)
 
-    return {'result': 'ok', 'status': ClusterState.PROVISIONING}
+    return {'result': 'ok', 'status': DeploymentStatus.CREATING}
+
+
+@router.delete("/clusters/{cluster_id}/applications/{application_id}", status_code=status.HTTP_200_OK)
+async def remove_application(
+    cluster_id: int | str,
+    application_id: int | str,
+    cluster_manager: ClusterManager = Depends(get_cluster_manager)
+):
+    await cluster_manager.remove_application(int(cluster_id), int(application_id))
 
 
 @router.get("/clusters/{cluster_id}/applications", response_model=list[ClusterApplicationSchema])
