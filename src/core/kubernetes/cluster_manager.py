@@ -131,7 +131,7 @@ class ClusterManager(object):
                 application_id=application.id,
                 status=DeploymentStatus.DEPLOYING,
                 installed_at=datetime.now(),
-                config=application_instance.chart_values
+                config=application_config.config
             )
 
             cluster_application_id = self.storage.create_cluster_application(cluster_application)
