@@ -37,7 +37,7 @@ class ClusterManager(object):
             k3s_version=cluster_config.k3s_version,
             provider=provider.name,
             pools=[x.to_dict() for x in cluster_config.pools],
-            status=ClusterState.PROVISIONING
+            status=DeploymentStatus.CREATING
         )
 
         cluster_id = self.storage.create_cluster(cluster)
@@ -45,14 +45,14 @@ class ClusterManager(object):
         try:
             cluster = await provider.create_cluster(cluster_config)
 
-            await self.update_cluster(cluster_id, {"status": ClusterState.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path), 'access_ip': cluster.access_ip})
+            await self.update_cluster(cluster_id, {"status": DeploymentStatus.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path), 'access_ip': cluster.access_ip})
 
             cluster.expose_traefik_dashboard()
         except Exception as e:
             print(f"Error while creating cluster: {e}")
             print(format_exc())
 
-            await self.update_cluster(cluster_id, {"status": ClusterState.FAILED})
+            await self.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED})
 
     def get_cluster_kubeconfig(self, cluster_id: int):
         kubeconfig_path = Path(self.storage.get_cluster(cluster_id).kubeconfig_path)
@@ -113,7 +113,7 @@ class ClusterManager(object):
             cluster_application = ClusterApplication(
                 cluster_id=cluster_from_db.id,
                 application_id=application.id,
-                status="deploying",
+                status=DeploymentStatus.DEPLOYING,
                 installed_at=datetime.now(),
                 config=application_instance.chart_values
             )
@@ -124,10 +124,10 @@ class ClusterManager(object):
 
             if chart_installed:
                 print(f"Successfully deployed application {application.name} to cluster {cluster_from_db.name}")
-                await self.update_cluster_application(cluster_application_id, {"status": ClusterState.RUNNING})
+                await self.update_cluster_application(cluster_application_id, {"status": DeploymentStatus.RUNNING})
             else:
                 print(f"Failed to deploy application {application.name} to cluster {cluster_from_db.name}")
-                await self.update_cluster_application(cluster_application_id, {"status": ClusterState.FAILED})
+                await self.update_cluster_application(cluster_application_id, {"status": DeploymentStatus.FAILED})
 
         except Exception as e:
             print(f"Error during application deployment: {e}")
