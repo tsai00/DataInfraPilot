@@ -23,9 +23,15 @@ class KubernetesCluster:
     def get_pods(self):
         pass
 
-    async def install_chart(self, helm_chart: HelmChart, values: dict[str, Any] = None, namespace: str = None):
+    async def install_or_upgrade_chart(self, helm_chart: HelmChart, values: dict[str, Any] = None, namespace: str = None):
         values = values or {}
         namespace = namespace or helm_chart.name.lower()
+
+        try:
+            self._client.create_namespace(namespace)
+        except Exception as e:
+            # TODO: better error handling, e.g. for duplicated namespace name
+            print(f'Failed to create namespace {namespace}: {e}')
 
         print(f"Installing {helm_chart.name}... with values: {values}")
         try:
@@ -59,7 +65,7 @@ class KubernetesCluster:
     async def uninstall_chart(self, helm_chart: HelmChart, namespace: str = None):
         namespace = namespace or helm_chart.name.lower()
         print(f'Will uninstall chart {helm_chart.name}')
-        await self._helm_client.uninstall_release(helm_chart, namespace=namespace)
+        await self._helm_client.uninstall_release(release_name=helm_chart.name, namespace=namespace)
 
         self._client.delete_namespace(namespace)
         print(f'Successfully uninstalled chart {helm_chart.name}')

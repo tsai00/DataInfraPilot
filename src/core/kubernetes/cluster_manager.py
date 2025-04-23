@@ -1,3 +1,4 @@
+import traceback
 from datetime import datetime
 
 from src.core.apps.airflow_application import AirflowApplication, AirflowConfig
@@ -63,7 +64,7 @@ class ClusterManager(object):
                     "defaultClass": False
                 }
             }
-            await cluster.install_chart(longhorn_chart, values)
+            await cluster.install_or_upgrade_chart(longhorn_chart, values)
             print("Installed Longhorn successfully")
         except Exception as e:
             print(f"Error while creating cluster: {e}")
@@ -137,7 +138,7 @@ class ClusterManager(object):
 
             cluster_application_id = self.storage.create_cluster_application(cluster_application)
 
-            chart_installed = await cluster.install_chart(application_instance.helm_chart, application_instance.chart_values)
+            chart_installed = await cluster.install_or_upgrade_chart(application_instance.helm_chart, application_instance.chart_values)
 
             if chart_installed:
                 print(f"Successfully deployed application {application.name} to cluster {cluster_from_db.name}")
@@ -148,7 +149,32 @@ class ClusterManager(object):
 
         except Exception as e:
             print(f"Error during application deployment: {e}")
-            #raise
+            print(traceback.format_exc())
+
+            await self.update_cluster_application(cluster_application_id, {"status": DeploymentStatus.FAILED})
+
+    async def update_application(self, cluster_id: int, application_config: ApplicationConfig):
+        cluster_from_db = self.get_cluster(cluster_id)
+
+        if not cluster_from_db:
+            raise ValueError(f"Cluster {cluster_id} was not found")
+
+        cluster = KubernetesCluster.from_db_model(cluster_from_db)
+
+        application_instance = self._get_application_instance(application_config)
+
+        application_from_db = self.storage.get_cluster_application(cluster_id, application_config.id)
+
+        chart_updated = await cluster.install_or_upgrade_chart(application_instance.helm_chart,
+                                                                 application_instance.chart_values)
+
+        if chart_updated:
+            print(f"Successfully updated application {application_instance.name} {cluster_from_db.name}")
+            await self.update_cluster_application(application_from_db.id, {"status": DeploymentStatus.RUNNING, "config": application_config.config})
+        else:
+            print(f"Failed to update application {application_instance.name} to cluster {cluster_from_db.name}")
+            await self.update_cluster_application(application_from_db.id, {"status": DeploymentStatus.RUNNING, "config": application_config.config})
+
 
     async def remove_application(self, cluster_id: int, application_id: int):
         cluster_from_db = self.get_cluster(cluster_id)

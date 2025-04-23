@@ -87,6 +87,21 @@ async def deploy_application(
     return {'result': 'ok', 'status': DeploymentStatus.CREATING}
 
 
+@router.post("/clusters/{cluster_id}/applications/{application_id}", response_model=dict, status_code=status.HTTP_202_ACCEPTED)
+async def update_application(
+    cluster_id: int | str,
+    application: ClusterApplicationCreateSchema,
+    background_tasks: BackgroundTasks,
+    cluster_manager: ClusterManager = Depends(get_cluster_manager)
+) -> dict:
+    print(f'Received request to update app: {application}')
+    application_config = ApplicationConfig(application.id, application.config)
+
+    background_tasks.add_task(cluster_manager.update_application, cluster_id, application_config)
+
+    return {'result': 'ok', 'status': DeploymentStatus.UPDATING}
+
+
 @router.delete("/clusters/{cluster_id}/applications/{application_id}", status_code=status.HTTP_200_OK)
 async def remove_application(
     cluster_id: int | str,
