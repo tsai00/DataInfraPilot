@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from src.core.apps.airflow_application import AirflowApplication, AirflowConfig
+from src.core.apps.grafana_application import GrafanaApplication, GrafanaConfig
 from src.core.apps.base_application import BaseApplication
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.providers.base_provider import BaseProvider
@@ -159,7 +160,9 @@ class ClusterManager(object):
 
         if application_id == 1:
             # TODO: solve this so there is no need to initalise dummy app config when retrieving helm chart
-            helm_chart = AirflowApplication(AirflowConfig(version="2.10.3", webserver_hostname='', instance_name='')).helm_chart
+            helm_chart = AirflowApplication(AirflowConfig(version="2.10.3", webserver_hostname='', instance_name='', dags_repository='https://testsdfsdfs.git')).helm_chart
+        elif application_id == 2:
+            helm_chart = GrafanaApplication(GrafanaConfig(webserver_hostname='')).helm_chart
         else:
             raise ValueError('Unsupported application')
 
@@ -172,6 +175,8 @@ class ClusterManager(object):
     def _get_application_instance(self, application_config: ApplicationConfig) -> BaseApplication:
         if application_config.id == 1:
             return AirflowApplication(AirflowConfig(**application_config.config))
+        elif application_config.id == 2:
+            return GrafanaApplication(GrafanaConfig(**application_config.config))
         else:
             raise ValueError(f"Unsupported application: {application_config.id}")
 

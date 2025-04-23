@@ -20,7 +20,10 @@ class SQLiteHandler(BaseDatabaseHandler):
                     name="Airflow",
                     description="Airflow is a platform to programmatically author, schedule and monitor workflows.",
                 ),
-                Application(name="Grafana", description=""),
+                Application(
+                    name="Grafana",
+                    description=""
+                )
             ]
             session = self.session()
             session.add_all(initial_apps)
