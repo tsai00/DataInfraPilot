@@ -7,3 +7,4 @@ class DeploymentStatus(StrEnum):
     FAILED = "failed"
     DELETING = "deleting"
     CREATING = "creating"
+    UPDATING = "updating"
