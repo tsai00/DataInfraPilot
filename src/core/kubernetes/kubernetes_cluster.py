@@ -44,7 +44,7 @@ class KubernetesCluster:
                 helm_chart.name,
                 chart,
                 values,
-                create_namespace=True,
+                create_namespace=False,
                 namespace=namespace.lower(),
             )
         except Exception as e:

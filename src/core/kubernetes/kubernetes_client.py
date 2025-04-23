@@ -16,6 +16,7 @@ class KubernetesClients:
         self.Networking = client.NetworkingV1Api()  # Ingress, NetworkPolicies
         self.RBAC = client.RbacAuthorizationV1Api()  # Role-Based Access Control
         self.CustomObjects = client.CustomObjectsApi()  # Custom Resources (CRDs)
+        self.Namespaces = client.V1Namespace()
 
         self.Dynamic = DynamicClient(client.ApiClient())
 
@@ -66,5 +67,11 @@ class KubernetesClient:
             if verbose:
                 print(f"{namespace}/{resource_name} created")
 
+    def create_namespace(self, namespace: str):
+        self._clients.Core.create_namespace(client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace)))
+
     def delete_namespace(self, namespace: str):
-        self._clients.Core.delete_namespace(namespace)
+        try:
+            self._clients.Core.delete_namespace(namespace)
+        except Exception as e:
+            print(f'Error while deleting namespace {namespace}: {e}')
