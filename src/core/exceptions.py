@@ -1,0 +1,6 @@
+
+
+class ResourceExistsException(Exception): ...
+
+class ResourceUnavailableException(Exception): ...
+
