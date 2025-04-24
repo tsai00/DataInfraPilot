@@ -16,3 +16,7 @@ class BaseApplication(ABC):
     @property
     @abstractmethod
     def chart_values(self) -> dict[str, Any]: ...
+
+    @classmethod
+    @abstractmethod
+    def get_available_versions(cls) -> list[str]: ...

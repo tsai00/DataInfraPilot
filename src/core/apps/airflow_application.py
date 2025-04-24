@@ -5,6 +5,10 @@ from src.core.kubernetes.chart_config import HelmChart
 from pydantic import BaseModel, Field
 from enum import StrEnum
 from cachetools import cached
+import requests
+import re
+import base64
+from functools import lru_cache
 
 
 class AirflowExecutor(StrEnum):
@@ -38,10 +42,14 @@ class AirflowApplication(BaseApplication):
         super().__init__("Airflow", helm_chart)
 
     @classmethod
-    @cached
+    @lru_cache()
     def get_available_versions(cls) -> list[str]:
-        # TODO: replace with actual version list + move to base class
-        return ['2.10.3']
+        try:
+            r = requests.get('https://api.github.com/repos/apache/airflow/releases').json()
+        except Exception as e:
+            print(f'Failed to retrieve availble verions for Airflow: {e}')
+            raise
+        return [x['tag_name'] for x in r if bool(re.search(r"^\d\.\d{1,2}\.\d$", x['tag_name']))][:5]
 
     def __post_init__(self):
         if self._version not in self.get_available_versions():
