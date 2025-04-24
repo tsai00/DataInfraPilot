@@ -1,7 +1,8 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-from src.api.schemas.application import ClusterApplicationSchema, ApplicationSchema
+from src.api.schemas.application import ApplicationSchema
+from src.api.schemas.deployment import DeploymentSchema
 
 
 class ClusterPool(BaseModel):
@@ -27,7 +28,7 @@ class ClusterSchema(ClusterCreateSchema):
     error_message: str
     access_ip: str
     created_at: datetime
-    cluster_applications: list[ClusterApplicationSchema] = Field(default=[])
+    deployments: list[DeploymentSchema] = Field(default=[])
 
     class Config:
         orm_mode = True

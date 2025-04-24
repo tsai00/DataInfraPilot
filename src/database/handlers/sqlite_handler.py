@@ -4,7 +4,7 @@ from typing import Type
 from src.database.handlers.base_database_handler import BaseDatabaseHandler
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, joinedload, selectinload
-from src.database.models import BaseModel, Cluster, ClusterApplication, Application
+from src.database.models import BaseModel, Cluster, Deployment, Application
 
 
 class SQLiteHandler(BaseDatabaseHandler):
@@ -41,13 +41,13 @@ class SQLiteHandler(BaseDatabaseHandler):
 
     def get_cluster(self, cluster_id) -> Type[Cluster] | None:
         with self.session() as session:
-            cluster = session.query(Cluster).filter_by(id=cluster_id).options(joinedload(Cluster.cluster_applications)).first()
+            cluster = session.query(Cluster).filter_by(id=cluster_id).options(joinedload(Cluster.deployments)).first()
 
             return cluster or None
 
     def get_clusters(self) -> list[Type[Cluster]]:
         with self.session() as session:
-            clusters = session.query(Cluster).options(joinedload(Cluster.cluster_applications)).all()
+            clusters = session.query(Cluster).options(joinedload(Cluster.deployments)).all()
 
             return clusters
 
@@ -75,42 +75,42 @@ class SQLiteHandler(BaseDatabaseHandler):
 
             return applications
 
-    def create_cluster_application(self, cluster_application: ClusterApplication):
+    def create_deployment(self, deployment: Deployment):
         with self.session() as session:
-            session.add(cluster_application)
+            session.add(deployment)
             session.commit()
-            session.refresh(cluster_application)
-            cluster_application_id = cluster_application.id
+            session.refresh(deployment)
+            deployment_id = deployment.id
 
-            return cluster_application_id
+            return deployment_id
 
-    def delete_cluster_application(self, cluster_id, application_id):
+    def delete_deployment(self, deployment_id):
         with self.session() as session:
-            cluster_application = session.query(ClusterApplication).filter_by(cluster_id=cluster_id, application_id=application_id).first()
-            if cluster_application:
-                session.delete(cluster_application)
+            deployment = session.query(Deployment).filter_by(id=deployment_id).first()
+            if deployment:
+                session.delete(deployment)
                 session.commit()
 
-    def update_cluster_application(self, cluster_application_id: int, updated_data: dict):
+    def update_deployment(self, deployment_id: int, updated_data: dict):
         with self.session() as session:
-            session.query(ClusterApplication).filter_by(id=cluster_application_id).update(updated_data)
+            session.query(Deployment).filter_by(id=deployment_id).update(updated_data)
             session.commit()
 
-    def get_cluster_applications(self, cluster_id: int) -> list[Type[ClusterApplication]]:
+    def get_deployments(self, cluster_id: int) -> list[Type[Deployment]]:
         with self.session() as session:
-            cluster_applications = (
-                session.query(ClusterApplication)
+            deployments = (
+                session.query(Deployment)
                 .options(
-                    joinedload(ClusterApplication.cluster),
-                    joinedload(ClusterApplication.application)
+                    joinedload(Deployment.cluster),
+                    joinedload(Deployment.application)
                 )
                 .filter_by(cluster_id=cluster_id)
                 .all()
             )
-            return cluster_applications
+            return deployments
 
-    def get_cluster_application(self, cluster_id: int, application_id: int) -> Type[ClusterApplication] | None:
+    def get_deployment(self, deployment_id: int) -> Type[Deployment] | None:
         with self.session() as session:
-            cluster_application = session.query(ClusterApplication).filter_by(cluster_id=cluster_id, application_id=application_id).first()
+            deployment = session.query(Deployment).filter_by(id=deployment_id).first()
 
-            return cluster_application or None
+            return deployment or None

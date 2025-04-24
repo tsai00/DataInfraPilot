@@ -5,7 +5,7 @@ from src.database.models.base_model import BaseModel
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.database.models.cluster_application import ClusterApplication
+    from src.database.models.deployment import Deployment
 
 
 class Application(BaseModel):

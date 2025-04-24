@@ -32,17 +32,17 @@ class AirflowConfig(BaseModel):
 
 
 class AirflowApplication(BaseApplication):
+    _helm_chart = HelmChart(
+        name="airflow",
+        repo_url="https://airflow.apache.org",
+        version="1.15.0",
+    )
+
     def __init__(self, config: AirflowConfig):
         self._config = config
         self._version = self._config.version
 
-        helm_chart = HelmChart(
-            name="airflow",
-            repo_url="https://airflow.apache.org",
-            version="1.15.0",
-        )
-
-        super().__init__("Airflow", helm_chart)
+        super().__init__("Airflow")
 
     @classmethod
     @lru_cache()

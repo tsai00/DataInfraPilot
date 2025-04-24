@@ -5,12 +5,13 @@ from abc import ABC, abstractmethod
 
 
 class BaseApplication(ABC):
-    def __init__(self, name: str, helm_chart: HelmChart):
-        self.name = name
-        self._helm_chart = helm_chart
+    _helm_chart: HelmChart
 
-    @property
-    def helm_chart(self) -> HelmChart:
+    def __init__(self, name: str):
+        self.name = name
+
+    @classmethod
+    def get_helm_chart(self) -> HelmChart:
         return self._helm_chart
 
     @property

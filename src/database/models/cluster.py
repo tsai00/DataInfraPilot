@@ -8,7 +8,7 @@ from src.database.models.base_model import BaseModel
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.database.models.cluster_application import ClusterApplication
+    from src.database.models.deployment import Deployment
 
 from dataclasses import dataclass, asdict
 
@@ -37,4 +37,4 @@ class Cluster(BaseModel):
     kubeconfig_path: Mapped[str] = mapped_column(nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(nullable=False, default_factory=lambda: datetime.now())
 
-    cluster_applications = relationship("ClusterApplication", back_populates="cluster", cascade="all,delete")
+    deployments = relationship("Deployment", back_populates="cluster", cascade="all,delete")

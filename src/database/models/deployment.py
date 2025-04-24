@@ -10,8 +10,8 @@ if TYPE_CHECKING:
     from src.database.models.application import Application
 
 
-class ClusterApplication(BaseModel):
-    __tablename__ = 'cluster_application'
+class Deployment(BaseModel):
+    __tablename__ = 'deployment'
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
     cluster_id: Mapped[int] = mapped_column(ForeignKey("cluster.id", ondelete='CASCADE'), nullable=False)
@@ -20,5 +20,5 @@ class ClusterApplication(BaseModel):
     status: Mapped[str] = mapped_column(nullable=False, default="deploying")
     installed_at: Mapped[datetime] = mapped_column(nullable=False, default_factory=lambda: datetime.now())
 
-    cluster: Mapped[Cluster] = relationship(back_populates="cluster_applications", init=False)
+    cluster: Mapped[Cluster] = relationship(back_populates="deployments", init=False)
     application: Mapped[Application] = relationship(init=False)

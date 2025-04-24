@@ -14,17 +14,17 @@ class GrafanaConfig(BaseModel):
 
 
 class GrafanaApplication(BaseApplication):
+    _helm_chart = HelmChart(
+        name="grafana",
+        repo_url="https://grafana.github.io/helm-charts",
+        version="8.12.1",
+    )
+
     def __init__(self, config: GrafanaConfig):
         self._config = config
         self._version = self._config.version
 
-        helm_chart = HelmChart(
-            name="grafana",
-            repo_url="https://grafana.github.io/helm-charts",
-            version="8.12.1",
-        )
-
-        super().__init__("Grafana", helm_chart)
+        super().__init__("Grafana")
 
     @classmethod
     @cached

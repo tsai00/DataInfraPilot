@@ -9,8 +9,7 @@ from src.core.providers.base_provider import BaseProvider
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.database.handlers.sqlite_handler import SQLiteHandler
 from src.database.models.cluster import Cluster
-from src.database.models.cluster_application import ClusterApplication
-from src.core.apps.application_config import ApplicationConfig
+from src.database.models.deployment import Deployment
 from pathlib import Path
 from src.core.providers.provider_factory import ProviderFactory
 from traceback import format_exc
@@ -48,7 +47,7 @@ class ClusterManager(object):
         try:
             cluster = await provider.create_cluster(cluster_config)
 
-            await self.update_cluster(cluster_id, {"status": DeploymentStatus.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path), 'access_ip': cluster.access_ip})
+            self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path), 'access_ip': cluster.access_ip})
 
             cluster.expose_traefik_dashboard()
 
@@ -70,18 +69,12 @@ class ClusterManager(object):
             print(f"Error while creating cluster: {e}")
             print(format_exc())
 
-            await self.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED, "error_message": str(e)})
+            self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED, "error_message": str(e)})
 
     def get_cluster_kubeconfig(self, cluster_id: int):
         kubeconfig_path = Path(self.storage.get_cluster(cluster_id).kubeconfig_path)
 
         return kubeconfig_path.read_text()
-
-    async def update_cluster(self, cluster_id: int, cluster_data: dict):
-        self.storage.update_cluster(cluster_id, cluster_data)
-
-    async def update_cluster_application(self, cluster_application_id: int, cluster_application_data: dict):
-        self.storage.update_cluster_application(cluster_application_id, cluster_application_data)
 
     def get_cluster(self, cluster_id: int):
         return self.storage.get_cluster(cluster_id)
@@ -95,12 +88,6 @@ class ClusterManager(object):
 
         self.storage.delete_cluster(cluster_id)
 
-    def install_app(self, app):
-        pass
-
-    def find_disparencies_in_clusters_state(self):
-        pass
-
     # TODO: probably rename to distinguish between get all applications anf get cluster applications
     def get_applications(self):
         return self.storage.get_applications()
@@ -108,117 +95,115 @@ class ClusterManager(object):
     def get_application(self, application_id: int):
         return self.storage.get_application(application_id)
 
-    async def deploy_application(self, cluster_id: int, application_config: ApplicationConfig):
+    async def create_deployment(self, cluster_id: int, deployment_application_id: int, deployment_config: dict):
         try:
-            print(f"Deploying application to cluster {cluster_id}, config: {application_config}")
+            print(f"Deploying application to cluster {cluster_id}, config: {deployment_config}")
 
             cluster_from_db = self.get_cluster(cluster_id)
 
             if not cluster_from_db:
                 raise ValueError(f"Cluster {cluster_id} was not found")
 
-            application = self.get_application(application_config.id)
-
-            if not application:
-                raise ValueError(f"Application {application_config.id} was not found")
-
             cluster = KubernetesCluster.from_db_model(cluster_from_db)
 
             # TODO: dont like hardcoded assignment of webserver_hostname
-            application_config.config['webserver_hostname'] = cluster.access_ip
+            deployment_config['webserver_hostname'] = cluster.access_ip
 
-            application_instance = self._get_application_instance(application_config)
-
-            cluster_application = ClusterApplication(
+            deployment = Deployment(
                 cluster_id=cluster_from_db.id,
-                application_id=application.id,
+                application_id=deployment_application_id,
                 status=DeploymentStatus.DEPLOYING,
                 installed_at=datetime.now(),
-                config=application_config.config
+                config=deployment_config
             )
 
-            cluster_application_id = self.storage.create_cluster_application(cluster_application)
+            deployment_id = self.storage.create_deployment(deployment)
 
-            chart_installed = await cluster.install_or_upgrade_chart(application_instance.helm_chart, application_instance.chart_values)
+            application_instance = self._get_application_instance(deployment_application_id, deployment_config)
+
+            chart_installed = await cluster.install_or_upgrade_chart(application_instance.get_helm_chart(), application_instance.chart_values)
 
             if chart_installed:
-                print(f"Successfully deployed application {application.name} to cluster {cluster_from_db.name}")
-                await self.update_cluster_application(cluster_application_id, {"status": DeploymentStatus.RUNNING})
+                print(f"Successfully deployed application {deployment_application_id} to cluster {cluster_from_db.name}")
+                self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.RUNNING})
             else:
-                print(f"Failed to deploy application {application.name} to cluster {cluster_from_db.name}")
-                await self.update_cluster_application(cluster_application_id, {"status": DeploymentStatus.FAILED})
+                print(f"Failed to deploy application {deployment_application_id} to cluster {cluster_from_db.name}")
+                self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED})
 
         except Exception as e:
             print(f"Error during application deployment: {e}")
             print(traceback.format_exc())
 
-            await self.update_cluster_application(cluster_application_id, {"status": DeploymentStatus.FAILED})
+            self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED})
 
-    async def update_application(self, cluster_id: int, application_config: ApplicationConfig):
+    async def update_deployment(self, cluster_id: int, deployment_id: int, deployment_config: dict):
         cluster_from_db = self.get_cluster(cluster_id)
 
         if not cluster_from_db:
             raise ValueError(f"Cluster {cluster_id} was not found")
+
+        deployment_from_db = self.get_deployment(deployment_id)
+
+        if not deployment_from_db:
+            raise ValueError(f"Deployment {deployment_id} was not found")
 
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
 
         # TODO: dont like hardcoded assignment of webserver_hostname
-        application_config.config['webserver_hostname'] = cluster.access_ip
+        deployment_config['webserver_hostname'] = cluster.access_ip
 
-        application_instance = self._get_application_instance(application_config)
+        application_instance = self._get_application_instance(deployment_from_db.application_id, deployment_config)
 
-        application_from_db = self.storage.get_cluster_application(cluster_id, application_config.id)
-
-        await self.update_cluster_application(application_from_db.id,
-                                              {"status": DeploymentStatus.UPDATING, "config": application_config.config})
+        self.storage.update_deployment(deployment_from_db.application_id,
+                                     {"status": DeploymentStatus.UPDATING, "config": deployment_config})
 
         try:
-            chart_updated = await cluster.install_or_upgrade_chart(application_instance.helm_chart,
+            chart_updated = await cluster.install_or_upgrade_chart(application_instance.get_helm_chart(),
                                                                      application_instance.chart_values)
 
             if chart_updated:
                 print(f"Successfully updated application {application_instance.name} {cluster_from_db.name}")
-                await self.update_cluster_application(application_from_db.id, {"status": DeploymentStatus.RUNNING})
+                self.storage.update_deployment(deployment_from_db.application_id, {"status": DeploymentStatus.RUNNING})
             else:
                 print(f"Failed to update application {application_instance.name} to cluster {cluster_from_db.name}")
-                await self.update_cluster_application(application_from_db.id, {"status": DeploymentStatus.FAILED})
+                self.storage.update_deployment(deployment_from_db.application_id, {"status": DeploymentStatus.FAILED})
         except Exception as e:
             print(traceback.format_exc())
             print(f'Error while updating application: {e}')
-            await self.update_cluster_application(application_from_db.id, {"status": DeploymentStatus.FAILED})
+            self.storage.update_deployment(deployment_from_db.application_id, {"status": DeploymentStatus.FAILED})
 
-    async def remove_application(self, cluster_id: int, application_id: int):
-        cluster_from_db = self.get_cluster(cluster_id)
+    async def remove_deployment(self, deployment_id: int):
+        deployment_from_db = self.get_deployment(deployment_id)
+        
+        if not deployment_from_db:
+            raise ValueError(f"Deployment {deployment_id} was not found")
 
-        if not cluster_from_db:
-            raise ValueError(f"Cluster {cluster_id} was not found")
+        cluster_from_db = self.get_cluster(deployment_from_db.cluster_id)
 
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
 
-        if application_id == 1:
+        if deployment_from_db.application_id == 1:
             # TODO: solve this so there is no need to initalise dummy app config when retrieving helm chart
-            helm_chart = AirflowApplication(AirflowConfig(version="2.10.3", webserver_hostname='', instance_name='', dags_repository='https://testsdfsdfs.git')).helm_chart
-        elif application_id == 2:
-            helm_chart = GrafanaApplication(GrafanaConfig(webserver_hostname='')).helm_chart
+            helm_chart = AirflowApplication.get_helm_chart()
+        elif deployment_from_db.application_id == 2:
+            helm_chart = GrafanaApplication.get_helm_chart()
         else:
             raise ValueError('Unsupported application')
 
-        cluster = KubernetesCluster.from_db_model(cluster_from_db)
-
         await cluster.uninstall_chart(helm_chart)
 
-        self.storage.delete_cluster_application(cluster_id, application_id)
+        self.storage.delete_deployment(deployment_id)
 
-    def _get_application_instance(self, application_config: ApplicationConfig) -> BaseApplication:
-        if application_config.id == 1:
-            return AirflowApplication(AirflowConfig(**application_config.config))
-        elif application_config.id == 2:
-            return GrafanaApplication(GrafanaConfig(**application_config.config))
+    def _get_application_instance(self, application_id: int, application_config: dict) -> BaseApplication:
+        if application_id == 1:
+            return AirflowApplication(AirflowConfig(**application_config))
+        elif application_id == 2:
+            return GrafanaApplication(GrafanaConfig(**application_config))
         else:
-            raise ValueError(f"Unsupported application: {application_config.id}")
+            raise ValueError(f"Unsupported application: {application_id}")
 
-    def get_cluster_applications(self, cluster_id: int):
-        return self.storage.get_cluster_applications(cluster_id)
+    def get_deployments(self, cluster_id: int):
+        return self.storage.get_deployments(cluster_id)
 
-    def get_cluster_application(self, cluster_id: int, application_id: int):
-        return self.storage.get_cluster_application(cluster_id, application_id)
+    def get_deployment(self, deployment_id: int):
+        return self.storage.get_deployment(deployment_id)
