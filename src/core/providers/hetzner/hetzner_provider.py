@@ -14,12 +14,14 @@ from hcloud.locations import Location
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.core.config import PATH_TO_K3S_YAML_CONFIGS, HCLOUD_TOKEN, K3S_TOKEN, SSH_PASSWORD
+from src.core.exceptions import ResourceUnavailableException
 from traceback import format_exc
 
 from jinja2 import Environment, FileSystemLoader
 from pathlib import Path
 
 from enum import StrEnum
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 
 class HetznerNodeType(StrEnum):
@@ -95,6 +97,7 @@ class HetznerProvider(BaseProvider):
 
         return network
 
+    @retry(retry=retry_if_exception_type(ResourceUnavailableException), wait=wait_fixed(5), stop=stop_after_attempt(5), reraise=True)
     async def _create_server(
             self, name: str,
             node_type: HetznerNodeType,
@@ -120,6 +123,9 @@ class HetznerProvider(BaseProvider):
         except APIException as e:
             if e.code == 'uniqueness_error':
                 print(f'Server with name "{name}" already exists')
+            elif e.code == 'resource_unavailable':
+                print(f'Failed to get server with name "{name}", retrying...')
+                raise ResourceUnavailableException(f"Resource {name} unavailable")
 
             raise
 
