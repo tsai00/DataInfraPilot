@@ -24,6 +24,7 @@ class ClusterCreateSchema(BaseModel):
 class ClusterSchema(ClusterCreateSchema):
     id: int
     status: str
+    error_message: str
     access_ip: str
     created_at: datetime
     cluster_applications: list[ClusterApplicationSchema] = Field(default=[])

@@ -70,7 +70,7 @@ class ClusterManager(object):
             print(f"Error while creating cluster: {e}")
             print(format_exc())
 
-            await self.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED})
+            await self.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED, "error_message": str(e)})
 
     def get_cluster_kubeconfig(self, cluster_id: int):
         kubeconfig_path = Path(self.storage.get_cluster(cluster_id).kubeconfig_path)
