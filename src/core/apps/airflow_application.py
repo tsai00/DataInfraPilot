@@ -17,12 +17,15 @@ class AirflowExecutor(StrEnum):
 
 
 class AirflowConfig(BaseModel):
-    version: str
+    version: str = Field(pattern=r"^\d\.\d{1,2}\.\d$")
     webserver_hostname: str
-    traefik_webserver_path: str = '/airflow'
+    dags_repository: str = Field(pattern=r"^https:\/\/.{10,}\.git$")
+    dags_repository_ssh_private_key: str = Field(default=None, alias='dagsRepositorySshPrivateKey')
+    dags_repository_branch: str = Field(default='main', alias='dagsRepositoryBranch')
+    dags_repository_subpath: str = Field(default='dags', alias='dagsRepositorySubpath')
+    traefik_webserver_path: str = Field(pattern=r"^\/[a-z0-9]+$", default='/airflow')
     traefik_flower_path: str = '/airflow/flower'
     executor: AirflowExecutor = AirflowExecutor.CeleryExecutor
-    load_examples: bool = True
     flower_enabled: bool = False
     pgbouncer_enabled: bool = False
     instance_name: str = Field(max_length=20)
@@ -57,6 +60,8 @@ class AirflowApplication(BaseApplication):
 
     @property
     def chart_values(self) -> dict[str, Any]:
+        dags_repository_ssh_key_base64 = base64.b64encode(self._config.dags_repository_ssh_private_key.encode()).decode()
+
         values = {
             "airflowVersion": self._version,
             "defaultAirflowTag": self._version,
@@ -67,8 +72,8 @@ class AirflowApplication(BaseApplication):
             "config": {
                 "webserver": {
                     "base_url": f'http://{self._config.webserver_hostname}:8080{self._config.traefik_webserver_path}',
-                    "expose_config": True,
-                    "navbar_color": '#000',
+                    #"expose_config": True,
+                    #"navbar_color": '#000',
                     "require_confirmation_dag_change": True,
                     "instance_name": self._config.instance_name,
                     "default_ui_timezone": 'Europe/Prague'
@@ -76,7 +81,7 @@ class AirflowApplication(BaseApplication):
                 "core": {
                     "max_active_runs_per_dag": 1,
                     "dags_are_paused_at_creation": True,
-                    "load_examples": self._config.load_examples
+                    "load_examples": False
                 },
                 "scheduler": {
                     "enable_health_check": False,
@@ -92,7 +97,7 @@ class AirflowApplication(BaseApplication):
                         "traefik.ingress.kubernetes.io/router.entrypoints": "web",
                         "traefik.ingress.kubernetes.io/router.priority": "10"
                     },
-                    "path": f'{self._config.traefik_webserver_path}'
+                    "path": self._config.traefik_webserver_path
                 },
                 "flower": {
                     "enabled": True,
@@ -102,12 +107,45 @@ class AirflowApplication(BaseApplication):
                         "traefik.ingress.kubernetes.io/router.entrypoints": "web",
                         "traefik.ingress.kubernetes.io/router.priority": "10"
                     },
-                    "path": f'{self._config.traefik_flower_path}'
+                    "path": self._config.traefik_flower_path
                 }
             },
             "pgbouncer": {
                 "enabled": self._config.pgbouncer_enabled
-            }
+            },
+            "webserver": {
+                "startupProbe": {
+                    "timeoutSeconds": 120,
+                    "failureThreshold": 10,
+                    "periodSeconds": 10
+                }
+            },
+            "dags": {
+                "gitSync": {
+                    "enabled": True,
+                    "repo": self._config.dags_repository,
+                    "branch": self._config.dags_repository_branch,
+                    "rev": "HEAD",
+                    "depth": 1,
+                    "maxFailures": 1,
+                    "subPath": self._config.dags_repository_subpath,
+                    #"sshKeySecret": "airflow-ssh-secret" if self._config.dags_repository_ssh_private_key is not None else None
+                }
+            },
+            "logs": {
+                "persistence": {
+                    "enabled": True,
+                    "size": "5Gi",
+                    "storageClassName": "longhorn",
+                    #"annotations": {"test_label": "test_value"}
+                }
+            },
+            # "extraSecrets": f"""
+            # 'airflow-ssh-secret':
+            #     type: 'Opaque'
+            #     data: |
+            #       gitSshKey: '{dags_repository_ssh_key_base64}'
+            # """
         }
 
         return values
