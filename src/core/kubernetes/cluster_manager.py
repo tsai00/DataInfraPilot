@@ -124,6 +124,7 @@ class ClusterManager(object):
 
             cluster = KubernetesCluster.from_db_model(cluster_from_db)
 
+            # TODO: dont like hardcoded assignment of webserver_hostname
             application_config.config['webserver_hostname'] = cluster.access_ip
 
             application_instance = self._get_application_instance(application_config)
@@ -161,20 +162,30 @@ class ClusterManager(object):
 
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
 
+        # TODO: dont like hardcoded assignment of webserver_hostname
+        application_config.config['webserver_hostname'] = cluster.access_ip
+
         application_instance = self._get_application_instance(application_config)
 
         application_from_db = self.storage.get_cluster_application(cluster_id, application_config.id)
 
-        chart_updated = await cluster.install_or_upgrade_chart(application_instance.helm_chart,
-                                                                 application_instance.chart_values)
+        await self.update_cluster_application(application_from_db.id,
+                                              {"status": DeploymentStatus.UPDATING, "config": application_config.config})
 
-        if chart_updated:
-            print(f"Successfully updated application {application_instance.name} {cluster_from_db.name}")
-            await self.update_cluster_application(application_from_db.id, {"status": DeploymentStatus.RUNNING, "config": application_config.config})
-        else:
-            print(f"Failed to update application {application_instance.name} to cluster {cluster_from_db.name}")
-            await self.update_cluster_application(application_from_db.id, {"status": DeploymentStatus.RUNNING, "config": application_config.config})
+        try:
+            chart_updated = await cluster.install_or_upgrade_chart(application_instance.helm_chart,
+                                                                     application_instance.chart_values)
 
+            if chart_updated:
+                print(f"Successfully updated application {application_instance.name} {cluster_from_db.name}")
+                await self.update_cluster_application(application_from_db.id, {"status": DeploymentStatus.RUNNING})
+            else:
+                print(f"Failed to update application {application_instance.name} to cluster {cluster_from_db.name}")
+                await self.update_cluster_application(application_from_db.id, {"status": DeploymentStatus.FAILED})
+        except Exception as e:
+            print(traceback.format_exc())
+            print(f'Error while updating application: {e}')
+            await self.update_cluster_application(application_from_db.id, {"status": DeploymentStatus.FAILED})
 
     async def remove_application(self, cluster_id: int, application_id: int):
         cluster_from_db = self.get_cluster(cluster_id)

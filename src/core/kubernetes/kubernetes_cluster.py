@@ -1,3 +1,4 @@
+import traceback
 from typing import Any
 
 import yaml
@@ -51,11 +52,13 @@ class KubernetesCluster:
                 chart,
                 values,
                 create_namespace=False,
+                reuse_values=True,
                 namespace=namespace.lower(),
             )
         except Exception as e:
             msg = f"Failed to install chart: {e}"
             print(msg)
+            print(traceback.format_exc())
             raise ValueError(msg)
 
         print(f"{helm_chart.name} installation complete: {result.status}")
