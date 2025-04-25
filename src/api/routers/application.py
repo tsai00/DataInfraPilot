@@ -1,4 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
+
+from src.core.apps.hashicorp_vault_application import HashicorpVaultApplication
 from src.core.kubernetes.cluster_manager import ClusterManager
 from src.api.schemas.application import ApplicationSchema
 from src.core.apps.airflow_application import AirflowApplication
@@ -50,3 +52,5 @@ def get_application_available_versions(
         return AirflowApplication.get_available_versions()
     elif application_id == 2:
         return GrafanaApplication.get_available_versions()
+    elif application_id == 3:
+        return HashicorpVaultApplication.get_available_versions()

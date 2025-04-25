@@ -4,7 +4,7 @@ from datetime import datetime
 from src.core.apps.airflow_application import AirflowApplication, AirflowConfig
 from src.core.apps.application_factory import ApplicationFactory
 from src.core.apps.grafana_application import GrafanaApplication, GrafanaConfig
-from src.core.apps.base_application import BaseApplication
+from src.core.apps.hashicorp_vault_application import HashicorpVaultApplication, HashicorpVaultConfig
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.providers.base_provider import BaseProvider
 from src.core.kubernetes.configuration import ClusterConfiguration
