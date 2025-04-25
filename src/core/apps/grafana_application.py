@@ -3,8 +3,7 @@ from typing import Any
 from src.core.apps.base_application import BaseApplication
 from src.core.kubernetes.chart_config import HelmChart
 from pydantic import BaseModel, Field
-from enum import StrEnum
-from cachetools import cached
+from functools import lru_cache
 
 
 class GrafanaConfig(BaseModel):
@@ -27,7 +26,7 @@ class GrafanaApplication(BaseApplication):
         super().__init__("Grafana")
 
     @classmethod
-    @cached
+    @lru_cache()
     def get_available_versions(cls) -> list[str]:
         # TODO: replace with actual version list + move to base class
         return ['2.10.3']
