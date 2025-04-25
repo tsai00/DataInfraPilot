@@ -4,6 +4,7 @@ from typing import Any
 import yaml
 
 from src.core.config import PATH_TO_K3S_YAML_CONFIGS
+from src.core.exceptions import NamespaceTerminatedException
 from src.core.providers.base_provider import BaseProvider
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.core.kubernetes.kubernetes_client import KubernetesClient
@@ -11,6 +12,7 @@ from pyhelm3 import Client
 from pathlib import Path
 from src.core.kubernetes.chart_config import HelmChart
 from src.database.models.cluster import Cluster
+from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
 
 class KubernetesCluster:
@@ -24,6 +26,7 @@ class KubernetesCluster:
     def get_pods(self):
         pass
 
+    @retry(retry=retry_if_exception_type(NamespaceTerminatedException), stop=stop_after_attempt(5), wait=wait_fixed(5), reraise=True)
     async def install_or_upgrade_chart(self, helm_chart: HelmChart, values: dict[str, Any] = None, namespace: str = None):
         values = values or {}
         namespace = namespace or helm_chart.name.lower()
@@ -56,9 +59,12 @@ class KubernetesCluster:
                 namespace=namespace.lower(),
             )
         except Exception as e:
+            if f"namespace {namespace} because it is being terminated" in str(e):
+                raise NamespaceTerminatedException(f'Namespace {namespace} in terminated state, retrying...')
+
             msg = f"Failed to install chart: {e}"
-            print(msg)
-            print(traceback.format_exc())
+            #print(msg)
+            #print(traceback.format_exc())
             raise ValueError(msg)
 
         print(f"{helm_chart.name} installation complete: {result.status}")
