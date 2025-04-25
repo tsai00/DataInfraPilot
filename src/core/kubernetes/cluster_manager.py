@@ -2,6 +2,7 @@ import traceback
 from datetime import datetime
 
 from src.core.apps.airflow_application import AirflowApplication, AirflowConfig
+from src.core.apps.application_factory import ApplicationFactory
 from src.core.apps.grafana_application import GrafanaApplication, GrafanaConfig
 from src.core.apps.base_application import BaseApplication
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
@@ -19,6 +20,11 @@ from src.core.kubernetes.chart_config import HelmChart
 
 class ClusterManager(object):
     _instance = None
+    _application_registry = {
+        1: (AirflowApplication, AirflowConfig),
+        2: (GrafanaApplication, GrafanaConfig),
+        3: (HashicorpVaultApplication, HashicorpVaultConfig),
+    }
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -157,7 +163,7 @@ class ClusterManager(object):
         # TODO: dont like hardcoded assignment of webserver_hostname
         deployment_config['webserver_hostname'] = cluster.access_ip
 
-        application_instance = self._get_application_instance(deployment_from_db.application_id, deployment_config)
+        application_instance = ApplicationFactory.get_application(deployment_from_db.application_id, deployment_config)
 
         self.storage.update_deployment(deployment_from_db.application_id,
                                      {"status": DeploymentStatus.UPDATING, "config": deployment_config})
@@ -187,25 +193,12 @@ class ClusterManager(object):
 
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
 
-        if deployment_from_db.application_id == 1:
-            # TODO: solve this so there is no need to initalise dummy app config when retrieving helm chart
-            helm_chart = AirflowApplication.get_helm_chart()
-        elif deployment_from_db.application_id == 2:
-            helm_chart = GrafanaApplication.get_helm_chart()
-        else:
-            raise ValueError('Unsupported application')
+        # TODO: handle misssing application
+        helm_chart = self._application_registry.get(deployment_from_db.application_id)[0].get_helm_chart()
 
-        await cluster.uninstall_chart(helm_chart)
+        await cluster.uninstall_chart(helm_chart, deployment_from_db.namespace)
 
         self.storage.delete_deployment(deployment_id)
-
-    def _get_application_instance(self, application_id: int, application_config: dict) -> BaseApplication:
-        if application_id == 1:
-            return AirflowApplication(AirflowConfig(**application_config))
-        elif application_id == 2:
-            return GrafanaApplication(GrafanaConfig(**application_config))
-        else:
-            raise ValueError(f"Unsupported application: {application_id}")
 
     def get_deployments(self, cluster_id: int):
         return self.storage.get_deployments(cluster_id)
