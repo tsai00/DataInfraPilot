@@ -15,6 +15,7 @@ class DeploymentSchema(DeploymentCreateSchema):
     id: int
     cluster_id: int
     status: str
+    namespace: str
     installed_at: datetime
 
     class Config:

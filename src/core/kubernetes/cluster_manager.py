@@ -96,32 +96,37 @@ class ClusterManager(object):
         return self.storage.get_application(application_id)
 
     async def create_deployment(self, cluster_id: int, deployment_application_id: int, deployment_config: dict):
+        print(f"Deploying application to cluster {cluster_id}, config: {deployment_config}")
+
+        cluster_from_db = self.get_cluster(cluster_id)
+
+        if not cluster_from_db:
+            raise ValueError(f"Cluster {cluster_id} was not found")
+
+        cluster = KubernetesCluster.from_db_model(cluster_from_db)
+
+        # TODO: dont like hardcoded assignment of webserver_hostname
+        deployment_config['webserver_hostname'] = cluster.access_ip
+
+        application_instance = ApplicationFactory.get_application(deployment_application_id, deployment_config)
+
+        helm_chart = application_instance.get_helm_chart()
+
+        deployment = Deployment(
+            cluster_id=cluster_from_db.id,
+            application_id=deployment_application_id,
+            status=DeploymentStatus.DEPLOYING,
+            installed_at=datetime.now(),
+            config=deployment_config
+        )
+
+        deployment_id = self.storage.create_deployment(deployment)
+
+        namespace = f"{helm_chart.name}-{deployment_id}"
+        self.storage.update_deployment(deployment_id, {"namespace": namespace})
+
         try:
-            print(f"Deploying application to cluster {cluster_id}, config: {deployment_config}")
-
-            cluster_from_db = self.get_cluster(cluster_id)
-
-            if not cluster_from_db:
-                raise ValueError(f"Cluster {cluster_id} was not found")
-
-            cluster = KubernetesCluster.from_db_model(cluster_from_db)
-
-            # TODO: dont like hardcoded assignment of webserver_hostname
-            deployment_config['webserver_hostname'] = cluster.access_ip
-
-            deployment = Deployment(
-                cluster_id=cluster_from_db.id,
-                application_id=deployment_application_id,
-                status=DeploymentStatus.DEPLOYING,
-                installed_at=datetime.now(),
-                config=deployment_config
-            )
-
-            deployment_id = self.storage.create_deployment(deployment)
-
-            application_instance = self._get_application_instance(deployment_application_id, deployment_config)
-
-            chart_installed = await cluster.install_or_upgrade_chart(application_instance.get_helm_chart(), application_instance.chart_values)
+            chart_installed = await cluster.install_or_upgrade_chart(helm_chart, application_instance.chart_values, namespace)
 
             if chart_installed:
                 print(f"Successfully deployed application {deployment_application_id} to cluster {cluster_from_db.name}")
@@ -159,7 +164,7 @@ class ClusterManager(object):
 
         try:
             chart_updated = await cluster.install_or_upgrade_chart(application_instance.get_helm_chart(),
-                                                                     application_instance.chart_values)
+                                                                     application_instance.chart_values, deployment_from_db.namespace)
 
             if chart_updated:
                 print(f"Successfully updated application {application_instance.name} {cluster_from_db.name}")
