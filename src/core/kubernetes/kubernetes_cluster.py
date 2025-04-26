@@ -106,7 +106,11 @@ class KubernetesCluster:
     @classmethod
     def from_db_model(cls, cluster: Cluster):
         return cls(
-            ClusterConfiguration(cluster.name, cluster.pools),
+            ClusterConfiguration(
+                name=cluster.name,
+                k3s_version=cluster.k3s_version,
+                pools=[ClusterPool(**x) for x in cluster.pools]
+            ),
             cluster.access_ip,
             cluster.kubeconfig_path
         )

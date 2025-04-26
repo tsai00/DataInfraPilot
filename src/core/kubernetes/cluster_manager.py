@@ -101,7 +101,7 @@ class ClusterManager(object):
     def get_application(self, application_id: int):
         return self.storage.get_application(application_id)
 
-    async def create_deployment(self, cluster_id: int, deployment_application_id: int, deployment_config: dict):
+    async def create_deployment(self, cluster_id: int, deployment_application_id: int, deployment_config: dict, node_pool: str):
         print(f"Deploying application to cluster {cluster_id}, config: {deployment_config}")
 
         cluster_from_db = self.get_cluster(cluster_id)
@@ -110,9 +110,16 @@ class ClusterManager(object):
             raise ValueError(f"Cluster {cluster_id} was not found")
 
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
+        cluster_pools = [x.name for x in cluster.config.pools]
+
+        if node_pool not in cluster_pools:
+            raise ValueError(f"Node pool {node_pool} does not exist in cluster {cluster_id}. Available pools: {cluster_pools}")
 
         # TODO: dont like hardcoded assignment of webserver_hostname
         deployment_config['webserver_hostname'] = cluster.access_ip
+
+        if deployment_application_id == 1:
+            deployment_config['node_selector'] = {"pool": node_pool}
 
         application_instance = ApplicationFactory.get_application(deployment_application_id, deployment_config)
 
@@ -123,6 +130,7 @@ class ClusterManager(object):
             application_id=deployment_application_id,
             status=DeploymentStatus.DEPLOYING,
             installed_at=datetime.now(),
+            node_pool=node_pool,
             config=deployment_config
         )
 
@@ -162,6 +170,9 @@ class ClusterManager(object):
 
         # TODO: dont like hardcoded assignment of webserver_hostname
         deployment_config['webserver_hostname'] = cluster.access_ip
+
+        if deployment_from_db.application_id == 1:
+            deployment_config['node_selector'] = {"pool": deployment_from_db.node_pool}
 
         application_instance = ApplicationFactory.get_application(deployment_from_db.application_id, deployment_config)
 

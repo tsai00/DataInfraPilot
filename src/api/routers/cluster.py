@@ -4,7 +4,7 @@ from src.core.kubernetes.cluster_manager import ClusterManager
 from src.core.providers.provider_factory import ProviderFactory
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.api.schemas.cluster import ClusterCreateSchema, ClusterSchema, ClusterCreateResponseSchema
-from src.api.schemas.deployment import DeploymentCreateSchema, DeploymentSchema
+from src.api.schemas.deployment import DeploymentCreateSchema, DeploymentSchema, DeploymentUpdateSchema
 from src.core.kubernetes.deployment_status import DeploymentStatus
 
 router = APIRouter()
@@ -79,7 +79,7 @@ async def create_deployment(
 ) -> dict:
     print(f'Received request to deploy app: {deployment}')
 
-    background_tasks.add_task(cluster_manager.create_deployment, cluster_id, deployment.application_id, deployment.config)
+    background_tasks.add_task(cluster_manager.create_deployment, cluster_id, deployment.application_id, deployment.config, deployment.node_pool)
 
     return {'result': 'ok', 'status': DeploymentStatus.CREATING}
 
@@ -88,7 +88,7 @@ async def create_deployment(
 async def update_deployment(
     cluster_id: int | str,
     deployment_id: int | str,
-    deployment: DeploymentCreateSchema,
+    deployment: DeploymentUpdateSchema,
     background_tasks: BackgroundTasks,
     cluster_manager: ClusterManager = Depends(get_cluster_manager)
 ) -> dict:

@@ -3,9 +3,16 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
-class DeploymentCreateSchema(BaseModel):
+class DeploymentUpdateSchema(BaseModel):
     application_id: int
     config: dict
+
+    class Config:
+        orm_mode = True
+
+
+class DeploymentCreateSchema(DeploymentUpdateSchema):
+    node_pool: str
 
     class Config:
         orm_mode = True

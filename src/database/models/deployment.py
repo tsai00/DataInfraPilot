@@ -21,6 +21,7 @@ class Deployment(BaseModel):
     status: Mapped[str] = mapped_column(nullable=False, default=DeploymentStatus.CREATING)
     installed_at: Mapped[datetime] = mapped_column(nullable=False, default_factory=lambda: datetime.now())
     namespace: Mapped[str] = mapped_column(nullable=False, default="")
+    node_pool: Mapped[str] = mapped_column(nullable=False, default="")
 
     cluster: Mapped[Cluster] = relationship(back_populates="deployments", init=False)
     application: Mapped[Application] = relationship(init=False)
