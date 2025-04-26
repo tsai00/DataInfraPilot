@@ -4,7 +4,6 @@ from src.core.apps.base_application import BaseApplication
 from src.core.kubernetes.chart_config import HelmChart
 from pydantic import BaseModel, Field
 from enum import StrEnum
-from cachetools import cached
 import requests
 import re
 import base64
@@ -19,6 +18,7 @@ class AirflowExecutor(StrEnum):
 class AirflowConfig(BaseModel):
     version: str = Field(pattern=r"^\d\.\d{1,2}\.\d$")
     webserver_hostname: str
+    node_selector: dict
     dags_repository: str = Field(pattern=r"^https:\/\/.{10,}\.git$")
     dags_repository_ssh_private_key: str = Field(default=None, alias='dagsRepositorySshPrivateKey')
     dags_repository_branch: str = Field(default='main', alias='dagsRepositoryBranch')
@@ -140,6 +140,7 @@ class AirflowApplication(BaseApplication):
                     #"annotations": {"test_label": "test_value"}
                 }
             },
+            "nodeSelector": self._config.node_selector
             # "extraSecrets": f"""
             # 'airflow-ssh-secret':
             #     type: 'Opaque'
