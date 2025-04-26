@@ -3,9 +3,8 @@ from typing import Any
 
 import yaml
 
-from src.core.config import PATH_TO_K3S_YAML_CONFIGS
+from src.api.schemas.cluster import ClusterPool
 from src.core.exceptions import NamespaceTerminatedException
-from src.core.providers.base_provider import BaseProvider
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.core.kubernetes.kubernetes_client import KubernetesClient
 from pyhelm3 import Client
@@ -96,6 +95,11 @@ class KubernetesCluster:
             print(f'CSI {csi_provider} installed successfully!')
         except Exception as e:
             print(f"Failed to install CSI {csi_provider}: {e}")
+
+    def execute_command_on_pod(self, pod: str, namespace: str, command: list[str], interactive: bool = False, command_input: str = None):
+        output, errors = self._client.execute_command(pod, namespace, command, interactive, command_input)
+
+        return output
 
     def create_object_from_content(self, yaml_content: dict | list[dict]):
         self._client.install_from_content(yaml_content)

@@ -1,10 +1,16 @@
+import time
 import traceback
 
 from kubernetes import client, config, utils
+from kubernetes.client import ApiException, Configuration
 from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.exceptions import NotFoundError
 from pathlib import Path
 import yaml
+from kubernetes.stream import stream
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class KubernetesClients:
@@ -24,6 +30,8 @@ class KubernetesClients:
 class KubernetesClient:
     def __init__(self, kubeconfig_path: Path):
         config.load_kube_config(str(kubeconfig_path))
+
+        Configuration._default.verify_ssl = False
 
         self._clients = KubernetesClients()
 
@@ -66,6 +74,48 @@ class KubernetesClient:
             crd_api.create(body=manifest, namespace=namespace)
             if verbose:
                 print(f"{namespace}/{resource_name} created")
+
+    def execute_command(self, pod: str, namespace: str, command: list[str], interactive: bool = False,
+                        command_input: str = None):
+        print(f"Executing command: {pod=}, {namespace=}, {command=}, {interactive=}, {command_input=}")
+        try:
+            resp = self._clients.Core.read_namespaced_pod(name=pod, namespace=namespace)
+        except ApiException as e:
+            if e.status != 404:
+                raise ValueError(f"Unknown error: {e}")
+            print(f"Pod '{pod}' in namespace '{namespace}' not found.")
+            return None, f"Pod '{pod}' not found."
+
+        while resp.status.phase != 'Running':
+            print(f'Pod not ready yet: {resp.status.phase}...')
+            resp = self._clients.Core.read_namespaced_pod(name=pod, namespace=namespace)
+            time.sleep(3)
+
+        resp = stream(
+            self._clients.Core.connect_get_namespaced_pod_exec,
+            name=pod,
+            namespace=namespace,
+            command=command,
+            stderr=True,
+            stdin=interactive,
+            stdout=True,
+            tty=interactive,
+            _preload_content=False
+        )
+
+        output = ''
+        errors = ''
+
+        while resp.is_open():
+            resp.update(timeout=1)
+            if resp.peek_stdout():
+                output += resp.read_stdout()
+            if resp.peek_stderr():
+                errors += resp.read_stderr()
+            if command_input:
+                resp.write_stdin(command_input + "\n")
+
+        return output, errors
 
     def create_namespace(self, namespace: str):
         self._clients.Core.create_namespace(client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace)))

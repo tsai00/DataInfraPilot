@@ -1,3 +1,4 @@
+import re
 import traceback
 from datetime import datetime
 
@@ -154,6 +155,30 @@ class ClusterManager(object):
             print(traceback.format_exc())
 
             self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED})
+
+        # TODO: move under application class (something like post_init_actions)
+        if deployment_application_id == 3:
+            print('Executing post-init commands')
+            command = ["vault", "operator", "init"]
+
+            output = cluster.execute_command_on_pod('vault-0', namespace, command)
+
+            unseal_keys = re.findall(r'Unseal Key \d: (.{44})', output)
+
+            if not unseal_keys:
+                raise ValueError(f'Could not find unseal keys in {output}')
+            root_token_match = re.search(r'Initial Root Token: (.{28})', output)
+
+            if root_token_match:
+                root_token = root_token_match.group(1)
+            else:
+                raise ValueError(f'Could not find root token in {output}')
+
+            print(f'Unsealed keys: {unseal_keys}')
+
+            for unseal_key in unseal_keys:
+                command = ["vault", "operator", "unseal"]
+                output = cluster.execute_command_on_pod('vault-0', namespace, command, True, unseal_key)
 
     async def update_deployment(self, cluster_id: int, deployment_id: int, deployment_config: dict):
         cluster_from_db = self.get_cluster(cluster_id)
