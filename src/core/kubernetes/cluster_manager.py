@@ -185,13 +185,13 @@ class ClusterManager(object):
                 self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.RUNNING})
             else:
                 print(f"Failed to deploy application {deployment_application_id} to cluster {cluster_from_db.name}")
-                self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED})
+                self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED, "error_message": f"Failed to deploy application {deployment_application_id} to cluster {cluster_from_db.name}"})
 
         except Exception as e:
             print(f"Error during application deployment: {e}")
             print(traceback.format_exc())
 
-            self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED})
+            self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED, "error_message": str(e)})
 
         # TODO: move under application class (something like post_init_actions)
         if deployment_application_id == 3:
@@ -250,11 +250,11 @@ class ClusterManager(object):
                 self.storage.update_deployment(deployment_from_db.application_id, {"status": DeploymentStatus.RUNNING})
             else:
                 print(f"Failed to update application {application_instance.name} to cluster {cluster_from_db.name}")
-                self.storage.update_deployment(deployment_from_db.application_id, {"status": DeploymentStatus.FAILED})
+                self.storage.update_deployment(deployment_from_db.application_id, {"status": DeploymentStatus.FAILED, "error_message": f"Failed to update application {application_instance.name} to cluster {cluster_from_db.name}"})
         except Exception as e:
             print(traceback.format_exc())
             print(f'Error while updating application: {e}')
-            self.storage.update_deployment(deployment_from_db.application_id, {"status": DeploymentStatus.FAILED})
+            self.storage.update_deployment(deployment_from_db.application_id, {"status": DeploymentStatus.FAILED, "error_message": str(e)})
 
     async def remove_deployment(self, deployment_id: int):
         deployment_from_db = self.get_deployment(deployment_id)

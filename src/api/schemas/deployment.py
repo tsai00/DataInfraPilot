@@ -24,6 +24,7 @@ class DeploymentSchema(DeploymentCreateSchema):
     status: str
     namespace: str
     installed_at: datetime
+    error_message: str
 
     class Config:
         from_attributes = True
