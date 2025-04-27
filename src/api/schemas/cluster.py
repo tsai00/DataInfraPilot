@@ -31,7 +31,7 @@ class ClusterSchema(ClusterCreateSchema):
     deployments: list[DeploymentSchema] = Field(default=[])
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ClusterCreateResponseSchema(BaseModel):

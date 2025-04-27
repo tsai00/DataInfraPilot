@@ -8,14 +8,14 @@ class DeploymentUpdateSchema(BaseModel):
     config: dict
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class DeploymentCreateSchema(DeploymentUpdateSchema):
     node_pool: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class DeploymentSchema(DeploymentCreateSchema):
@@ -26,4 +26,4 @@ class DeploymentSchema(DeploymentCreateSchema):
     installed_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
