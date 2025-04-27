@@ -1,5 +1,6 @@
 from src.api.routers.cluster import router as cluster_router
 from src.api.routers.application import router as application_router
+from src.api.routers.volume import router as volume_router
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_utils.tasks import repeat_every
@@ -35,3 +36,4 @@ def remove_expired_tokens_task() -> None:
 
 app.include_router(cluster_router)
 app.include_router(application_router)
+app.include_router(volume_router)

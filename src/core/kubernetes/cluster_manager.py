@@ -2,6 +2,7 @@ import re
 import traceback
 from datetime import datetime
 
+from src.api.schemas.volume import VolumeCreateSchema
 from src.core.apps.airflow_application import AirflowApplication, AirflowConfig
 from src.core.apps.application_factory import ApplicationFactory
 from src.core.apps.grafana_application import GrafanaApplication, GrafanaConfig
@@ -17,6 +18,7 @@ from src.core.providers.provider_factory import ProviderFactory
 from traceback import format_exc
 from src.core.kubernetes.deployment_status import DeploymentStatus
 from src.core.kubernetes.chart_config import HelmChart
+from src.database.models.volume import Volume
 
 
 class ClusterManager(object):
@@ -78,6 +80,27 @@ class ClusterManager(object):
 
             self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED, "error_message": str(e)})
 
+    async def create_volume(self, provider: str, volume_config: VolumeCreateSchema):
+        provider = ProviderFactory.get_provider(provider)
+
+        volume = Volume(
+            provider=provider.name,
+            region=volume_config.region,
+            name=volume_config.name,
+            size=volume_config.size,
+            status=DeploymentStatus.CREATING
+        )
+        volume_id = self.storage.create_volume(volume)
+
+        try:
+            await provider.create_volume(volume_config.name, volume_config.size, volume_config.region)
+
+            print(f'Volume {volume_config.name} created')
+            self.storage.update_volume(volume_id, {'status': DeploymentStatus.RUNNING})
+        except Exception as e:
+            print(f'Error while creating volume: {e}')
+            self.storage.update_volume(volume_id, {'status': DeploymentStatus.FAILED, 'error_message': str(e)})
+
     def get_cluster_kubeconfig(self, cluster_id: int):
         kubeconfig_path = Path(self.storage.get_cluster(cluster_id).kubeconfig_path)
 
@@ -90,17 +113,31 @@ class ClusterManager(object):
         return self.storage.get_clusters()
 
     def delete_cluster(self, cluster_id: int):
+        # TODO: parametrize provider
         provider = ProviderFactory.get_provider('hetzner')
         provider.delete_cluster()
 
         self.storage.delete_cluster(cluster_id)
 
-    # TODO: probably rename to distinguish between get all applications anf get cluster applications
     def get_applications(self):
         return self.storage.get_applications()
 
     def get_application(self, application_id: int):
         return self.storage.get_application(application_id)
+
+    def get_volumes(self):
+        return self.storage.get_volumes()
+
+    def get_volume(self, volume_id: int):
+        return self.get_volume(volume_id)
+
+    def delete_volume(self, volume_id: int):
+        # TODO: parametrize provider
+        provider = ProviderFactory.get_provider('hetzner')
+        volume_from_db = self.storage.get_volume(volume_id)
+        provider.delete_volume(volume_from_db.name)
+
+        self.storage.delete_volume(volume_id)
 
     async def create_deployment(self, cluster_id: int, deployment_application_id: int, deployment_config: dict, node_pool: str):
         print(f"Deploying application to cluster {cluster_id}, config: {deployment_config}")

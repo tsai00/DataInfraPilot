@@ -5,6 +5,7 @@ from src.database.handlers.base_database_handler import BaseDatabaseHandler
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, joinedload, selectinload
 from src.database.models import BaseModel, Cluster, Deployment, Application
+from src.database.models.volume import Volume
 
 
 class SQLiteHandler(BaseDatabaseHandler):
@@ -74,6 +75,39 @@ class SQLiteHandler(BaseDatabaseHandler):
             applications = session.query(Application).all()
 
             return applications
+
+    def create_volume(self, volume: Volume):
+        with self.session() as session:
+            session.add(volume)
+            session.commit()
+            session.refresh(volume)
+            volume_id = volume.id
+
+            return volume_id
+
+    def update_volume(self, volume_id: int, updated_data: dict):
+        with self.session() as session:
+            session.query(Volume).filter_by(id=volume_id).update(updated_data)
+            session.commit()
+
+    def get_volume(self, volume_id) -> Type[Volume] | None:
+        with self.session() as session:
+            volume = session.query(Volume).filter_by(id=volume_id).first()
+
+            return volume or None
+
+    def get_volumes(self) -> list[Type[Volume]]:
+        with self.session() as session:
+            volumes = session.query(Volume).all()
+
+            return volumes
+
+    def delete_volume(self, volume_id):
+        with self.session() as session:
+            volume = session.query(Volume).filter_by(id=volume_id).first()
+            if volume:
+                session.delete(volume)
+                session.commit()
 
     def create_deployment(self, deployment: Deployment):
         with self.session() as session:

@@ -234,6 +234,20 @@ class HetznerProvider(BaseProvider):
 
         return cluster
 
+    async def create_volume(self, name: str, size: int, region: str):
+        try:
+            volume = self.client.volumes.create(
+                name=name,
+                size=size,
+                location=Location(name=region),
+            )
+        except APIException as e:
+            # TODO: add general exception handler, mapping Hetzner error (uniqueness_error, protected, ...)
+            if e.code == 'uniqueness_error':
+                raise ValueError(f'Volume with name "{name}" already exists')
+
+            raise
+
     async def _download_kubeconfig(self, ip, username, password, remote_path, local_path):
         try:
             async with asyncssh.connect(ip, username=username, password=password, known_hosts=None) as conn:
@@ -251,3 +265,13 @@ class HetznerProvider(BaseProvider):
         for x in servers + placement_groups + networks:
             x.delete()
             print(f'Removed resource {x}')
+
+    def delete_volume(self, volume_name: str):
+        try:
+            volume = self.client.volumes.get_by_name(volume_name)
+        except Exception as e:
+            # TODO: handle non existing volume
+            raise ValueError(f'Error while deleting volume: {e}')
+
+        if volume:
+            volume.delete()
