@@ -20,7 +20,7 @@ class BaseProvider(ABC):
         pass
 
     @abstractmethod
-    def create_volume(self, name: str, size: int, region: str) -> Any:
+    def create_volume(self, name: str, size: int, region: str | None = None) -> Any:
         pass
 
     @abstractmethod

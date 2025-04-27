@@ -234,12 +234,12 @@ class HetznerProvider(BaseProvider):
 
         return cluster
 
-    async def create_volume(self, name: str, size: int, region: str):
+    async def create_volume(self, name: str, size: int, region: str | None = None):
         try:
             volume = self.client.volumes.create(
                 name=name,
                 size=size,
-                location=Location(name=region),
+                location=Location(name=region or "fsn1"),
             )
         except APIException as e:
             # TODO: add general exception handler, mapping Hetzner error (uniqueness_error, protected, ...)
