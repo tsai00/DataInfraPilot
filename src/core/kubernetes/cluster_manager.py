@@ -148,20 +148,43 @@ class ClusterManager(object):
             raise ValueError(f"Cluster {cluster_id} was not found")
 
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
-        cluster_pools = [x.name for x in cluster.config.pools]
-
-        if node_pool not in cluster_pools:
-            raise ValueError(f"Node pool {node_pool} does not exist in cluster {cluster_id}. Available pools: {cluster_pools}")
 
         # TODO: dont like hardcoded assignment of webserver_hostname
         deployment_config['webserver_hostname'] = cluster.access_ip
 
-        if deployment_application_id == 1:
-            deployment_config['node_selector'] = {"pool": node_pool}
-
         application_instance = ApplicationFactory.get_application(deployment_application_id, deployment_config)
 
         helm_chart = application_instance.get_helm_chart()
+        helm_chart_values = application_instance.chart_values.copy()
+
+        if node_pool:
+            cluster_pools = [x.name for x in cluster.config.pools]
+
+            if node_pool not in cluster_pools:
+                raise ValueError(
+                    f"Node pool {node_pool} does not exist in cluster {cluster_id}. Available pools: {cluster_pools}")
+
+            if deployment_application_id == 1:
+                deployment_config['node_selector'] = {"pool": node_pool}
+
+        # for volume_requirement in volume_requirements:
+        #     if volume_requirement.volume_type == "new":
+        #         print(f'Will create new volume as per requirement {volume_requirement}')
+        #         helm_chart_values['logs']['persistence']['size'] = f'{volume_requirement.size}Gi'
+        #     elif volume_requirement.volume_type == "existing":
+        #         print(f'Will use existing volume as per requirement {volume_requirement}')
+        #         volumes = [x for x in self.storage.get_volumes() if x.name == volume_requirement.name]
+        #
+        #         if not volumes:
+        #             raise ValueError(f'Could not find volume {volume_requirement.name} in DB')
+        #         else:
+        #             volume = volumes[0]
+        #
+        #         helm_chart_values['logs']['persistence']['size'] = f'{volume.size}Gi'
+        #         helm_chart_values['logs']['persistence']['existingClaim'] = volume.name
+        #
+        #     else:
+        #         raise ValueError(f"Unknown volume requirement type: {volume_requirement.volume_type}")
 
         deployment = Deployment(
             cluster_id=cluster_from_db.id,
@@ -178,7 +201,7 @@ class ClusterManager(object):
         self.storage.update_deployment(deployment_id, {"namespace": namespace})
 
         try:
-            chart_installed = await cluster.install_or_upgrade_chart(helm_chart, application_instance.chart_values, namespace)
+            chart_installed = await cluster.install_or_upgrade_chart(helm_chart, helm_chart_values, namespace)
 
             if chart_installed:
                 print(f"Successfully deployed application {deployment_application_id} to cluster {cluster_from_db.name}")
@@ -266,7 +289,7 @@ class ClusterManager(object):
 
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
 
-        # TODO: handle misssing application
+        # TODO: handle missing application
         helm_chart = self._application_registry.get(deployment_from_db.application_id)[0].get_helm_chart()
 
         await cluster.uninstall_chart(helm_chart, deployment_from_db.namespace)

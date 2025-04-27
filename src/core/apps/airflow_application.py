@@ -18,7 +18,7 @@ class AirflowExecutor(StrEnum):
 class AirflowConfig(BaseModel):
     version: str = Field(pattern=r"^\d\.\d{1,2}\.\d$")
     webserver_hostname: str
-    node_selector: dict
+    node_selector: dict | None = Field(default=None)
     dags_repository: str = Field(pattern=r"^https:\/\/.{10,}\.git$")
     dags_repository_ssh_private_key: str = Field(default=None, alias='dagsRepositorySshPrivateKey')
     dags_repository_branch: str = Field(default='main', alias='dagsRepositoryBranch')
