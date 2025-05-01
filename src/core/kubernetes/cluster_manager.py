@@ -46,6 +46,7 @@ class ClusterManager(object):
         cluster = Cluster(
             name=cluster_config.name,
             k3s_version=cluster_config.k3s_version,
+            domain_name=cluster_config.domain_name,
             provider=provider.name,
             pools=[x.to_dict() for x in cluster_config.pools],
             status=DeploymentStatus.CREATING

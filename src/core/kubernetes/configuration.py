@@ -10,4 +10,5 @@ from src.api.schemas.cluster import ClusterPool
 class ClusterConfiguration:
     name: str
     k3s_version: str
+    domain_name: str | None
     pools: list[ClusterPool] = field(default_factory=list)

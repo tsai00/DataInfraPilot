@@ -34,6 +34,7 @@ class Cluster(BaseModel):
     status: Mapped[str] = mapped_column(nullable=False)
     access_ip: Mapped[str] = mapped_column(nullable=True, default="")
     error_message: Mapped[str] = mapped_column(nullable=True, default="")
+    domain_name: Mapped[str] = mapped_column(nullable=True, default=None)
     kubeconfig_path: Mapped[str] = mapped_column(nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(nullable=False, default_factory=lambda: datetime.now())
 

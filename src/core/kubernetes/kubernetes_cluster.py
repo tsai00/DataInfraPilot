@@ -111,6 +111,7 @@ class KubernetesCluster:
     def from_db_model(cls, cluster: Cluster):
         return cls(
             ClusterConfiguration(
+                domain_name=cluster.domain_name,
                 name=cluster.name,
                 k3s_version=cluster.k3s_version,
                 pools=[ClusterPool(**x) for x in cluster.pools]
