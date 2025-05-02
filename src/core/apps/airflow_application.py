@@ -115,9 +115,9 @@ class AirflowApplication(BaseApplication):
             },
             "webserver": {
                 "startupProbe": {
-                    "timeoutSeconds": 120,
-                    "failureThreshold": 10,
-                    "periodSeconds": 10
+                    "timeoutSeconds": 360,
+                    "failureThreshold": 15,
+                    "periodSeconds": 15
                 }
             },
             "dags": {
