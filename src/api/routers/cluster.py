@@ -79,11 +79,7 @@ async def create_deployment(
 ) -> dict:
     print(f'Received request to deploy app: {deployment}')
 
-    node_pool = deployment.node_pool if deployment.node_pool != "noselection" else None
-
-    print(f'Selected node pool: {node_pool}')
-
-    background_tasks.add_task(cluster_manager.create_deployment, cluster_id, deployment.application_id, deployment.config, node_pool, deployment.volumes)
+    background_tasks.add_task(cluster_manager.create_deployment, cluster_id, deployment)
 
     return {'result': 'ok', 'status': DeploymentStatus.CREATING}
 
