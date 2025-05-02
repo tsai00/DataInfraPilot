@@ -135,9 +135,8 @@ class AirflowApplication(BaseApplication):
             "logs": {
                 "persistence": {
                     "enabled": True,
-                    "size": "5Gi",
+                    "size": "10Gi",
                     "storageClassName": "longhorn",
-                    #"annotations": {"test_label": "test_value"}
                 }
             },
             "nodeSelector": self._config.node_selector
