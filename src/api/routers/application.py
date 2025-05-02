@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from src.core.apps.hashicorp_vault_application import HashicorpVaultApplication
 from src.core.kubernetes.cluster_manager import ClusterManager
 from src.api.schemas.application import ApplicationSchema
+from src.core.apps.airflow_application import AccessEndpoint
 from src.core.apps.airflow_application import AirflowApplication
 from src.core.apps.grafana_application import GrafanaApplication
 

@@ -1,6 +1,7 @@
 from typing import Any
 
-from src.core.apps.base_application import BaseApplication
+from src.api.schemas.deployment import EndpointAccessConfig
+from src.core.apps.base_application import BaseApplication, VolumeRequirement, AccessEndpoint
 from src.core.kubernetes.chart_config import HelmChart
 from pydantic import BaseModel, Field
 from enum import StrEnum
@@ -43,6 +44,65 @@ class AirflowApplication(BaseApplication):
         self._version = self._config.version
 
         super().__init__("Airflow")
+
+    @classmethod
+    def get_volume_requirements(cls) -> list[VolumeRequirement]:
+        return [
+            VolumeRequirement(name='airflow-logs', size=100, description='Persistent storage for Airflow logs')
+        ]
+
+    def validate_volume_requirements(self):
+        pass
+
+    @classmethod
+    def get_accessible_endpoints(cls) -> list[AccessEndpoint]:
+        return [
+            AccessEndpoint(
+                name="web-ui",
+                description="Airflow Web UI",
+                default_access="subdomain",
+                default_value="airflow",
+                required=True
+            ),
+            AccessEndpoint(
+                name="flower-ui",
+                description="Airflow Flower UI",
+                default_access="domain_path",
+                default_value="/flower",
+                required=False
+            ),
+        ]
+
+    def set_endpoints(self, values: dict, endpoints: list[EndpointAccessConfig]) -> dict:
+        value_copy = values.copy()
+        default_endpoints = self.get_accessible_endpoints()
+
+        new_endpoints_names = [x.name for x in endpoints]
+        default_endpoints_names = [x.name for x in default_endpoints]
+
+        for endpoint in endpoints:
+            if endpoint.name == 'web-ui':
+                if endpoint.access_type == 'subdomain':
+                    path_value = "/"
+                    hosts = [endpoint.value]
+                    base_url = f'http://{endpoint.value}'
+                elif endpoint.access_type == 'domain_path':
+                    path_value = endpoint.value[endpoint.value.find('/'):]
+                    hosts = [endpoint.value[:endpoint.value.find('/')]]
+                    base_url = f'http://{endpoint.value}'
+                elif endpoint.access_type == 'ip':
+                    path_value = endpoint.value
+                    hosts = []
+                    base_url = f'http://{self._config.webserver_hostname}:8080{endpoint.value}'
+                else:
+                    raise ValueError('Wrong access type')
+
+                value_copy['ingress']['web']['path'] = path_value
+                value_copy['ingress']['web']['hosts'] = hosts
+                values['config']['webserver']['base_url'] = base_url
+
+        return value_copy
+
 
     @classmethod
     @lru_cache()

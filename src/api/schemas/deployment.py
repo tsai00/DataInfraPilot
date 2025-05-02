@@ -1,6 +1,22 @@
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class EndpointAccessConfig(BaseModel):
+    name: str
+    access_type: Literal["subdomain", "domain_path", "ip"]
+    value: str = Field(default="")
+
+
+class DeploymentVolumeSchema(BaseModel):
+    volume_type: Literal["new", "existing"]
+    name: str
+    size: int
+
+    class Config:
+        from_attributes = True
 
 
 class DeploymentUpdateSchema(BaseModel):
@@ -12,19 +28,24 @@ class DeploymentUpdateSchema(BaseModel):
 
 
 class DeploymentCreateSchema(DeploymentUpdateSchema):
-    node_pool: str
+    node_pool: str | None
+    volumes: list[DeploymentVolumeSchema] | None
+    endpoints: list[EndpointAccessConfig]
 
     class Config:
         from_attributes = True
 
 
-class DeploymentSchema(DeploymentCreateSchema):
+class DeploymentSchema(BaseModel):
     id: int
     cluster_id: int
+    application_id: int
+    config: dict
     status: str
     namespace: str
     installed_at: datetime
     error_message: str
+    node_pool: str | None
 
     class Config:
         from_attributes = True

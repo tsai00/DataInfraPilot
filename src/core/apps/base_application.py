@@ -1,7 +1,25 @@
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Literal
 
+from src.api.schemas.deployment import EndpointAccessConfig
 from src.core.kubernetes.chart_config import HelmChart
 from abc import ABC, abstractmethod
+
+
+@dataclass
+class VolumeRequirement:
+    name: str
+    size: int   # in GB
+    description: str
+
+
+@dataclass
+class AccessEndpoint:
+    name: str
+    description: str
+    default_access: Literal["subdomain", "domain_path", "cluster_ip_path"]
+    default_value: str
+    required: bool = True
 
 
 class BaseApplication(ABC):
@@ -23,3 +41,10 @@ class BaseApplication(ABC):
     @classmethod
     @abstractmethod
     def get_available_versions(cls) -> list[str]: ...
+
+    @abstractmethod
+    def get_volume_requirements(self) -> list: ...
+
+    def set_endpoints(self, values: dict, endpoints: list[EndpointAccessConfig]) -> dict: ...
+
+    def validate_volume_requirements(self, volume_requirements: list) -> None: ...

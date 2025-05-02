@@ -2,6 +2,7 @@ import re
 import traceback
 from datetime import datetime
 
+from src.api.schemas.deployment import DeploymentVolumeSchema, DeploymentCreateSchema
 from src.api.schemas.volume import VolumeCreateSchema
 from src.core.apps.airflow_application import AirflowApplication, AirflowConfig
 from src.core.apps.application_factory import ApplicationFactory
@@ -162,6 +163,8 @@ class ClusterManager(object):
 
         helm_chart = application_instance.get_helm_chart()
         helm_chart_values = application_instance.chart_values.copy()
+
+        helm_chart_values = application_instance.set_endpoints(helm_chart_values, deployment.endpoints)
 
         if node_pool:
             cluster_pools = [x.name for x in cluster.config.pools]
