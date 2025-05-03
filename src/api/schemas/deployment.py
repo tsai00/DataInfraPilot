@@ -28,6 +28,7 @@ class DeploymentUpdateSchema(BaseModel):
 
 
 class DeploymentCreateSchema(DeploymentUpdateSchema):
+    name: str
     node_pool: str | None
     volumes: list[DeploymentVolumeSchema] | None
     endpoints: list[EndpointAccessConfig]
@@ -38,6 +39,7 @@ class DeploymentCreateSchema(DeploymentUpdateSchema):
 
 class DeploymentSchema(BaseModel):
     id: int
+    name: str
     cluster_id: int
     application_id: int
     config: dict

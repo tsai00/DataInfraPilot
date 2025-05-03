@@ -15,6 +15,7 @@ class Deployment(BaseModel):
     __tablename__ = 'deployment'
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
+    name: Mapped[str] = mapped_column(nullable=False)
     cluster_id: Mapped[int] = mapped_column(ForeignKey("cluster.id", ondelete='CASCADE'), nullable=False)
     application_id: Mapped[int] = mapped_column(ForeignKey("application.id", ondelete='CASCADE'), nullable=False)
     config: Mapped[dict] = mapped_column(JSON, nullable=False, default_factory=dict)

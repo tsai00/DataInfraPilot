@@ -197,6 +197,7 @@ class ClusterManager(object):
 
         deployment = Deployment(
             cluster_id=cluster_from_db.id,
+            name=deployment.name,
             application_id=deployment.application_id,
             status=DeploymentStatus.DEPLOYING,
             installed_at=datetime.now(),
@@ -217,7 +218,7 @@ class ClusterManager(object):
                 self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.RUNNING})
             else:
                 print(f"Failed to deploy application {deployment.application_id} to cluster {cluster_from_db.name}")
-                self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED, "error_message": f"Failed to deploy application {deployment_application_id} to cluster {cluster_from_db.name}"})
+                self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED, "error_message": f"Failed to deploy application {deployment.application_id} to cluster {cluster_from_db.name}"})
 
         except Exception as e:
             print(f"Error during application deployment: {e}")
