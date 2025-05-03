@@ -5,10 +5,19 @@ metadata:
   namespace: kube-system
 spec:
   entryPoints:
-    - web
+    - {{ 'websecure' if enable_https else 'web' }}
   routes:
-    - match: PathPrefix(`/dashboard`) || PathPrefix(`/api`)
+    - match: >-
+      {% if enable_https %}
+        Host("{{ domain_name }}") && PathPrefix(`/traefik`)
+      {% else %}
+        PathPrefix(`/traefik`)
+      {% endif %}
       kind: Rule
       services:
         - name: api@internal
           kind: TraefikService
+  {% if enable_https %}
+  tls:
+    secretName: {{ certificate_secret_name }}
+  {% endif %}
