@@ -2,6 +2,7 @@ import traceback
 from typing import Any
 
 import yaml
+from jinja2 import Environment, FileSystemLoader
 
 from src.api.schemas.cluster import ClusterPool
 from src.core.exceptions import NamespaceTerminatedException
@@ -78,14 +79,60 @@ class KubernetesCluster:
         self._client.delete_namespace(namespace)
         print(f'Successfully uninstalled chart {helm_chart.name}')
 
-    def expose_traefik_dashboard(self):
-        path_to_template = Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes', 'traefik-dashboard-ingress-route.yaml')
+    def expose_traefik_dashboard(self, enable_https: bool, domain_name: str = None, secret_name: str = None):
+        path_to_template = Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes',
+                                'traefik-custom-config.yaml')
 
+        # Update default Traefik config to allow change of API base path
         try:
             self._client.install_from_yaml(path_to_template, with_custom_objects=True)
+            print('Traefik custom config applied successfully!')
+        except Exception as e:
+            print(f"Failed to apply Traefik custom config: {e}")
+
+        environment = Environment(
+            loader=FileSystemLoader(Path(Path(__file__).parent.parent.resolve(), 'templates')), autoescape=True
+        )
+
+        ingress_route_template = environment.get_template('kubernetes/traefik-dashboard-ingress-route.yaml')
+        ingress_route_rendered = ingress_route_template.render(enable_https=enable_https, domain_name=domain_name, certificate_secret_name=secret_name)
+        path_to_rendered_template = Path('traefik-dashboard-ingress-route-tmp.yaml')
+        path_to_rendered_template.write_text(ingress_route_rendered)
+
+        try:
+            self._client.install_from_yaml(path_to_rendered_template, with_custom_objects=True)
             print('Traefik dashboard exposed successfully!')
         except Exception as e:
             print(f"Failed to expose traefik dashboard: {e}")
+        finally:
+            path_to_rendered_template.unlink(missing_ok=True)
+
+    def add_acme_certificate_issuer(self):
+        path_to_template = Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes', 'cert-manager-acme-issuer.yaml')
+
+        try:
+            self._client.install_from_yaml(path_to_template, with_custom_objects=True)
+            print('Certificate issuer successfully added!')
+        except Exception as e:
+            print(f"Failed to add certificate issuer: {e}")
+
+    def create_certificate(self, certificate_name, domain_name, secret_name):
+        environment = Environment(
+            loader=FileSystemLoader(Path(Path(__file__).parent.parent.resolve(), 'templates')), autoescape=True
+        )
+
+        certificate_template = environment.get_template('kubernetes/cert-manager-acme-certificate.yaml')
+        certificate_rendered = certificate_template.render(certificate_name=certificate_name, domain_name=domain_name, secret_name=secret_name)
+        path_to_rendered_template = Path('cert-manager-acme-certificate-tmp.yaml')
+        path_to_rendered_template.write_text(certificate_rendered)
+
+        try:
+            self._client.install_from_yaml(path_to_rendered_template, with_custom_objects=True)
+            print('Certificate successfully created!')
+        except Exception as e:
+            print(f"Failed to create certificate: {e}")
+        finally:
+            path_to_rendered_template.unlink(missing_ok=True)
 
     def install_csi(self, csi_provider: str):
         path_to_template = Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes', f'{csi_provider}.yaml')

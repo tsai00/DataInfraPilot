@@ -38,9 +38,6 @@ class ClusterManager(object):
             # logger
         return cls._instance
 
-    def check_cluster_status(self):
-        pass
-
     async def create_cluster(self, provider: BaseProvider, cluster_config: ClusterConfiguration):
         print(f'Will create cluster {cluster_config}')
 
@@ -60,8 +57,6 @@ class ClusterManager(object):
 
             self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path), 'access_ip': cluster.access_ip})
 
-            cluster.expose_traefik_dashboard()
-
             print("Installing Longhorn")
             longhorn_chart = HelmChart(name='longhorn', repo_url='https://charts.longhorn.io', version='1.8.1')
             values = {
@@ -76,6 +71,24 @@ class ClusterManager(object):
             }
             await cluster.install_or_upgrade_chart(longhorn_chart, values)
             print("Installed Longhorn successfully")
+
+            if cluster_config.domain_name:
+                print("Installing Certmanager")
+                certmanager_chart = HelmChart(name='cert-manager', repo_url='https://charts.jetstack.io', version='v1.17.2')
+                values = {
+                    "crds": {
+                        "enabled": True
+                    }
+                }
+                await cluster.install_or_upgrade_chart(certmanager_chart, values)
+                print("Installed Certmanager successfully")
+
+                cluster.add_acme_certificate_issuer()
+                cluster.create_certificate(certificate_name='main-certificate', domain_name=cluster_config.domain_name, secret_name="main-certificate-tls")
+
+                cluster.expose_traefik_dashboard(enable_https=True, domain_name=cluster_config.domain_name, secret_name='main-certificate-tls')
+            else:
+                cluster.expose_traefik_dashboard(enable_https=False)
         except Exception as e:
             print(f"Error while creating cluster: {e}")
             print(format_exc())
