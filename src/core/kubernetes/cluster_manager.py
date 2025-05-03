@@ -220,7 +220,7 @@ class ClusterManager(object):
 
         deployment_id = self.storage.create_deployment(deployment)
 
-        namespace = f"{helm_chart.name}-{deployment_id}"
+        namespace = f"{helm_chart.name.split('/')[-1]}-{deployment_id}"
         self.storage.update_deployment(deployment_id, {"namespace": namespace})
 
         try:

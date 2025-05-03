@@ -8,7 +8,7 @@ from src.api.schemas.cluster import ClusterPool
 from src.core.exceptions import NamespaceTerminatedException
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.core.kubernetes.kubernetes_client import KubernetesClient
-from pyhelm3 import Client
+from src.core.kubernetes.helm_client import HelmClient
 from pathlib import Path
 from src.core.kubernetes.chart_config import HelmChart
 from src.database.models.cluster import Cluster
@@ -21,10 +21,7 @@ class KubernetesCluster:
         self.access_ip = access_ip
         self.kubeconfig_path = kubeconfig_path
         self._client = KubernetesClient(kubeconfig_path)
-        self._helm_client = Client(kubeconfig=kubeconfig_path)
-
-    def get_pods(self):
-        pass
+        self._helm_client = HelmClient(kubeconfig=kubeconfig_path)
 
     @retry(retry=retry_if_exception_type(NamespaceTerminatedException), stop=stop_after_attempt(5), wait=wait_fixed(5), reraise=True)
     async def install_or_upgrade_chart(self, helm_chart: HelmChart, values: dict[str, Any] = None, namespace: str = None):
@@ -39,25 +36,42 @@ class KubernetesCluster:
 
         print(f"Installing {helm_chart.name}... with values: {values}")
         try:
-            chart = await self._helm_client.get_chart(
-                helm_chart.name,
-                repo=helm_chart.repo_url,
-                version=helm_chart.version
-            )
+            if helm_chart.is_oci:
+                chart = await self._helm_client.get_oci_chart(
+                    helm_chart.name,
+                    repo=helm_chart.repo_url,
+                    version=helm_chart.version
+                )
+            else:
+                chart = await self._helm_client.get_chart(
+                    helm_chart.name,
+                    repo=helm_chart.repo_url,
+                    version=helm_chart.version
+                )
         except Exception as e:
             msg = f"Failed to get chart: {e}"
             print(msg)
             raise ValueError(msg)
 
         try:
-            result = await self._helm_client.install_or_upgrade_release(
-                helm_chart.name,
-                chart,
-                values,
-                create_namespace=False,
-                reuse_values=True,
-                namespace=namespace.lower(),
-            )
+            if helm_chart.is_oci:
+                result = await self._helm_client.install_or_upgrade_oci_release(
+                    helm_chart.name,
+                    chart,
+                    values,
+                    create_namespace=False,
+                    reuse_values=True,
+                    namespace=namespace.lower(),
+                )
+            else:
+                result = await self._helm_client.install_or_upgrade_release(
+                    helm_chart.name,
+                    chart,
+                    values,
+                    create_namespace=False,
+                    reuse_values=True,
+                    namespace=namespace.lower(),
+                )
         except Exception as e:
             if f"namespace {namespace} because it is being terminated" in str(e):
                 raise NamespaceTerminatedException(f'Namespace {namespace} in terminated state, retrying...')
