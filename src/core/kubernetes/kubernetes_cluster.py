@@ -23,16 +23,20 @@ class KubernetesCluster:
         self._client = KubernetesClient(kubeconfig_path)
         self._helm_client = HelmClient(kubeconfig=kubeconfig_path)
 
+    def create_namespace(self, namespace: str):
+        try:
+            self._client.create_namespace(namespace)
+            print(f'Namespace {namespace} created')
+        except Exception as e:
+            # TODO: better error handling, e.g. for duplicated namespace name
+            print(f'Failed to create namespace {namespace}: {e}')
+
     @retry(retry=retry_if_exception_type(NamespaceTerminatedException), stop=stop_after_attempt(5), wait=wait_fixed(5), reraise=True)
     async def install_or_upgrade_chart(self, helm_chart: HelmChart, values: dict[str, Any] = None, namespace: str = None):
         values = values or {}
         namespace = namespace or helm_chart.name.lower()
 
-        try:
-            self._client.create_namespace(namespace)
-        except Exception as e:
-            # TODO: better error handling, e.g. for duplicated namespace name
-            print(f'Failed to create namespace {namespace}: {e}')
+        self.create_namespace(namespace)
 
         print(f"Installing {helm_chart.name}... with values: {values}")
         try:
