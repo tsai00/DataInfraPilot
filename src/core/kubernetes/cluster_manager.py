@@ -46,6 +46,7 @@ class ClusterManager(object):
             k3s_version=cluster_config.k3s_version,
             domain_name=cluster_config.domain_name,
             provider=provider.name,
+            provider_config=provider._config.to_dict(),
             pools=[x.to_dict() for x in cluster_config.pools],
             status=DeploymentStatus.CREATING
         )
@@ -129,7 +130,8 @@ class ClusterManager(object):
 
     def delete_cluster(self, cluster_id: int):
         # TODO: parametrize provider
-        provider = ProviderFactory.get_provider('hetzner')
+        cluster = self.storage.get_cluster(cluster_id)
+        provider = ProviderFactory.get_provider('hetzner', cluster.provider_config)
         provider.delete_cluster()
 
         self.storage.delete_cluster(cluster_id)

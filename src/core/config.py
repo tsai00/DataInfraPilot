@@ -10,4 +10,3 @@ PATH_TO_K3S_YAML_CONFIGS.mkdir(exist_ok=True)
 
 HCLOUD_TOKEN = os.environ.get("HCLOUD_TOKEN")
 K3S_TOKEN = os.environ.get("K3S_TOKEN")
-SSH_PASSWORD = os.environ.get("SSH_PASSWORD")

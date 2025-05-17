@@ -19,6 +19,7 @@ class ClusterCreateSchema(BaseModel):
     name: str
     k3s_version: str
     provider: str
+    provider_config: dict
     domain_name: str | None
     pools: list[ClusterPool]
 

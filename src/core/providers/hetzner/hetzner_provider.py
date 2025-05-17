@@ -11,11 +11,13 @@ from hcloud import Client, APIException
 from hcloud.images import Image
 from hcloud.server_types import ServerType
 from hcloud.locations import Location
+from hcloud.ssh_keys import SSHKey
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.kubernetes.configuration import ClusterConfiguration
-from src.core.config import PATH_TO_K3S_YAML_CONFIGS, HCLOUD_TOKEN, K3S_TOKEN, SSH_PASSWORD
+from src.core.config import PATH_TO_K3S_YAML_CONFIGS, HCLOUD_TOKEN, K3S_TOKEN
 from src.core.exceptions import ResourceUnavailableException
 from traceback import format_exc
+from dataclasses import dataclass
 
 from jinja2 import Environment, FileSystemLoader
 from pathlib import Path
@@ -37,11 +39,30 @@ class HetznerRegion(StrEnum):
     HEL1 = "hel1"
 
 
+@dataclass
+class HetznerConfig:
+    api_token: str
+    ssh_private_key_path: str | None = None
+    ssh_public_key_path: str | None = None
+
+    def to_dict(self) -> dict:
+        return {
+            "api_token": self.api_token,
+            "ssh_private_key_path": self.ssh_private_key_path,
+            "ssh_public_key_path": self.ssh_public_key_path,
+        }
+
+
 class HetznerProvider(BaseProvider):
     name = 'hetzner'
 
-    def __init__(self):
-        self.client = Client(token=HCLOUD_TOKEN)
+    def __init__(self, config: HetznerConfig):
+        self.client = Client(token=config.api_token)
+
+        self._ssh_private_key_path = Path(config.ssh_private_key_path).expanduser()
+        self._ssh_public_key_path = Path(config.ssh_public_key_path).expanduser()
+
+        self._config = config
 
         super().__init__()
 
@@ -59,7 +80,7 @@ class HetznerProvider(BaseProvider):
     async def _wait_until_cloud_init_finished(self, ip, username):
         while True:
             try:
-                async with asyncssh.connect(ip, username=username, password=SSH_PASSWORD, known_hosts=None) as ssh:
+                async with asyncssh.connect(ip, username=username, client_keys=[self._ssh_private_key_path], known_hosts=None) as ssh:
                     result = await ssh.run('test -f /var/lib/cloud/instance/boot-finished && echo "done"', check=True)
                     if result.stdout.strip() == "done":
                         print("Cloud-init finished successfully.")
@@ -73,7 +94,7 @@ class HetznerProvider(BaseProvider):
 
     async def _install_k3s(self, ip, username, content):
         try:
-            async with asyncssh.connect(ip, username=username, password=SSH_PASSWORD, known_hosts=None) as ssh:
+            async with asyncssh.connect(ip, username=username, client_keys=[self._ssh_private_key_path], known_hosts=None) as ssh:
                 result = await ssh.run(content, check=True)
 
                 print("K3s installed successfully.")
@@ -90,12 +111,28 @@ class HetznerProvider(BaseProvider):
         except APIException as e:
             # TODO: add general exception handler, mapping Hetzner error (uniqueness_error, protected, ...)
             if e.code == 'uniqueness_error':
-                print(f'Placement Group with name "{name}" already exists')
+                print(f'Network with name "{name}" already exists')
                 return self.client.networks.get_by_name(name)
 
             raise
 
         return network
+
+    async def _create_ssh_key(self, name: str, public_key: str) -> SSHKey:
+        try:
+            ssh_key = self.client.ssh_keys.create(
+                name=name,
+                public_key=public_key,
+            )
+        except APIException as e:
+            # TODO: add general exception handler, mapping Hetzner error (uniqueness_error, protected, ...)
+            if e.code == 'uniqueness_error':
+                print(f'SSHKey with name "{name}" already exists')
+                return self.client.ssh_keys.get_by_name(name)
+
+            raise
+
+        return ssh_key
 
     @retry(retry=retry_if_exception_type(ResourceUnavailableException), wait=wait_fixed(5), stop=stop_after_attempt(5), reraise=True)
     async def _create_server(
@@ -105,6 +142,7 @@ class HetznerProvider(BaseProvider):
             user_data: str,
             placement_group: PlacementGroup,
             networks: list[Network],
+            ssh_keys: list[SSHKey] | None = None,
             enable_public_ip: bool = False,
     ) -> dict:
         print(f"Creating server {name}...")
@@ -118,6 +156,7 @@ class HetznerProvider(BaseProvider):
                 location=Location(name=node_region),
                 placement_group=placement_group,
                 networks=networks,
+                ssh_keys=ssh_keys,
                 public_net=ServerCreatePublicNetwork(enable_ipv4=enable_public_ip, enable_ipv6=enable_public_ip)
             )
         except APIException as e:
@@ -153,6 +192,17 @@ class HetznerProvider(BaseProvider):
         return placement_group_response.placement_group
 
     async def create_cluster(self, cluster_config: ClusterConfiguration) -> KubernetesCluster:
+        ssh_public_key_path = self._ssh_public_key_path
+
+        if not ssh_public_key_path.exists():
+            raise ValueError(f'SSH key path {ssh_public_key_path} does not exist')
+
+        ssh_key_name = f'{cluster_config.name}-ssh-key'
+
+        ssh_public_key = ssh_public_key_path.read_text()
+
+        ssh_key = await self._create_ssh_key(ssh_key_name, ssh_public_key)
+
         private_network = await self._create_network(f'{cluster_config.name}-network')
 
         environment = Environment(
@@ -176,6 +226,7 @@ class HetznerProvider(BaseProvider):
             user_data=control_plane_node_content,
             node_region=HetznerRegion[control_plane_pool.region.upper()],
             placement_group=control_plane_placement_group,
+            ssh_keys=[ssh_key],
             networks=[private_network],
             enable_public_ip=True
         )
@@ -196,6 +247,7 @@ class HetznerProvider(BaseProvider):
                 node_region=HetznerRegion[pool.region.upper()],
                 placement_group=await self._create_placement_group(f'{cluster_config.name}-{pool.name}'),
                 networks=[private_network],
+                ssh_keys=[ssh_key],
                 enable_public_ip=True
             )
             for i, pool in enumerate(
@@ -215,7 +267,6 @@ class HetznerProvider(BaseProvider):
         await self._download_kubeconfig(
             ip=master_plane_node['ip'],
             username='root',
-            password=SSH_PASSWORD,
             remote_path='/etc/rancher/k3s/k3s.yaml',
             local_path=local_config
         )
@@ -248,9 +299,9 @@ class HetznerProvider(BaseProvider):
 
             raise
 
-    async def _download_kubeconfig(self, ip, username, password, remote_path, local_path):
+    async def _download_kubeconfig(self, ip, username, remote_path, local_path):
         try:
-            async with asyncssh.connect(ip, username=username, password=password, known_hosts=None) as conn:
+            async with asyncssh.connect(ip, username=username, client_keys=[self._ssh_private_key_path], known_hosts=None) as conn:
                 await asyncssh.scp((conn, remote_path), local_path)
                 print(f"File downloaded to {local_path}")
         except Exception as e:
@@ -261,8 +312,9 @@ class HetznerProvider(BaseProvider):
         servers = self.client.servers.get_all()
         placement_groups = self.client.placement_groups.get_all()
         networks = self.client.networks.get_all()
+        ssh_keys = self.client.ssh_keys.get_all()
 
-        for x in servers + placement_groups + networks:
+        for x in servers + placement_groups + networks + ssh_keys:
             x.delete()
             print(f'Removed resource {x}')
 

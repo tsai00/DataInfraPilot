@@ -23,7 +23,7 @@ async def create_cluster(
     cluster_manager: ClusterManager = Depends(get_cluster_manager)
 ) -> ClusterCreateResponseSchema:
     print(f'Received request to create cluster: {cluster}')
-    provider = ProviderFactory.get_provider(cluster.provider)
+    provider = ProviderFactory.get_provider(cluster.provider, cluster.provider_config)
     cluster_config = ClusterConfiguration(name=cluster.name, k3s_version=cluster.k3s_version, domain_name=cluster.domain_name, pools=cluster.pools)
 
     background_tasks.add_task(cluster_manager.create_cluster, provider, cluster_config)

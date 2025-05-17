@@ -30,6 +30,7 @@ class Cluster(BaseModel):
     name: Mapped[str] = mapped_column(nullable=False)
     k3s_version: Mapped[str] = mapped_column(nullable=False)
     provider: Mapped[str] = mapped_column(nullable=False)
+    provider_config: Mapped[dict] = mapped_column(JSON, nullable=False)
     pools: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
     status: Mapped[str] = mapped_column(nullable=False)
     access_ip: Mapped[str] = mapped_column(nullable=True, default="")
