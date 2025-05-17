@@ -94,7 +94,8 @@ class ClusterManager(object):
             print(f"Error while creating cluster: {e}")
             print(format_exc())
 
-            self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED, "error_message": str(e)})
+            error_msg_formatted = re.sub(r'^WARNING: Kubernetes configuration file is (?:world|group)-readable\. This is insecure\. Location: .+$', '', str(e))
+            self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED, "error_message": error_msg_formatted})
 
     async def create_volume(self, provider: str, volume_config: VolumeCreateSchema):
         provider = ProviderFactory.get_provider(provider)
