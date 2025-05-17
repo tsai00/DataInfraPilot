@@ -154,11 +154,11 @@ class ClusterManager(object):
 
         self.storage.delete_volume(volume_id)
 
-    async def create_deployment(self, cluster_id: int, deployment: DeploymentCreateSchema):
-        volume_requirements = deployment.volumes or []
-        node_pool = deployment.node_pool if deployment.node_pool != "noselection" else None
+    async def create_deployment(self, cluster_id: int, deployment_create: DeploymentCreateSchema):
+        volume_requirements = deployment_create.volumes or []
+        node_pool = deployment_create.node_pool if deployment_create.node_pool != "noselection" else None
 
-        deployment_config = deployment.config.copy()
+        deployment_config = deployment_create.config.copy()
 
         print(f"Deploying application to cluster {cluster_id}, config: {deployment_config}")
 
@@ -172,7 +172,7 @@ class ClusterManager(object):
         # TODO: dont like hardcoded assignment of webserver_hostname
         deployment_config['webserver_hostname'] = cluster.access_ip
 
-        application_instance = ApplicationFactory.get_application(deployment.application_id, deployment_config)
+        application_instance = ApplicationFactory.get_application(deployment_create.application_id, deployment_config)
 
         helm_chart = application_instance.get_helm_chart()
         helm_chart_values = application_instance.chart_values.copy()
@@ -186,7 +186,7 @@ class ClusterManager(object):
                 raise ValueError(
                     f"Node pool {node_pool} does not exist in cluster {cluster_id}. Available pools: {cluster_pools}")
 
-            if deployment.application_id == 1:
+            if deployment_create.application_id == 1:
                 deployment_config['node_selector'] = {"pool": node_pool}
 
         # for volume_requirement in volume_requirements:
@@ -210,8 +210,8 @@ class ClusterManager(object):
 
         deployment = Deployment(
             cluster_id=cluster_from_db.id,
-            name=deployment.name,
-            application_id=deployment.application_id,
+            name=deployment_create.name,
+            application_id=deployment_create.application_id,
             status=DeploymentStatus.DEPLOYING,
             installed_at=datetime.now(),
             node_pool=node_pool,
