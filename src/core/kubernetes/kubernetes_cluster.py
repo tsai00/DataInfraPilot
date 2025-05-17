@@ -134,13 +134,14 @@ class KubernetesCluster:
         except Exception as e:
             print(f"Failed to add certificate issuer: {e}")
 
-    def create_certificate(self, certificate_name, domain_name, secret_name):
+    def create_certificate(self, certificate_name, domain_name, secret_name, namespace):
+        print(f'Creating certificate {certificate_name} for domain {domain_name} as secret {secret_name}')
         environment = Environment(
             loader=FileSystemLoader(Path(Path(__file__).parent.parent.resolve(), 'templates')), autoescape=True
         )
 
         certificate_template = environment.get_template('kubernetes/cert-manager-acme-certificate.yaml')
-        certificate_rendered = certificate_template.render(certificate_name=certificate_name, domain_name=domain_name, secret_name=secret_name)
+        certificate_rendered = certificate_template.render(certificate_name=certificate_name, domain_name=domain_name, secret_name=secret_name, namespace=namespace)
         path_to_rendered_template = Path('cert-manager-acme-certificate-tmp.yaml')
         path_to_rendered_template.write_text(certificate_rendered)
 

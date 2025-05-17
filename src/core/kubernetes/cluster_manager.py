@@ -84,7 +84,7 @@ class ClusterManager(object):
                 print("Installed Certmanager successfully")
 
                 cluster.add_acme_certificate_issuer()
-                cluster.create_certificate(certificate_name='main-certificate', domain_name=cluster_config.domain_name, secret_name="main-certificate-tls")
+                cluster.create_certificate(certificate_name='main-certificate', domain_name=cluster_config.domain_name, secret_name="main-certificate-tls", namespace='kube-system')
 
                 cluster.expose_traefik_dashboard(enable_https=True, domain_name=cluster_config.domain_name, secret_name='main-certificate-tls')
             else:
