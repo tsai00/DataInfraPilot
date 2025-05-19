@@ -94,7 +94,8 @@ class ClusterManager(object):
             print(f"Error while creating cluster: {e}")
             print(format_exc())
 
-            error_msg_formatted = re.sub(r'^WARNING: Kubernetes configuration file is (?:world|group)-readable\. This is insecure\. Location: .+$', '', str(e))
+            error_msg_formatted = re.sub(r'WARNING: Kubernetes configuration file is (?:world|group)-readable\. This is insecure\. Location: .*\.yaml','', str(e))
+
             self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED, "error_message": error_msg_formatted})
 
     async def create_volume(self, provider: str, volume_config: VolumeCreateSchema):
@@ -239,8 +240,9 @@ class ClusterManager(object):
         except Exception as e:
             print(f"Error during application deployment: {e}")
             print(traceback.format_exc())
+            error_msg_formatted = re.sub(r'WARNING: Kubernetes configuration file is (?:world|group)-readable\. This is insecure\. Location: .*\.yaml','', str(e))
 
-            self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED, "error_message": str(e)})
+            self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED, "error_message": error_msg_formatted})
 
         # TODO: move under application class (something like post_init_actions)
         if deployment.application_id == 3:
