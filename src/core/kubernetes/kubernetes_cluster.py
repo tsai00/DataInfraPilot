@@ -34,7 +34,7 @@ class KubernetesCluster:
     @retry(retry=retry_if_exception_type(NamespaceTerminatedException), stop=stop_after_attempt(5), wait=wait_fixed(5), reraise=True)
     async def install_or_upgrade_chart(self, helm_chart: HelmChart, values: dict[str, Any] = None, namespace: str = None):
         values = values or {}
-        namespace = namespace or helm_chart.name.lower()
+        namespace = namespace or helm_chart.name.lower().split('/')[-1]
 
         self.create_namespace(namespace)
 
@@ -96,6 +96,9 @@ class KubernetesCluster:
 
         self._client.delete_namespace(namespace)
         print(f'Successfully uninstalled chart {helm_chart.name}')
+
+    def cordon_node(self, node_name: str):
+        self._client.cordon_node(node_name)
 
     def expose_traefik_dashboard(self, enable_https: bool, domain_name: str = None, secret_name: str = None):
         path_to_template = Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes',

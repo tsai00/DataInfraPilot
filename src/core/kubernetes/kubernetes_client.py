@@ -46,6 +46,17 @@ class KubernetesClient:
             print(f'Error while installing object: {e}')
             print(traceback.format_exc())
 
+    def cordon_node(self, node_name: str):
+        body = {
+            "spec": {
+                "unschedulable": True,
+            },
+        }
+
+        print(f'Cordoning node: {node_name}')
+        self._clients.Core.patch_node(node_name, body)
+        print(f'Node {node_name} cordoned successfully!')
+
     def install_from_yaml(self, path_to_yaml: Path, with_custom_objects: bool = False):
         if path_to_yaml.is_dir():
             utils.create_from_directory(self._clients.CustomObjects, str(path_to_yaml))
