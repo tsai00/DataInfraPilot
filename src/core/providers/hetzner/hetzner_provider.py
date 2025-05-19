@@ -283,6 +283,10 @@ class HetznerProvider(BaseProvider):
         cluster.create_object_from_content(yaml.safe_load(hcloud_secret_rendered))
         cluster.install_csi('hetzner-csi')
 
+        print('Installing Hetzner Cloud Controller')
+        cluster._client.install_from_yaml(Path(Path(__file__).parent.parent.parent.absolute(), 'templates', 'kubernetes', 'hetzner-cloud-controller.yaml'))
+        print('Hetzner Cloud Controller installed')
+
         return cluster
 
     async def create_volume(self, name: str, size: int, region: str | None = None):
