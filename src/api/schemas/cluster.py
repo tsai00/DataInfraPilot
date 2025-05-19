@@ -5,14 +5,38 @@ from src.api.schemas.application import ApplicationSchema
 from src.api.schemas.deployment import DeploymentSchema
 
 
+class NodePoolAutoscalingConfig(BaseModel):
+    enabled: bool = Field(default=False)
+    min_nodes: int = Field(default=1, ge=0, le=9)
+    max_nodes: int = Field(default=5, ge=1, le=10)
+
+    @property
+    def is_valid(self) -> bool:
+        return self.max_nodes >= self.min_nodes if self.enabled else True
+
+    def to_dict(self):
+        return {
+            'enabled': self.enabled,
+            'min_nodes': self.min_nodes,
+            'max_nodes': self.max_nodes
+        }
+
+
 class ClusterPool(BaseModel):
     name: str
     node_type: str
     region: str
     number_of_nodes: int
+    autoscaling: NodePoolAutoscalingConfig | None = Field(default=None)
 
     def to_dict(self):
-        return {'name': self.name, 'node_type': self.node_type, 'region': self.region, 'number_of_nodes': self.number_of_nodes}
+        return {
+            'name': self.name,
+            'node_type': self.node_type,
+            'region': self.region,
+            'number_of_nodes': self.number_of_nodes,
+            'autoscaling': self.autoscaling.to_dict() if self.autoscaling else None
+        }
 
 
 class ClusterCreateSchema(BaseModel):

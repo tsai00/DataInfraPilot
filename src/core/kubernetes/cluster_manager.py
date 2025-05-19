@@ -13,6 +13,7 @@ from src.core.providers.base_provider import BaseProvider
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.database.handlers.sqlite_handler import SQLiteHandler
 from src.database.models.cluster import Cluster
+from jinja2 import Environment, FileSystemLoader
 from src.database.models.deployment import Deployment
 from pathlib import Path
 from src.core.providers.provider_factory import ProviderFactory
@@ -20,6 +21,8 @@ from traceback import format_exc
 from src.core.kubernetes.deployment_status import DeploymentStatus
 from src.core.kubernetes.chart_config import HelmChart
 from src.database.models.volume import Volume
+
+from src.core.config import K3S_TOKEN
 
 
 class ClusterManager(object):
@@ -52,6 +55,8 @@ class ClusterManager(object):
         )
 
         cluster_id = self.storage.create_cluster(cluster)
+
+        is_autoscaling_requested = any(x.autoscaling.enabled for x in cluster_config.pools if x.autoscaling)
 
         try:
             cluster = await provider.create_cluster(cluster_config)
@@ -90,6 +95,45 @@ class ClusterManager(object):
                 cluster.expose_traefik_dashboard(enable_https=True, domain_name=cluster_config.domain_name, secret_name='main-certificate-tls')
             else:
                 cluster.expose_traefik_dashboard(enable_https=False)
+
+            # TODO: move to Hetzner class as it is provider-specific
+            if is_autoscaling_requested:
+                environment = Environment(
+                    loader=FileSystemLoader(Path(Path(__file__).parent.parent.resolve(), 'templates')),
+                    autoescape=True
+                )
+
+                worker_node_template = environment.get_template('cloud-init-autoscaler.yml')
+
+                worker_node_template_rendered = worker_node_template.render(
+                    k3s_token=K3S_TOKEN,
+                    k3s_version=cluster_config.k3s_version,
+                    master_ip=cluster.access_ip,
+                )
+
+                print("Installing ClusterAutoscaler")
+                cluster_autoscaler_chart = HelmChart(name='cluster-autoscaler', repo_url='https://kubernetes.github.io/autoscaler', version='9.46.6')
+                values = {
+                    "cloudProvider": "hetzner",
+                    "extraEnv": {
+                        "HCLOUD_TOKEN": provider._config.api_token,
+                        "HCLOUD_CLOUD_INIT": base64.b64encode(worker_node_template_rendered.encode()).decode("ascii"),
+                        # TODO: remove hardcoded values
+                        "HCLOUD_NETWORK": f'{cluster_config.name}-network',
+                        "HCLOUD_SSH_KEY": f'{cluster_config.name}-ssh-key'
+                    },
+                    "autoscalingGroups": [
+                        {"name": f'{x.name}-autoscaled', "minSize": x.autoscaling.min_nodes, "maxSize": x.autoscaling.max_nodes, "instanceType": x.node_type, "region": x.region}
+                        for x in cluster_config.pools if x.autoscaling and x.autoscaling.enabled
+                    ]
+                }
+
+                await cluster.install_or_upgrade_chart(cluster_autoscaler_chart, values, namespace='kube-system')
+                print("Installed ClusterAutoscaler successfully")
+
+            # TODO: remove hardcoded node name
+            cluster.cordon_node(f"{cluster_config.name}-control-plane-node-1")
+
         except Exception as e:
             print(f"Error while creating cluster: {e}")
             print(format_exc())

@@ -254,6 +254,7 @@ class HetznerProvider(BaseProvider):
                 pool
                 for pool in cluster_config.pools[1:]
                 for _ in range(pool.number_of_nodes)
+                if not pool.autoscaling.enabled
             )
         ]
 
