@@ -278,9 +278,12 @@ class HetznerProvider(BaseProvider):
         cluster = KubernetesCluster(cluster_config, master_plane_node['ip'], local_config)
 
         hcloud_secret_template = environment.get_template('kubernetes/hetzner-token-secret.yaml')
-        hcloud_secret_rendered = hcloud_secret_template.render(hcloud_token=HCLOUD_TOKEN)
+        # TODO: remove hardcoded network name
+        hcloud_secret_rendered = hcloud_secret_template.render(hcloud_token=HCLOUD_TOKEN, network_name=f'{cluster_config.name}-network')
 
         cluster.create_object_from_content(yaml.safe_load(hcloud_secret_rendered))
+        print('Hetzner secret created')
+
         cluster.install_csi('hetzner-csi')
 
         print('Installing Hetzner Cloud Controller')
