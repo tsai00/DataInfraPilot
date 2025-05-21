@@ -24,6 +24,7 @@ class Deployment(BaseModel):
     namespace: Mapped[str] = mapped_column(nullable=False, default="")
     error_message: Mapped[str] = mapped_column(nullable=True, default="")
     node_pool: Mapped[str] = mapped_column(nullable=True, default="")
+    endpoints: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default_factory=list)
 
     cluster: Mapped[Cluster] = relationship(back_populates="deployments", init=False)
     application: Mapped[Application] = relationship(init=False)

@@ -8,6 +8,7 @@ class EndpointAccessConfig(BaseModel):
     name: str
     access_type: Literal["subdomain", "domain_path", "ip"]
     value: str = Field(default="")
+    description: str = Field(default="")
 
 
 class DeploymentVolumeSchema(BaseModel):
@@ -48,6 +49,7 @@ class DeploymentSchema(BaseModel):
     installed_at: datetime
     error_message: str
     node_pool: str | None
+    endpoints: list[EndpointAccessConfig]
 
     class Config:
         from_attributes = True
