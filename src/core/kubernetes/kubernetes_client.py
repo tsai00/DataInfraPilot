@@ -9,6 +9,7 @@ from pathlib import Path
 import yaml
 from kubernetes.stream import stream
 import urllib3
+import base64
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -136,3 +137,25 @@ class KubernetesClient:
             self._clients.Core.delete_namespace(namespace)
         except Exception as e:
             print(f'Error while deleting namespace {namespace}: {e}')
+
+    def create_secret(self, secret_name: str, namespace: str, data: dict[str, str]):
+        print(f'Creating secret {secret_name}')
+        secret = client.V1Secret(
+            api_version="v1",
+            kind="Secret",
+            metadata=client.V1ObjectMeta(name=secret_name, namespace=namespace),
+            string_data=data,
+        )
+        self._clients.Core.create_namespaced_secret(namespace=namespace, body=secret)
+        print(f'Secret {secret_name} created successfully!')
+
+    def get_secret(self, secret_name: str, namespace: str):
+        try:
+            secret = self._clients.Core.read_namespaced_secret(secret_name, namespace)
+            return {k: base64.b64decode(v) for k, v in secret.data.items()}
+        except ApiException as e:
+            if e.status == 404:
+                print(f"Secret '{secret_name}' not found in namespace '{namespace}'.")
+            else:
+                print(f"Error retrieving secret '{secret_name}': {e}")
+        return None

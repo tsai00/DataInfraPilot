@@ -173,8 +173,11 @@ class KubernetesCluster:
     def create_object_from_content(self, yaml_content: dict | list[dict]):
         self._client.install_from_content(yaml_content)
 
-    def apply_files(self):
-        pass
+    def create_secret(self, secret_name: str, namespace: str, data: dict[str, str]):
+        self._client.create_secret(secret_name, namespace, data)
+
+    def get_secret(self, secret_name: str, namespace: str) -> dict | None:
+        return self._client.get_secret(secret_name, namespace)
 
     @classmethod
     def from_db_model(cls, cluster: Cluster):

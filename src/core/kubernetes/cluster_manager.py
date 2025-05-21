@@ -277,6 +277,9 @@ class ClusterManager(object):
             if chart_installed:
                 print(f"Successfully deployed application {deployment.application_id} to cluster {cluster_from_db.name}")
                 self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.RUNNING})
+
+                # TODO: remove hardcoded secret name
+                cluster.create_secret(f'{namespace}-initital-creds', namespace, application_instance.get_initial_credentials())
             else:
                 print(f"Failed to deploy application {deployment.application_id} to cluster {cluster_from_db.name}")
                 self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED, "error_message": f"Failed to deploy application {deployment.application_id} to cluster {cluster_from_db.name}"})
@@ -373,3 +376,18 @@ class ClusterManager(object):
 
     def get_deployment(self, deployment_id: int):
         return self.storage.get_deployment(deployment_id)
+
+    def get_deployment_initial_credentials(self, deployment_id: int) -> dict:
+        deployment = self.get_deployment(deployment_id)
+
+        if not deployment:
+            raise ValueError(f"Deployment {deployment_id} was not found")
+
+        cluster_from_db = self.get_cluster(deployment.cluster_id)
+
+        cluster = KubernetesCluster.from_db_model(cluster_from_db)
+
+        # TODO: remove hardcoded name of secret
+        secret = cluster.get_secret(f'{deployment.namespace}-initital-creds', deployment.namespace)
+
+        return secret

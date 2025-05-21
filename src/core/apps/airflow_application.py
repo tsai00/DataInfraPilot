@@ -54,6 +54,9 @@ class AirflowApplication(BaseApplication):
     def validate_volume_requirements(self):
         pass
 
+    def get_initial_credentials(self) -> dict[str, str]:
+        return {'username': 'admin', 'password': 'admin'}
+
     @classmethod
     def get_accessible_endpoints(cls) -> list[AccessEndpoint]:
         return [

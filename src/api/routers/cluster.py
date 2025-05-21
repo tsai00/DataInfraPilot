@@ -129,3 +129,15 @@ async def get_cluster_deployment(
 
     return cluster_deployment
 
+
+@router.get("/clusters/{cluster_id}/deployments/{deployment_id}/credentials", response_model=dict)
+async def get_cluster_deployment_credentials(
+        cluster_id: int,
+        deployment_id: int,
+        cluster_manager: ClusterManager = Depends(get_cluster_manager)
+) -> dict:
+    credentials = cluster_manager.get_deployment_initial_credentials(deployment_id)
+
+    return credentials
+
+
