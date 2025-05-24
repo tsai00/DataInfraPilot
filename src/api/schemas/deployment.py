@@ -3,12 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
-class EndpointAccessConfig(BaseModel):
-    name: str
-    access_type: Literal["subdomain", "domain_path", "ip"]
-    value: str = Field(default="")
-    description: str = Field(default="")
+from src.core.apps.base_application import AccessEndpointConfig
 
 
 class DeploymentVolumeSchema(BaseModel):
@@ -32,7 +27,7 @@ class DeploymentCreateSchema(DeploymentUpdateSchema):
     name: str
     node_pool: str | None
     volumes: list[DeploymentVolumeSchema] | None
-    endpoints: list[EndpointAccessConfig]
+    endpoints: list[AccessEndpointConfig]
 
     class Config:
         from_attributes = True
@@ -49,7 +44,7 @@ class DeploymentSchema(BaseModel):
     installed_at: datetime
     error_message: str
     node_pool: str | None
-    endpoints: list[EndpointAccessConfig]
+    endpoints: list[AccessEndpointConfig]
 
     class Config:
         from_attributes = True

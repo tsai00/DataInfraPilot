@@ -1,15 +1,13 @@
 from typing import Any
 
-from src.core.apps.base_application import BaseApplication
+from src.core.apps.base_application import BaseApplication, AccessEndpoint, AccessEndpointConfig, AccessEndpointType
 from src.core.kubernetes.chart_config import HelmChart
 from pydantic import BaseModel, Field
 from functools import lru_cache
 
 
 class GrafanaConfig(BaseModel):
-    webserver_hostname: str
     version: str = '11.6'
-    traefik_path: str = Field(pattern=r"^\/[a-z0-9]+$", default='/grafana')
 
 
 class GrafanaApplication(BaseApplication):
@@ -35,6 +33,75 @@ class GrafanaApplication(BaseApplication):
         if self._version not in self.get_available_versions():
             raise ValueError
 
+    @classmethod
+    def get_accessible_endpoints(cls) -> list[AccessEndpoint]:
+        return [
+            AccessEndpoint(
+                name="web-ui",
+                description="Grafana Web UI",
+                default_access=AccessEndpointType.CLUSTER_IP_PATH,
+                default_value="/grafana",
+                required=True
+            )
+        ]
+
+    def get_ingress_helm_values(self, access_endpoint_configs: list[AccessEndpointConfig], cluster_base_ip: str, namespace: str) -> dict[str, Any]:
+        defined_endpoints = {ep.name: ep for ep in self.get_accessible_endpoints()}
+        configured_map = {epc.name: epc for epc in access_endpoint_configs}
+
+        # Validate that all required endpoints are configured
+        for ep_name, accessible_ep in defined_endpoints.items():
+            if accessible_ep.required and ep_name not in configured_map:
+                raise ValueError(f"Required endpoint '{ep_name}' is not configured.")
+
+        common_annotations = {
+            "traefik.ingress.kubernetes.io/router.entrypoints": "web",
+            "traefik.ingress.kubernetes.io/router.priority": "10"
+        }
+
+        web_ui_access_endpoint = [x for x in access_endpoint_configs if x.name == "web-ui"][0]
+
+        web_ui_config = self._generate_endpoint_helm_values(web_ui_access_endpoint, cluster_base_ip, namespace)
+
+        return {
+            "ingress": {
+                "enabled": True,
+                "ingressClassName": 'traefik',
+                "pathType": 'Prefix',
+                "annotations": common_annotations,
+                "path": web_ui_config['path'],
+                "hosts": web_ui_config['hosts'],
+            },
+            "grafana.ini": {
+                "server": {
+                    "root_url": web_ui_config['base_url'],
+                    "serve_from_sub_path": True
+                }
+            }
+        }
+
+    def _generate_endpoint_helm_values(self, endpoint_config: AccessEndpointConfig, cluster_base_ip: str, namespace: str) -> dict[str, Any]:
+        self._validate_access_config(endpoint_config)
+
+        if endpoint_config.access_type == AccessEndpointType.SUBDOMAIN:
+            path_value = "/"
+            hosts = [{'name': endpoint_config.value,
+                      'tls': {'enabled': True, 'secretName': f'{namespace}-{endpoint_config.name}-tls'}}]
+            base_url = f'http://{endpoint_config.value}'
+        elif endpoint_config.access_type == AccessEndpointType.DOMAIN_PATH:
+            path_value = endpoint_config.value[endpoint_config.value.find('/'):]
+            hosts = [{'name': endpoint_config.value[:endpoint_config.value.find('/')],
+                      'tls': {'enabled': True, 'secretName': f'{namespace}-{endpoint_config.name}-tls'}}]
+            base_url = f'http://{endpoint_config.value}'
+        elif endpoint_config.access_type == AccessEndpointType.CLUSTER_IP_PATH:
+            path_value = endpoint_config.value
+            hosts = []
+            base_url = f"http://{cluster_base_ip}{path_value}"
+        else:
+            raise ValueError(f"Unsupported access type: {endpoint_config.access_type}")
+
+        return {'path': path_value, 'hosts': hosts, 'base_url': base_url}
+
     @property
     def chart_values(self) -> dict[str, Any]:
         values = {
@@ -45,23 +112,6 @@ class GrafanaApplication(BaseApplication):
                 "size": "10Gi",
                 "storageClassName": "hcloud-volumes"
             },
-            "ingress": {
-                "enabled": True,
-                "ingressClassName": 'traefik',
-                "pathType": 'Prefix',
-                "annotations": {
-                    "traefik.ingress.kubernetes.io/router.entrypoints": "web",
-                    "traefik.ingress.kubernetes.io/router.priority": "10"
-                },
-                "path": self._config.traefik_path,
-                "hosts": []
-            },
-            "grafana.ini": {
-                "server": {
-                    "root_url": f"http://{self._config.webserver_hostname}{self._config.traefik_path}",
-                    "serve_from_sub_path": True
-                }
-            }
         }
 
         return values

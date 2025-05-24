@@ -1,9 +1,10 @@
+import re
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any
 
-from src.api.schemas.deployment import EndpointAccessConfig
 from src.core.kubernetes.chart_config import HelmChart
 from abc import ABC, abstractmethod
+from enum import StrEnum
 
 
 @dataclass
@@ -13,13 +14,38 @@ class VolumeRequirement:
     description: str
 
 
-@dataclass
+class AccessEndpointType(StrEnum):
+    SUBDOMAIN = "subdomain"
+    DOMAIN_PATH = "domain_path"
+    CLUSTER_IP_PATH = "cluster_ip_path"
+
+
+@dataclass(frozen=True)
 class AccessEndpoint:
+    # e.g., "web-ui", "flower-ui"
     name: str
+    # User-friendly description
     description: str
-    default_access: Literal["subdomain", "domain_path", "cluster_ip_path"]
+    # Default choice for FE
+    default_access: AccessEndpointType
+    # Default path/subdomain for FE
     default_value: str
-    required: bool = True
+    # Is this endpoint mandatory to expose?
+    required: bool
+
+
+@dataclass(frozen=True)
+class AccessEndpointConfig:
+    name: str
+    access_type: AccessEndpointType
+    value: str
+
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "access_type": self.access_type,
+            "value": self.value
+        }
 
 
 class BaseApplication(ABC):
@@ -43,9 +69,37 @@ class BaseApplication(ABC):
     def get_available_versions(cls) -> list[str]: ...
 
     @abstractmethod
-    def get_volume_requirements(self) -> list: ...
+    def get_accessible_endpoints(cls) -> list[AccessEndpoint]:
+        pass
 
-    def set_endpoints(self, values: dict, endpoints: list[EndpointAccessConfig]) -> dict: ...
+    @abstractmethod
+    def _generate_endpoint_helm_values(self, endpoint_config: AccessEndpointConfig, cluster_base_ip: str, namespace: str) -> dict[str, Any]:
+        pass
+
+    @abstractmethod
+    def get_ingress_helm_values(self, access_endpoint_configs: list[AccessEndpointConfig], cluster_base_ip: str, namespace: str) -> dict[str, Any]:
+        pass
+
+    def _deep_merge_dicts(self, dict1: dict, dict2: dict):
+        for k, v in dict2.items():
+            if k in dict1 and isinstance(dict1[k], dict) and isinstance(v, dict):
+                self._deep_merge_dicts(dict1[k], v)
+            else:
+                dict1[k] = v
+
+    @staticmethod
+    def _validate_access_config(endpoint_config: AccessEndpointConfig):
+        if endpoint_config.access_type == AccessEndpointType.SUBDOMAIN:
+            if not re.match(r"^[a-zA-Z0-9.-]+$",
+                            endpoint_config.value) or "--" in endpoint_config.value:
+                raise ValueError(f"Invalid subdomain format for {endpoint_config.name}: {endpoint_config.value}")
+        elif endpoint_config.access_type == AccessEndpointType.DOMAIN_PATH:
+            if '/' not in endpoint_config.value:
+                raise ValueError(
+                    f"Domain path for {endpoint_config.name} must include a domain (e.g., mydomain.com/path).")
+        elif endpoint_config.access_type == AccessEndpointType.CLUSTER_IP_PATH:
+            if not endpoint_config.value.startswith('/'):
+                raise ValueError(f"Cluster IP path for {endpoint_config.name} must start with '/'.")
 
     def validate_volume_requirements(self, volume_requirements: list) -> None: ...
 

@@ -1,7 +1,6 @@
 from typing import Any
 
-from src.api.schemas.deployment import EndpointAccessConfig
-from src.core.apps.base_application import BaseApplication, VolumeRequirement, AccessEndpoint
+from src.core.apps.base_application import BaseApplication, VolumeRequirement, AccessEndpoint, AccessEndpointType, AccessEndpointConfig
 from src.core.kubernetes.chart_config import HelmChart
 from pydantic import BaseModel, Field
 from enum import StrEnum
@@ -18,14 +17,11 @@ class AirflowExecutor(StrEnum):
 
 class AirflowConfig(BaseModel):
     version: str = Field(pattern=r"^\d\.\d{1,2}\.\d$")
-    webserver_hostname: str
     node_selector: dict | None = Field(default=None)
     dags_repository: str = Field(pattern=r"^https:\/\/.{10,}\.git$")
     dags_repository_ssh_private_key: str = Field(default=None, alias='dagsRepositorySshPrivateKey')
     dags_repository_branch: str = Field(default='main', alias='dagsRepositoryBranch')
     dags_repository_subpath: str = Field(default='dags', alias='dagsRepositorySubpath')
-    traefik_webserver_path: str = Field(pattern=r"^\/[a-z0-9]+$", default='/airflow')
-    traefik_flower_path: str = '/airflow/flower'
     executor: AirflowExecutor = AirflowExecutor.CeleryExecutor
     flower_enabled: bool = False
     pgbouncer_enabled: bool = False
@@ -63,46 +59,93 @@ class AirflowApplication(BaseApplication):
             AccessEndpoint(
                 name="web-ui",
                 description="Airflow Web UI",
-                default_access="subdomain",
-                default_value="airflow",
-                required=True
+                default_access=AccessEndpointType.CLUSTER_IP_PATH,
+                default_value="/airflow",
+                required=True,
             ),
             AccessEndpoint(
                 name="flower-ui",
                 description="Airflow Flower UI",
-                default_access="domain_path",
+                default_access=AccessEndpointType.CLUSTER_IP_PATH,
                 default_value="/flower",
-                required=False
-            ),
+                required=False,
+            )
         ]
 
-    def set_endpoints(self, values: dict, endpoints: list[EndpointAccessConfig]) -> dict:
-        value_copy = values.copy()
-        default_endpoints = self.get_accessible_endpoints()
+    def get_ingress_helm_values(self, access_endpoint_configs: list[AccessEndpointConfig], cluster_base_ip: str, namespace: str) -> dict[str, Any]:
+        defined_endpoints = {ep.name: ep for ep in self.get_accessible_endpoints()}
+        configured_map = {epc.name: epc for epc in access_endpoint_configs}
 
-        new_endpoints_names = [x.name for x in endpoints]
-        default_endpoints_names = [x.name for x in default_endpoints]
+        # Validate that all required endpoints are configured
+        for ep_name, accessible_ep in defined_endpoints.items():
+            if accessible_ep.required and ep_name not in configured_map:
+                raise ValueError(f"Required endpoint '{ep_name}' is not configured.")
 
-        for endpoint in endpoints:
-            if endpoint.name == 'web-ui':
-                if endpoint.access_type == 'subdomain':
-                    path_value = "/"
-                    hosts = [endpoint.value]
-                    base_url = f'http://{endpoint.value}'
-                elif endpoint.access_type == 'domain_path':
-                    path_value = endpoint.value[endpoint.value.find('/'):]
-                    hosts = [endpoint.value[:endpoint.value.find('/')]]
-                    base_url = f'http://{endpoint.value}'
-                elif endpoint.access_type == 'ip':
-                    path_value = endpoint.value
-                    hosts = []
-                    base_url = f'http://{self._config.webserver_hostname}:8080{endpoint.value}'
-                else:
-                    raise ValueError('Wrong access type')
+        common_annotations = {
+            "traefik.ingress.kubernetes.io/router.entrypoints": "web",
+            "traefik.ingress.kubernetes.io/router.priority": "10"
+        }
 
-                value_copy['ingress']['web']['path'] = path_value
-                value_copy['ingress']['web']['hosts'] = hosts
-                values['config']['webserver']['base_url'] = base_url
+        web_ui_access_endpoint = [x for x in access_endpoint_configs if x.name == "web-ui"][0]
+        flower_ui_access_endpoint = [x for x in access_endpoint_configs if x.name == "flower-ui"]
+
+        if flower_ui_access_endpoint:
+            flower_ui_access_endpoint = flower_ui_access_endpoint[0]
+
+        web_ui_config = self._generate_endpoint_helm_values(web_ui_access_endpoint, cluster_base_ip, namespace)
+        flower_ui_config = self._generate_endpoint_helm_values(flower_ui_access_endpoint, cluster_base_ip, namespace)
+
+        return {
+            "config": {
+                "webserver": {
+                    "base_url": web_ui_config['base_url']
+                }
+            },
+            "ingress": {
+                "web": {
+                    "enabled": True,
+                    "ingressClassName": 'traefik',
+                    "pathType": 'Prefix',
+                    "annotations": common_annotations,
+                    "path": web_ui_config['path'],
+                    "hosts": web_ui_config['hosts']
+                },
+                "flower": {
+                    "enabled": True if flower_ui_access_endpoint else False,
+                    "ingressClassName": 'traefik',
+                    "pathType": 'Prefix',
+                    "annotations": common_annotations,
+                    "path": flower_ui_config['path'],
+                    "hosts": flower_ui_config['hosts']
+                }
+            }
+        }
+
+    def _generate_endpoint_helm_values(self, endpoint_config: AccessEndpointConfig, cluster_base_ip: str, namespace: str) -> dict[str, Any]:
+        self._validate_access_config(endpoint_config)
+
+        if endpoint_config.access_type == AccessEndpointType.SUBDOMAIN:
+            path_value = "/"
+
+            hosts = [
+                {'name': endpoint_config.value, 'tls': {'enabled': True, 'secretName': f'{namespace}-{endpoint_config.name}-tls'}}]
+
+            base_url = f'http://{endpoint_config.value}'
+        elif endpoint_config.access_type == AccessEndpointType.DOMAIN_PATH:
+            path_value = endpoint_config.value[endpoint_config.value.find('/'):]
+
+            hosts = [{'name': endpoint_config.value[:endpoint_config.value.find('/')],
+                      'tls': {'enabled': True, 'secretName': f'{namespace}-{endpoint_config.name}-tls'}}]
+
+            base_url = f'http://{endpoint_config.value}'
+        elif endpoint_config.access_type == AccessEndpointType.CLUSTER_IP_PATH:
+            path_value = endpoint_config.value
+
+            hosts = []
+
+            base_url = f'http://{cluster_base_ip}:8080{endpoint_config.value}'
+        else:
+            raise ValueError(f"Unsupported access type: {endpoint_config.access_type}")
 
         return value_copy
 
@@ -134,7 +177,6 @@ class AirflowApplication(BaseApplication):
             },
             "config": {
                 "webserver": {
-                    "base_url": f'http://{self._config.webserver_hostname}:8080{self._config.traefik_webserver_path}',
                     #"expose_config": True,
                     #"navbar_color": '#000',
                     "require_confirmation_dag_change": True,
@@ -151,37 +193,8 @@ class AirflowApplication(BaseApplication):
                     "catchup_by_default": False
                 }
             },
-            "ingress": {
-                "web": {
-                    "enabled": True,
-                    "ingressClassName": 'traefik',
-                    "pathType": 'Prefix',
-                    "annotations": {
-                        "traefik.ingress.kubernetes.io/router.entrypoints": "web",
-                        "traefik.ingress.kubernetes.io/router.priority": "10"
-                    },
-                    "path": self._config.traefik_webserver_path
-                },
-                "flower": {
-                    "enabled": True,
-                    "ingressClassName": 'traefik',
-                    "pathType": 'Prefix',
-                    "annotations": {
-                        "traefik.ingress.kubernetes.io/router.entrypoints": "web",
-                        "traefik.ingress.kubernetes.io/router.priority": "10"
-                    },
-                    "path": self._config.traefik_flower_path
-                }
-            },
             "pgbouncer": {
                 "enabled": self._config.pgbouncer_enabled
-            },
-            "webserver": {
-                "startupProbe": {
-                    "timeoutSeconds": 360,
-                    "failureThreshold": 15,
-                    "periodSeconds": 15
-                }
             },
             "dags": {
                 "gitSync": {

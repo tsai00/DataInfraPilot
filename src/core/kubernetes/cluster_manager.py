@@ -218,15 +218,10 @@ class ClusterManager(object):
 
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
 
-        # TODO: dont like hardcoded assignment of webserver_hostname
-        deployment_config['webserver_hostname'] = cluster.access_ip
-
         application_instance = ApplicationFactory.get_application(deployment_create.application_id, deployment_config)
 
         helm_chart = application_instance.get_helm_chart()
         helm_chart_values = application_instance.chart_values.copy()
-
-        helm_chart_values = application_instance.set_endpoints(helm_chart_values, deployment.endpoints)
 
         if node_pool:
             cluster_pools = [x.name for x in cluster.config.pools]
@@ -264,7 +259,8 @@ class ClusterManager(object):
             status=DeploymentStatus.DEPLOYING,
             installed_at=datetime.now(),
             node_pool=node_pool,
-            config=deployment_config
+            config=deployment_config,
+            endpoints=[x.to_dict() for x in deployment_create.endpoints],
         )
 
         deployment_id = self.storage.create_deployment(deployment)
@@ -328,9 +324,6 @@ class ClusterManager(object):
             raise ValueError(f"Deployment {deployment_id} was not found")
 
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
-
-        # TODO: dont like hardcoded assignment of webserver_hostname
-        deployment_config['webserver_hostname'] = cluster.access_ip
 
         if deployment_from_db.application_id == 1:
             deployment_config['node_selector'] = {"pool": deployment_from_db.node_pool}
