@@ -2,25 +2,8 @@ from __future__ import annotations
 
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from datetime import datetime
-from sqlalchemy import ARRAY, JSON
+from sqlalchemy import JSON
 from src.database.models.base_model import BaseModel
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from src.database.models.deployment import Deployment
-
-from dataclasses import dataclass, asdict
-
-
-@dataclass
-class ClusterPool:
-    name: str
-    number_of_nodes: str
-    node_type: str
-
-    def to_dict(self):
-        return asdict(self)
 
 
 class Cluster(BaseModel):
@@ -31,6 +14,7 @@ class Cluster(BaseModel):
     k3s_version: Mapped[str] = mapped_column(nullable=False)
     provider: Mapped[str] = mapped_column(nullable=False)
     provider_config: Mapped[dict] = mapped_column(JSON, nullable=False)
+    additional_components: Mapped[dict] = mapped_column(JSON, nullable=False)
     pools: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
     status: Mapped[str] = mapped_column(nullable=False)
     access_ip: Mapped[str] = mapped_column(nullable=True, default="")

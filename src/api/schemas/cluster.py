@@ -5,6 +5,11 @@ from src.api.schemas.application import ApplicationSchema
 from src.api.schemas.deployment import DeploymentSchema
 
 
+class ClusterAdditionalComponents(BaseModel):
+    traefik_dashboard: bool
+    harbor: bool
+
+
 class NodePoolAutoscalingConfig(BaseModel):
     enabled: bool = Field(default=False)
     min_nodes: int = Field(default=1, ge=0, le=9)
@@ -46,6 +51,7 @@ class ClusterCreateSchema(BaseModel):
     provider_config: dict
     domain_name: str | None
     pools: list[ClusterPool]
+    additional_components: ClusterAdditionalComponents
 
 
 class ClusterSchema(ClusterCreateSchema):

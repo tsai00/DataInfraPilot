@@ -52,7 +52,8 @@ class ClusterManager(object):
             provider=provider.name,
             provider_config=provider._config.to_dict(),
             pools=[x.to_dict() for x in cluster_config.pools],
-            status=DeploymentStatus.CREATING
+            status=DeploymentStatus.CREATING,
+            additional_components=cluster_config.additional_components.dict()
         )
 
         cluster_id = self.storage.create_cluster(cluster)
