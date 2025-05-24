@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.background import BackgroundTasks
 from src.core.kubernetes.cluster_manager import ClusterManager
 from src.core.providers.provider_factory import ProviderFactory
@@ -6,6 +6,7 @@ from src.core.kubernetes.configuration import ClusterConfiguration
 from src.api.schemas.cluster import ClusterCreateSchema, ClusterSchema, ClusterCreateResponseSchema
 from src.api.schemas.deployment import DeploymentCreateSchema, DeploymentSchema, DeploymentUpdateSchema
 from src.core.kubernetes.deployment_status import DeploymentStatus
+import httpx
 
 router = APIRouter()
 
@@ -140,4 +141,37 @@ async def get_cluster_deployment_credentials(
 
     return credentials
 
+
+@router.get("/deployments/proxy-health-check")
+async def proxy_health_check(
+    target_url: str
+) -> None:
+    print(f"Received proxy health check request for: {target_url}")
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.get(target_url, follow_redirects=True)
+
+            response.raise_for_status()
+
+            print(f"Successfully proxied health check for {target_url}. Status: {response.status_code}, {response}")
+
+    except httpx.HTTPStatusError as e:
+        print(f"Target service {target_url} returned an error status: {e.response.status_code} - {e.response.text}")
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"Target service returned error: {e.response.text}"
+        )
+    except httpx.RequestError as e:
+        print(f"Network error when connecting to {target_url}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Could not connect to target service: {e}"
+        )
+    except Exception as e:
+        print(f"An unexpected error occurred while proxying {target_url}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred: {e}"
+        )
 
