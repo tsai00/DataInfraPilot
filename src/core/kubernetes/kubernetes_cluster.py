@@ -1,3 +1,4 @@
+import base64
 import traceback
 from typing import Any
 
@@ -5,6 +6,7 @@ import yaml
 from jinja2 import Environment, FileSystemLoader
 
 from src.api.schemas.cluster import ClusterPool
+from src.core.apps.other import longhorn_chart, certmanager_chart, cluster_autoscaler_chart
 from src.core.exceptions import NamespaceTerminatedException
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.core.kubernetes.kubernetes_client import KubernetesClient
@@ -100,6 +102,57 @@ class KubernetesCluster:
     def cordon_node(self, node_name: str):
         self._client.cordon_node(node_name)
 
+    async def install_longhorn(self):
+        print("Installing Longhorn")
+        values = {
+            "defaultSettings": {
+                "defaultDataPath": "/var/longhorn"
+            },
+            "persistence": {
+                "defaultFsType": "ext4",
+                "defaultClassReplicaCount": 2,
+                "defaultClass": False
+            }
+        }
+        await self.install_or_upgrade_chart(longhorn_chart, values)
+
+        print("Installed Longhorn successfully")
+
+    async def install_certmanager(self, domain_name: str):
+        print("Installing Certmanager")
+        values = {
+            "crds": {
+                "enabled": True
+            }
+        }
+        await self.install_or_upgrade_chart(certmanager_chart, values)
+        print("Installed Certmanager successfully")
+
+        self._add_acme_certificate_issuer()
+        self.create_certificate(certificate_name='main-certificate', domain_name=domain_name,
+                                   secret_name="main-certificate-tls", namespace='kube-system')
+
+    async def install_clusterautoscaler(self, provider_token: str, cluster_config: ClusterConfiguration, cloud_init: str):
+        print("Installing ClusterAutoscaler")
+        values = {
+            "cloudProvider": "hetzner",
+            "extraEnv": {
+                "HCLOUD_TOKEN": provider_token,
+                "HCLOUD_CLOUD_INIT": base64.b64encode(cloud_init.encode()).decode("ascii"),
+                # TODO: remove hardcoded values
+                "HCLOUD_NETWORK": f'{cluster_config.name}-network',
+                "HCLOUD_SSH_KEY": f'{cluster_config.name}-ssh-key'
+            },
+            "autoscalingGroups": [
+                {"name": f'{x.name}-autoscaled', "minSize": x.autoscaling.min_nodes, "maxSize": x.autoscaling.max_nodes,
+                 "instanceType": x.node_type, "region": x.region}
+                for x in cluster_config.pools if x.autoscaling and x.autoscaling.enabled
+            ]
+        }
+
+        await self.install_or_upgrade_chart(cluster_autoscaler_chart, values, namespace='kube-system')
+        print("Installed ClusterAutoscaler successfully")
+
     def expose_traefik_dashboard(self, enable_https: bool, domain_name: str = None, secret_name: str = None):
         path_to_template = Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes',
                                 'traefik-custom-config.yaml')
@@ -128,7 +181,7 @@ class KubernetesCluster:
         finally:
             path_to_rendered_template.unlink(missing_ok=True)
 
-    def add_acme_certificate_issuer(self):
+    def _add_acme_certificate_issuer(self):
         path_to_template = Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes', 'cert-manager-acme-issuer.yaml')
 
         try:
@@ -186,7 +239,8 @@ class KubernetesCluster:
                 domain_name=cluster.domain_name,
                 name=cluster.name,
                 k3s_version=cluster.k3s_version,
-                pools=[ClusterPool(**x) for x in cluster.pools]
+                pools=[ClusterPool(**x) for x in cluster.pools],
+                additional_components=cluster.additional_components
             ),
             cluster.access_ip,
             cluster.kubeconfig_path

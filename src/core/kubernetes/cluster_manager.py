@@ -3,7 +3,7 @@ import re
 import traceback
 from datetime import datetime
 
-from src.api.schemas.deployment import DeploymentVolumeSchema, DeploymentCreateSchema
+from src.api.schemas.deployment import DeploymentCreateSchema
 from src.api.schemas.volume import VolumeCreateSchema
 from src.core.apps.airflow_application import AirflowApplication, AirflowConfig
 from src.core.apps.application_factory import ApplicationFactory
@@ -20,7 +20,6 @@ from pathlib import Path
 from src.core.providers.provider_factory import ProviderFactory
 from traceback import format_exc
 from src.core.kubernetes.deployment_status import DeploymentStatus
-from src.core.kubernetes.chart_config import HelmChart
 from src.database.models.volume import Volume
 
 from src.core.config import K3S_TOKEN
@@ -65,38 +64,16 @@ class ClusterManager(object):
 
             self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path), 'access_ip': cluster.access_ip})
 
-            print("Installing Longhorn")
-            longhorn_chart = HelmChart(name='longhorn', repo_url='https://charts.longhorn.io', version='1.8.1')
-            values = {
-                "defaultSettings": {
-                    "defaultDataPath": "/var/longhorn"
-                },
-                "persistence": {
-                    "defaultFsType": "ext4",
-                    "defaultClassReplicaCount": 2,
-                    "defaultClass": False
-                }
-            }
-            await cluster.install_or_upgrade_chart(longhorn_chart, values)
-            print("Installed Longhorn successfully")
+            await cluster.install_longhorn()
 
             if cluster_config.domain_name:
-                print("Installing Certmanager")
-                certmanager_chart = HelmChart(name='cert-manager', repo_url='https://charts.jetstack.io', version='v1.17.2')
-                values = {
-                    "crds": {
-                        "enabled": True
-                    }
-                }
-                await cluster.install_or_upgrade_chart(certmanager_chart, values)
-                print("Installed Certmanager successfully")
+                await cluster.install_certmanager(cluster_config.domain_name)
 
-                cluster.add_acme_certificate_issuer()
-                cluster.create_certificate(certificate_name='main-certificate', domain_name=cluster_config.domain_name, secret_name="main-certificate-tls", namespace='kube-system')
-
-                cluster.expose_traefik_dashboard(enable_https=True, domain_name=cluster_config.domain_name, secret_name='main-certificate-tls')
+                if cluster_config.additional_components.traefik_dashboard:
+                    cluster.expose_traefik_dashboard(enable_https=True, domain_name=cluster_config.domain_name, secret_name='main-certificate-tls')
             else:
-                cluster.expose_traefik_dashboard(enable_https=False)
+                if cluster_config.additional_components.traefik_dashboard:
+                    cluster.expose_traefik_dashboard(enable_https=False)
 
             # TODO: move to Hetzner class as it is provider-specific
             if is_autoscaling_requested:
@@ -113,25 +90,7 @@ class ClusterManager(object):
                     master_ip=cluster.access_ip,
                 )
 
-                print("Installing ClusterAutoscaler")
-                cluster_autoscaler_chart = HelmChart(name='cluster-autoscaler', repo_url='https://kubernetes.github.io/autoscaler', version='9.46.6')
-                values = {
-                    "cloudProvider": "hetzner",
-                    "extraEnv": {
-                        "HCLOUD_TOKEN": provider._config.api_token,
-                        "HCLOUD_CLOUD_INIT": base64.b64encode(worker_node_template_rendered.encode()).decode("ascii"),
-                        # TODO: remove hardcoded values
-                        "HCLOUD_NETWORK": f'{cluster_config.name}-network',
-                        "HCLOUD_SSH_KEY": f'{cluster_config.name}-ssh-key'
-                    },
-                    "autoscalingGroups": [
-                        {"name": f'{x.name}-autoscaled', "minSize": x.autoscaling.min_nodes, "maxSize": x.autoscaling.max_nodes, "instanceType": x.node_type, "region": x.region}
-                        for x in cluster_config.pools if x.autoscaling and x.autoscaling.enabled
-                    ]
-                }
-
-                await cluster.install_or_upgrade_chart(cluster_autoscaler_chart, values, namespace='kube-system')
-                print("Installed ClusterAutoscaler successfully")
+                await cluster.install_clusterautoscaler(provider._config.api_token, cluster_config, worker_node_template_rendered)
 
             # TODO: remove hardcoded node name
             cluster.cordon_node(f"{cluster_config.name}-control-plane-node-1")
