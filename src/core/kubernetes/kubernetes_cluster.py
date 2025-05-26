@@ -223,6 +223,17 @@ class KubernetesCluster:
 
         return output
 
+    def apply_file(self, path_to_template: Path, with_custom_objects: bool = False):
+        if not path_to_template.exists():
+            raise FileNotFoundError(f"File {path_to_template} does not exist")
+
+        try:
+            self._client.install_from_yaml(path_to_template, with_custom_objects)
+            print(f'Applied file {path_to_template} successfully!')
+        except Exception as e:
+            print(f"Failed to apply file {path_to_template}: {e}")
+            raise
+
     def create_object_from_content(self, yaml_content: dict | list[dict]):
         self._client.install_from_content(yaml_content)
 
