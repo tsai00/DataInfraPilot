@@ -19,8 +19,3 @@ longhorn_chart = HelmChart(
     version='1.8.1'
 )
 
-harbor_chart = HelmChart(
-    name='harbor',
-    repo_url='https://helm.goharbor.io',
-    version='1.16.3'
-)

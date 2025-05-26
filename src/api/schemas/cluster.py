@@ -7,7 +7,6 @@ from src.api.schemas.deployment import DeploymentSchema
 
 class ClusterAdditionalComponents(BaseModel):
     traefik_dashboard: bool
-    harbor: bool
 
 
 class NodePoolAutoscalingConfig(BaseModel):
