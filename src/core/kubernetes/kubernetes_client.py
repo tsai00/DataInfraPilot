@@ -152,7 +152,7 @@ class KubernetesClient:
     def get_secret(self, secret_name: str, namespace: str):
         try:
             secret = self._clients.Core.read_namespaced_secret(secret_name, namespace)
-            return {k: base64.b64decode(v) for k, v in secret.data.items()}
+            return {k: base64.b64decode(v) for k, v in secret.data.items()} if secret.data is not None else None
         except ApiException as e:
             if e.status == 404:
                 print(f"Secret '{secret_name}' not found in namespace '{namespace}'.")
