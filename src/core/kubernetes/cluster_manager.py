@@ -1,4 +1,3 @@
-import base64
 import re
 import traceback
 from datetime import datetime
@@ -8,7 +7,8 @@ from src.api.schemas.volume import VolumeCreateSchema
 from src.core.apps.airflow_application import AirflowApplication, AirflowConfig
 from src.core.apps.application_factory import ApplicationFactory
 from src.core.apps.grafana_application import GrafanaApplication, GrafanaConfig
-from src.core.apps.hashicorp_vault_application import HashicorpVaultApplication, HashicorpVaultConfig
+from src.core.apps.spark_application import SparkApplication, SparkConfig
+from src.core.exceptions import ResourceUnavailableException
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.providers.base_provider import BaseProvider
 from src.core.kubernetes.configuration import ClusterConfiguration
@@ -30,7 +30,7 @@ class ClusterManager(object):
     _application_registry = {
         1: (AirflowApplication, AirflowConfig),
         2: (GrafanaApplication, GrafanaConfig),
-        3: (HashicorpVaultApplication, HashicorpVaultConfig),
+        3: (SparkApplication, SparkConfig),
     }
 
     def __new__(cls, *args, **kwargs):
@@ -94,7 +94,9 @@ class ClusterManager(object):
 
             # TODO: remove hardcoded node name
             cluster.cordon_node(f"{cluster_config.name}-control-plane-node-1")
-
+        except ResourceUnavailableException as e:
+            error_message = f'{str(e)}. Please try removing the cluster and creating it again or choose VM with lower capabilities.'
+            self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED, "error_message": error_message})
         except Exception as e:
             print(f"Error while creating cluster: {e}")
             print(format_exc())
@@ -228,6 +230,14 @@ class ClusterManager(object):
         namespace = f"{helm_chart.name.split('/')[-1]}-{deployment_id}"
         self.storage.update_deployment(deployment_id, {"namespace": namespace})
 
+        for x in deployment_create.endpoints:
+            if x.access_type in ('subdomain', 'domain_path'):
+                cluster.create_certificate(f'{namespace}-{x.name}-tls', x.value[:x.value.find('/')], f'{namespace}-{x.name}-tls', namespace=namespace)
+
+        access_endpoints_values = application_instance.get_ingress_helm_values(deployment_create.endpoints, cluster.access_ip, namespace)
+
+        helm_chart_values = {**helm_chart_values, **access_endpoints_values}
+
         try:
             chart_installed = await cluster.install_or_upgrade_chart(helm_chart, helm_chart_values, namespace)
 
@@ -235,8 +245,11 @@ class ClusterManager(object):
                 print(f"Successfully deployed application {deployment.application_id} to cluster {cluster_from_db.name}")
                 self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.RUNNING})
 
-                # TODO: remove hardcoded secret name
-                cluster.create_secret(f'{namespace}-initital-creds', namespace, application_instance.get_initial_credentials())
+                application_instance.run_post_install_actions(cluster, namespace, {**deployment_config, **access_endpoints_values})
+
+                # TODO: move decision create/not create secret to application class or od exists_ok paamater to create_secret
+                if deployment.application_id != 2 and application_instance.get_initial_credentials_secret_name():
+                    cluster.create_secret(application_instance.get_initial_credentials_secret_name(), namespace, application_instance.get_initial_credentials())
             else:
                 print(f"Failed to deploy application {deployment.application_id} to cluster {cluster_from_db.name}")
                 self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED, "error_message": f"Failed to deploy application {deployment.application_id} to cluster {cluster_from_db.name}"})
@@ -249,28 +262,28 @@ class ClusterManager(object):
             self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED, "error_message": error_msg_formatted})
 
         # TODO: move under application class (something like post_init_actions)
-        if deployment.application_id == 3:
-            print('Executing post-init commands')
-            command = ["vault", "operator", "init"]
-
-            output = cluster.execute_command_on_pod('vault-0', namespace, command)
-
-            unseal_keys = re.findall(r'Unseal Key \d: (.{44})', output)
-
-            if not unseal_keys:
-                raise ValueError(f'Could not find unseal keys in {output}')
-            root_token_match = re.search(r'Initial Root Token: (.{28})', output)
-
-            if root_token_match:
-                root_token = root_token_match.group(1)
-            else:
-                raise ValueError(f'Could not find root token in {output}')
-
-            print(f'Unsealed keys: {unseal_keys}')
-
-            for unseal_key in unseal_keys:
-                command = ["vault", "operator", "unseal"]
-                output = cluster.execute_command_on_pod('vault-0', namespace, command, True, unseal_key)
+        # if deployment.application_id == 3:
+        #     print('Executing post-init commands')
+        #     command = ["vault", "operator", "init"]
+        #
+        #     output = cluster.execute_command_on_pod('vault-0', namespace, command)
+        #
+        #     unseal_keys = re.findall(r'Unseal Key \d: (.{44})', output)
+        #
+        #     if not unseal_keys:
+        #         raise ValueError(f'Could not find unseal keys in {output}')
+        #     root_token_match = re.search(r'Initial Root Token: (.{28})', output)
+        #
+        #     if root_token_match:
+        #         root_token = root_token_match.group(1)
+        #     else:
+        #         raise ValueError(f'Could not find root token in {output}')
+        #
+        #     print(f'Unsealed keys: {unseal_keys}')
+        #
+        #     for unseal_key in unseal_keys:
+        #         command = ["vault", "operator", "unseal"]
+        #         output = cluster.execute_command_on_pod('vault-0', namespace, command, True, unseal_key)
 
     async def update_deployment(self, cluster_id: int, deployment_id: int, deployment_config: dict):
         cluster_from_db = self.get_cluster(cluster_id)
@@ -340,8 +353,20 @@ class ClusterManager(object):
         cluster_from_db = self.get_cluster(deployment.cluster_id)
 
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
+        application_id = deployment.application_id
+
+        # TODO: remove hardcoded branching
+        if application_id == 1:
+            app_class = AirflowApplication
+            username_key, password_key = 'username', 'password'
+        elif application_id == 2:
+            app_class = GrafanaApplication
+            username_key, password_key = 'admin-user', 'admin-password'
+        elif application_id == 3:
+            app_class = SparkApplication
+            username_key, password_key = 'username', 'password'
 
         # TODO: remove hardcoded name of secret
-        secret = cluster.get_secret(f'{deployment.namespace}-initital-creds', deployment.namespace)
+        secret = cluster.get_secret(app_class.get_initial_credentials_secret_name(), deployment.namespace)
 
-        return secret
+        return {'username': secret[username_key], 'password': secret[password_key]}
