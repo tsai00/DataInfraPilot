@@ -14,7 +14,7 @@ from hcloud.locations import Location
 from hcloud.ssh_keys import SSHKey
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.kubernetes.configuration import ClusterConfiguration
-from src.core.config import PATH_TO_K3S_YAML_CONFIGS, HCLOUD_TOKEN, K3S_TOKEN
+from src.core.config import PATH_TO_K3S_YAML_CONFIGS, K3S_TOKEN
 from src.core.exceptions import ResourceUnavailableException
 from traceback import format_exc
 from dataclasses import dataclass
@@ -291,12 +291,8 @@ class HetznerProvider(BaseProvider):
         cluster.create_object_from_content(yaml.safe_load(hcloud_secret_rendered))
         print('Hetzner secret created')
 
-        cluster.install_csi('hetzner-csi')
-
-        print('Installing Hetzner Cloud Controller')
-
-        cluster._client.install_from_yaml(template_loader.get_template('hetzner-cloud-controller.yaml', 'kubernetes'))
-        print('Hetzner Cloud Controller installed')
+        cluster.install_csi('hetzner')
+        cluster.install_cloud_controller('hetzner')
 
         return cluster
 

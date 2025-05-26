@@ -198,14 +198,23 @@ class KubernetesCluster:
             except Exception as e:
                 print(f"Failed to create certificate: {e}")
 
-    def install_csi(self, csi_provider: str):
-        path_to_template = template_loader.get_template(f'{csi_provider}.yaml', 'kubernetes')
+    def install_csi(self, provider: str):
+        path_to_template = template_loader.get_template(f'{provider}-csi.yaml', 'kubernetes')
 
         try:
             self._client.install_from_yaml(path_to_template)
-            print(f'CSI {csi_provider} installed successfully!')
+            print(f'{provider.capitalize()} CSI installed successfully!')
         except Exception as e:
-            print(f"Failed to install CSI {csi_provider}: {e}")
+            print(f"Failed to install {provider.capitalize()} CSI: {e}")
+
+    def install_cloud_controller(self, provider: str):
+        path_to_template = template_loader.get_template(f'{provider}-cloud-controller.yaml', 'kubernetes')
+
+        try:
+            self._client.install_from_yaml(path_to_template)
+            print(f'{provider.capitalize()} installed successfully!')
+        except Exception as e:
+            print(f"Failed to install {provider.capitalize()} Cloud Controller: {e}")
 
     def execute_command_on_pod(self, pod: str, namespace: str, command: list[str], interactive: bool = False, command_input: str = None):
         output, errors = self._client.execute_command(pod, namespace, command, interactive, command_input)
