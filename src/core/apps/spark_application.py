@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Any
 
 from src.api.schemas.deployment import AccessEndpointConfig
@@ -86,22 +85,26 @@ class SparkApplication(BaseApplication):
         return [
             ApplyTemplatePostInstallAction(
                 name="CreateSparkCluster",
-                template_path=Path(__file__).parent.parent.absolute() / "templates" / "kubernetes" / "spark-cluster.yaml",
+                template_name="spark-cluster.yaml",
+                template_module="kubernetes",
                 with_custom_objects=True
             ),
             ApplyTemplatePostInstallAction(
                 name="CreateSparkStripPrefixMiddleware",
-                template_path=Path(__file__).parent.parent.absolute() / "templates" / "kubernetes" / "traefik-spark-strip-prefix-middleware.yaml",
+                template_name="traefik-spark-strip-prefix-middleware.yaml",
+                template_module="kubernetes",
                 with_custom_objects=True
             ),
             ApplyTemplatePostInstallAction(
                 name="CreateSparkIngress",
-                template_path=Path(__file__).parent.parent.absolute() / "templates" / "kubernetes" / "spark-ingress.yaml",
+                template_name="spark-ingress.yaml",
+                template_module="kubernetes",
                 with_custom_objects=True
             ),
             ApplyTemplatePostInstallAction(
                 name="CreateSparkIngress",
-                template_path=Path(__file__).parent.parent.absolute() / "templates" / "kubernetes" / "spark-master-svc.yaml",
+                template_name="spark-master-svc.yaml",
+                template_module="kubernetes",
                 with_custom_objects=True
             )
         ]

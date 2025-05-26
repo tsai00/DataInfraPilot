@@ -1,39 +1,25 @@
-from pathlib import Path
 from typing import override, Any
-
-from jinja2 import Environment, FileSystemLoader
 
 from src.core.apps.actions.base_post_install_action import BasePostInstallAction
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
+from src.core.template_loader import template_loader
 
 
 class ApplyTemplatePostInstallAction(BasePostInstallAction):
-    def __init__(self, name: str, template_path: Path, with_custom_objects: bool = False):
-        self.template_path = template_path
+    def __init__(self, name: str, template_name: str, template_module: str | None, with_custom_objects: bool = False):
+        self.template_name = template_name
+        self.template_module = template_module
         self.with_custom_objects = with_custom_objects
 
         super().__init__(name=name)
 
     @override
     def run(self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]):
-        environment = Environment(loader=FileSystemLoader(self.template_path.parent))
-        template = environment.get_template(self.template_path.name)
-        rendered_template = template.render(namespace=namespace, **config_values)
+        values = {namespace: namespace, **config_values}
 
-        temp_file = Path(f"/tmp/post_install_action_{self.name}.yaml")
-        temp_file.write_text(rendered_template)
-
-        try:
-            cluster.apply_file(temp_file, with_custom_objects=self.with_custom_objects)
-        except Exception as e:
-            print(f"Error applying Helm template: {e}")
-        finally:
-            temp_file.unlink()
+        with template_loader.render_to_temp_file(self.template_name, values, self.template_module) as rendered_template_file:
+            cluster.apply_file(rendered_template_file, with_custom_objects=self.with_custom_objects)
 
     def _validate(self):
-        if not self.template_path.exists():
-            raise FileNotFoundError(f"Template file {self.template_path} does not exist.")
-        if not self.template_path.is_file():
-            raise ValueError(f"Template path {self.template_path} is not a file.")
-        if not self.template_path.suffix == '.yaml':
-            raise ValueError(f"Template file {self.template_path} must be a YAML file.")
+        if not self.template_name.endswith('.yaml'):
+            raise ValueError(f"Template file {self.template_name} must be a YAML file.")

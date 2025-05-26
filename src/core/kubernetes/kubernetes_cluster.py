@@ -3,7 +3,7 @@ import traceback
 from typing import Any
 
 import yaml
-from jinja2 import Environment, FileSystemLoader
+from src.core.template_loader import template_loader
 
 from src.api.schemas.cluster import ClusterPool
 from src.core.apps.other import longhorn_chart, certmanager_chart, cluster_autoscaler_chart
@@ -158,35 +158,27 @@ class KubernetesCluster:
         print("Installed ClusterAutoscaler successfully")
 
     def expose_traefik_dashboard(self, enable_https: bool, domain_name: str = None, secret_name: str = None):
-        path_to_template = Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes',
-                                'traefik-custom-config.yaml')
+        traefik_custom_config_template = template_loader.get_template('traefik-custom-config.yaml', 'kubernetes')
 
         # Update default Traefik config to allow change of API base path
         try:
-            self._client.install_from_yaml(path_to_template, with_custom_objects=True)
+            self._client.install_from_yaml(traefik_custom_config_template, with_custom_objects=True)
             print('Traefik custom config applied successfully!')
         except Exception as e:
             print(f"Failed to apply Traefik custom config: {e}")
 
-        environment = Environment(
-            loader=FileSystemLoader(Path(Path(__file__).parent.parent.resolve(), 'templates')), autoescape=True
-        )
+        values = {'enable_https': enable_https, 'domain_name': domain_name, 'certificate_secret_name': secret_name}
 
-        ingress_route_template = environment.get_template('kubernetes/traefik-dashboard-ingress-route.yaml')
-        ingress_route_rendered = ingress_route_template.render(enable_https=enable_https, domain_name=domain_name, certificate_secret_name=secret_name)
-        path_to_rendered_template = Path('traefik-dashboard-ingress-route-tmp.yaml')
-        path_to_rendered_template.write_text(ingress_route_rendered)
-
-        try:
-            self._client.install_from_yaml(path_to_rendered_template, with_custom_objects=True)
-            print('Traefik dashboard exposed successfully!')
-        except Exception as e:
-            print(f"Failed to expose traefik dashboard: {e}")
-        finally:
-            path_to_rendered_template.unlink(missing_ok=True)
+        with template_loader.render_to_temp_file('traefik-dashboard-ingress-route.yaml', values, 'kubernetes') as rendered_template_file:
+            try:
+                self._client.install_from_yaml(rendered_template_file, with_custom_objects=True)
+                print('Traefik dashboard exposed successfully!')
+            except Exception as e:
+                print(traceback.format_exc())
+                print(f"Failed to expose traefik dashboard: {e}")
 
     def _add_acme_certificate_issuer(self):
-        path_to_template = Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes', 'cert-manager-acme-issuer.yaml')
+        path_to_template = template_loader.get_template('cert-manager-acme-issuer.yaml', 'kubernetes')
 
         try:
             self._client.install_from_yaml(path_to_template, with_custom_objects=True)
@@ -196,25 +188,18 @@ class KubernetesCluster:
 
     def create_certificate(self, certificate_name, domain_name, secret_name, namespace):
         print(f'Creating certificate {certificate_name} for domain {domain_name} as secret {secret_name}')
-        environment = Environment(
-            loader=FileSystemLoader(Path(Path(__file__).parent.parent.resolve(), 'templates')), autoescape=True
-        )
 
-        certificate_template = environment.get_template('kubernetes/cert-manager-acme-certificate.yaml')
-        certificate_rendered = certificate_template.render(certificate_name=certificate_name, domain_name=domain_name, secret_name=secret_name, namespace=namespace)
-        path_to_rendered_template = Path('cert-manager-acme-certificate-tmp.yaml')
-        path_to_rendered_template.write_text(certificate_rendered)
+        values = {'certificate_name': certificate_name, 'domain_name': domain_name, 'secret_name': secret_name}
 
-        try:
-            self._client.install_from_yaml(path_to_rendered_template, with_custom_objects=True)
-            print('Certificate successfully created!')
-        except Exception as e:
-            print(f"Failed to create certificate: {e}")
-        finally:
-            path_to_rendered_template.unlink(missing_ok=True)
+        with template_loader.render_to_temp_file('cert-manager-acme-certificate.yaml', values, 'kubernetes') as rendered_template_file:
+            try:
+                self._client.install_from_yaml(rendered_template_file, with_custom_objects=True)
+                print('Certificate successfully created!')
+            except Exception as e:
+                print(f"Failed to create certificate: {e}")
 
     def install_csi(self, csi_provider: str):
-        path_to_template = Path(Path(__file__).parent.parent.absolute(), 'templates', 'kubernetes', f'{csi_provider}.yaml')
+        path_to_template = template_loader.get_template(f'{csi_provider}.yaml', 'kubernetes')
 
         try:
             self._client.install_from_yaml(path_to_template)

@@ -14,13 +14,13 @@ from src.core.providers.base_provider import BaseProvider
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.database.handlers.sqlite_handler import SQLiteHandler
 from src.database.models.cluster import Cluster
-from jinja2 import Environment, FileSystemLoader
 from src.database.models.deployment import Deployment
 from pathlib import Path
 from src.core.providers.provider_factory import ProviderFactory
 from traceback import format_exc
 from src.core.kubernetes.deployment_status import DeploymentStatus
 from src.database.models.volume import Volume
+from src.core.template_loader import template_loader
 
 from src.core.config import K3S_TOKEN
 
@@ -77,17 +77,10 @@ class ClusterManager(object):
 
             # TODO: move to Hetzner class as it is provider-specific
             if is_autoscaling_requested:
-                environment = Environment(
-                    loader=FileSystemLoader(Path(Path(__file__).parent.parent.resolve(), 'templates')),
-                    autoescape=True
-                )
+                worker_node_template_rendered = template_loader.render_template(
+                    template_name='cloud-init-autoscaler.yml',
+                    values={'k3s_token': K3S_TOKEN, 'k3s_version': cluster_config.k3s_version, 'master_ip': cluster.access_ip},
 
-                worker_node_template = environment.get_template('cloud-init-autoscaler.yml')
-
-                worker_node_template_rendered = worker_node_template.render(
-                    k3s_token=K3S_TOKEN,
-                    k3s_version=cluster_config.k3s_version,
-                    master_ip=cluster.access_ip,
                 )
 
                 await cluster.install_clusterautoscaler(provider._config.api_token, cluster_config, worker_node_template_rendered)

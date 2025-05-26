@@ -19,7 +19,7 @@ from src.core.exceptions import ResourceUnavailableException
 from traceback import format_exc
 from dataclasses import dataclass
 
-from jinja2 import Environment, FileSystemLoader
+from src.core.template_loader import template_loader
 from pathlib import Path
 
 from enum import StrEnum
@@ -205,19 +205,17 @@ class HetznerProvider(BaseProvider):
 
         private_network = await self._create_network(f'{cluster_config.name}-network')
 
-        environment = Environment(
-            loader=FileSystemLoader(Path(Path(__file__).parent.parent.parent.resolve(), 'templates')), autoescape=True
-        )
-
         control_plane_pool = cluster_config.pools[0]
         control_plane_pool_name = f"{cluster_config.name}-{control_plane_pool.name}"
         control_plane_placement_group = await self._create_placement_group(control_plane_pool_name)
 
-        control_plane_node_template = environment.get_template('cloud-init-master.yml')
-        control_plane_node_content = control_plane_node_template.render(
-            k3s_token=K3S_TOKEN,
-            k3s_version=cluster_config.k3s_version,
-            pool_name=control_plane_pool_name,
+        control_plane_node_content = template_loader.render_template(
+            template_name='cloud-init-master.yml',
+            values={
+                'k3s_token': K3S_TOKEN,
+                'k3s_version': cluster_config.k3s_version,
+                'pool_name': control_plane_pool_name
+            }
         )
 
         master_plane_node = await self._create_server(
@@ -231,18 +229,20 @@ class HetznerProvider(BaseProvider):
             enable_public_ip=True
         )
 
-        worker_node_template = environment.get_template('cloud-init-worker.yml')
         master_plane_ip = master_plane_node['ip']
 
         tasks = [
             self._create_server(
                 name=f"{cluster_config.name}-worker-node-{i}",
                 node_type=HetznerNodeType[pool.node_type.upper()],
-                user_data=worker_node_template.render(
-                    k3s_token=K3S_TOKEN,
-                    k3s_version=cluster_config.k3s_version,
-                    master_ip=master_plane_ip,
-                    pool_name=pool.name,
+                user_data=template_loader.render_template(
+                    template_name='cloud-init-worker.yml',
+                    values={
+                        'k3s_token': K3S_TOKEN,
+                        'k3s_version': cluster_config.k3s_version,
+                        'master_ip': master_plane_ip,
+                        'pool_name': pool.name
+                    }
                 ),
                 node_region=HetznerRegion[pool.region.upper()],
                 placement_group=await self._create_placement_group(f'{cluster_config.name}-{pool.name}'),
@@ -278,9 +278,15 @@ class HetznerProvider(BaseProvider):
 
         cluster = KubernetesCluster(cluster_config, master_plane_node['ip'], local_config)
 
-        hcloud_secret_template = environment.get_template('kubernetes/hetzner-token-secret.yaml')
         # TODO: remove hardcoded network name
-        hcloud_secret_rendered = hcloud_secret_template.render(hcloud_token=HCLOUD_TOKEN, network_name=f'{cluster_config.name}-network')
+        hcloud_secret_rendered = template_loader.render_template(
+            template_name='hetzner-token-secret.yaml',
+            template_module='kubernetes',
+            values={
+                'hcloud_token': self._config.api_token,
+                'network_name': f'{cluster_config.name}-network'
+            }
+        )
 
         cluster.create_object_from_content(yaml.safe_load(hcloud_secret_rendered))
         print('Hetzner secret created')
@@ -288,7 +294,8 @@ class HetznerProvider(BaseProvider):
         cluster.install_csi('hetzner-csi')
 
         print('Installing Hetzner Cloud Controller')
-        cluster._client.install_from_yaml(Path(Path(__file__).parent.parent.parent.absolute(), 'templates', 'kubernetes', 'hetzner-cloud-controller.yaml'))
+
+        cluster._client.install_from_yaml(template_loader.get_template('hetzner-cloud-controller.yaml', 'kubernetes'))
         print('Hetzner Cloud Controller installed')
 
         return cluster
