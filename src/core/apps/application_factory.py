@@ -1,7 +1,7 @@
 from src.core.apps.airflow_application import AirflowApplication, AirflowConfig
 from src.core.apps.base_application import BaseApplication
 from src.core.apps.grafana_application import GrafanaApplication, GrafanaConfig
-from src.core.apps.hashicorp_vault_application import HashicorpVaultApplication, HashicorpVaultConfig
+from src.core.apps.spark_application import SparkApplication, SparkConfig
 
 
 class ApplicationFactory:
@@ -12,6 +12,6 @@ class ApplicationFactory:
         elif application_id == 2:
             return GrafanaApplication(GrafanaConfig(**application_config))
         elif application_id == 3:
-            return HashicorpVaultApplication(HashicorpVaultConfig(**application_config))
+            return SparkApplication(SparkConfig(**application_config))
         else:
             raise ValueError(f'Unsupported application with ID {application_id}')

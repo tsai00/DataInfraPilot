@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends
 
-from src.core.apps.hashicorp_vault_application import HashicorpVaultApplication
 from src.core.kubernetes.cluster_manager import ClusterManager
 from src.api.schemas.application import ApplicationSchema
 from src.core.apps.airflow_application import AccessEndpoint
 from src.core.apps.airflow_application import AirflowApplication
 from src.core.apps.grafana_application import GrafanaApplication
+from src.core.apps.spark_application import SparkApplication
 
 router = APIRouter()
 
@@ -43,18 +43,13 @@ def get_application_available_versions(
     application_id: int,
     cluster_manager: ClusterManager = Depends(get_cluster_manager)
 ) -> list[str]:
-    application = cluster_manager.get_application(application_id)
-
-    if not application:
-        raise HTTPException(status_code=404, detail="Application not found")
-
     # TODO: remove hardcoded branching
     if application_id == 1:
         return AirflowApplication.get_available_versions()
     elif application_id == 2:
         return GrafanaApplication.get_available_versions()
     elif application_id == 3:
-        return HashicorpVaultApplication.get_available_versions()
+        return SparkApplication.get_available_versions()
 
 
 @router.get("/applications/{application_id}/access_endpoints", response_model=list[AccessEndpoint])
@@ -62,17 +57,10 @@ async def get_application_accessible_endpoints(
     application_id: int,
     cluster_manager: ClusterManager = Depends(get_cluster_manager)
 ):
-    application = cluster_manager.get_application(application_id)
-
-    if not application:
-        raise HTTPException(status_code=404, detail="Application not found")
-
     # TODO: remove hardcoded branching
     if application_id == 1:
         return AirflowApplication.get_accessible_endpoints()
     elif application_id == 2:
         return GrafanaApplication.get_accessible_endpoints()
     elif application_id == 3:
-        return HashicorpVaultApplication.get_accessible_endpoints()
-    elif application_id == 4:
         return SparkApplication.get_accessible_endpoints()

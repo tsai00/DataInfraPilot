@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ cluster_name | lower | replace(" ", "") }}-master-rpc-svc
+  namespace: {{ namespace }}
+spec:
+  type: NodePort
+  selector:
+    spark-role: master
+    spark-version: {{ version }}
+    statefulset.kubernetes.io/pod-name: {{ cluster_name | lower | replace(" ", "") }}-master-0
+  ports:
+    - name: spark-master-rpc
+      protocol: TCP
+      port: 7077
+      targetPort: 7077
+      nodePort: 30077

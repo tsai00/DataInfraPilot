@@ -1,0 +1,107 @@
+from pathlib import Path
+from typing import Any
+
+from src.api.schemas.deployment import AccessEndpointConfig
+from src.core.apps.actions.apply_template_post_install_action import ApplyTemplatePostInstallAction
+from src.core.apps.base_application import BaseApplication, AccessEndpoint, AccessEndpointType
+from src.core.apps.actions.base_post_install_action import BasePostInstallAction
+from src.core.kubernetes.chart_config import HelmChart
+from pydantic import BaseModel, Field
+from functools import lru_cache
+
+
+class SparkConfig(BaseModel):
+    version: str = '3.5.0'
+    cluster_name: str
+    min_workers: int = Field(default=1, ge=1, description="Minimum number of worker nodes")
+    max_workers: int = Field(default=3, ge=2, description="Maximum number of worker nodes")
+
+
+class SparkApplication(BaseApplication):
+
+    _helm_chart = HelmChart(
+        name="spark-kubernetes-operator",
+        repo_url="https://apache.github.io/spark-kubernetes-operator",
+        version="1.0.0",
+    )
+
+    def __init__(self, config: SparkConfig):
+        self._config = config
+        self._version = self._config.version
+
+        super().__init__("Spark")
+
+    @classmethod
+    @lru_cache()
+    def get_available_versions(cls) -> list[str]:
+        # TODO: replace with actual version list + move to base class
+        return ['3.5.1']
+
+    def __post_init__(self):
+        if self._version not in self.get_available_versions():
+            raise ValueError
+
+    @classmethod
+    def get_initial_credentials_secret_name(cls) -> str | None:
+        return None
+
+    def get_initial_credentials(self) -> dict[str, str]:
+        return {}
+
+    @classmethod
+    def get_accessible_endpoints(cls) -> list[AccessEndpoint]:
+        return [
+            AccessEndpoint(
+                name="web-ui",
+                description="Spark Web UI",
+                default_access=AccessEndpointType.CLUSTER_IP_PATH,
+                default_value="/spark",
+                required=True,
+            )
+        ]
+
+    def _generate_endpoint_helm_values(self, endpoint_config: AccessEndpointConfig, cluster_base_ip: str,
+                                       namespace: str) -> dict[str, Any]:
+        pass
+
+    def get_ingress_helm_values(self, access_endpoint_configs: list[AccessEndpointConfig], cluster_base_ip: str,
+                                namespace: str) -> dict[str, Any]:
+        web_ui_access_endpoint = [x for x in access_endpoint_configs if x.name == "web-ui"][0]
+
+        return {'web_ui_path': web_ui_access_endpoint.value}
+
+    @classmethod
+    def get_resource_values(cls) -> dict:
+        pass
+
+    def get_volume_requirements(self) -> list:
+        return []
+
+    @property
+    def chart_values(self) -> dict[str, Any]:
+        return {}
+
+    @property
+    def post_installation_actions(self) -> list[BasePostInstallAction]:
+        return [
+            ApplyTemplatePostInstallAction(
+                name="CreateSparkCluster",
+                template_path=Path(__file__).parent.parent.absolute() / "templates" / "kubernetes" / "spark-cluster.yaml",
+                with_custom_objects=True
+            ),
+            ApplyTemplatePostInstallAction(
+                name="CreateSparkStripPrefixMiddleware",
+                template_path=Path(__file__).parent.parent.absolute() / "templates" / "kubernetes" / "traefik-spark-strip-prefix-middleware.yaml",
+                with_custom_objects=True
+            ),
+            ApplyTemplatePostInstallAction(
+                name="CreateSparkIngress",
+                template_path=Path(__file__).parent.parent.absolute() / "templates" / "kubernetes" / "spark-ingress.yaml",
+                with_custom_objects=True
+            ),
+            ApplyTemplatePostInstallAction(
+                name="CreateSparkIngress",
+                template_path=Path(__file__).parent.parent.absolute() / "templates" / "kubernetes" / "spark-master-svc.yaml",
+                with_custom_objects=True
+            )
+        ]
