@@ -14,7 +14,7 @@ from hcloud.locations import Location
 from hcloud.ssh_keys import SSHKey
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.kubernetes.configuration import ClusterConfiguration
-from src.core.config import PATH_TO_K3S_YAML_CONFIGS, K3S_TOKEN
+from src.core.config import PATH_TO_K3S_YAML_CONFIGS
 from src.core.exceptions import ResourceUnavailableException
 from traceback import format_exc
 from dataclasses import dataclass
@@ -24,6 +24,8 @@ from pathlib import Path
 
 from enum import StrEnum
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
+
+from src.core.utils import generate_password
 
 
 class HetznerNodeType(StrEnum):
@@ -192,6 +194,7 @@ class HetznerProvider(BaseProvider):
         return placement_group_response.placement_group
 
     async def create_cluster(self, cluster_config: ClusterConfiguration) -> KubernetesCluster:
+        k3s_token = generate_password(20)
         ssh_public_key_path = self._ssh_public_key_path
 
         if not ssh_public_key_path.exists():
@@ -212,7 +215,7 @@ class HetznerProvider(BaseProvider):
         control_plane_node_content = template_loader.render_template(
             template_name='cloud-init-master.yml',
             values={
-                'k3s_token': K3S_TOKEN,
+                'k3s_token': k3s_token,
                 'k3s_version': cluster_config.k3s_version,
                 'pool_name': control_plane_pool_name
             }
@@ -238,7 +241,7 @@ class HetznerProvider(BaseProvider):
                 user_data=template_loader.render_template(
                     template_name='cloud-init-worker.yml',
                     values={
-                        'k3s_token': K3S_TOKEN,
+                        'k3s_token': k3s_token,
                         'k3s_version': cluster_config.k3s_version,
                         'master_ip': master_plane_ip,
                         'pool_name': pool.name

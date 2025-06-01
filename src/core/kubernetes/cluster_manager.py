@@ -20,9 +20,7 @@ from src.core.providers.provider_factory import ProviderFactory
 from traceback import format_exc
 from src.core.kubernetes.deployment_status import DeploymentStatus
 from src.database.models.volume import Volume
-from src.core.template_loader import template_loader
 
-from src.core.config import K3S_TOKEN
 
 
 class ClusterManager(object):
