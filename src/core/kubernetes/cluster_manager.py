@@ -62,31 +62,31 @@ class ClusterManager(object):
         try:
             cluster = await provider.create_cluster(cluster_config)
 
-            self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path), 'access_ip': cluster.access_ip})
-
             await cluster.install_longhorn()
 
-            if cluster_config.domain_name:
+            if cluster_config.domain_name and cluster_config.additional_components.traefik_dashboard.enabled:
                 await cluster.install_certmanager(cluster_config.domain_name)
 
-                if cluster_config.additional_components.traefik_dashboard:
-                    cluster.expose_traefik_dashboard(enable_https=True, domain_name=cluster_config.domain_name, secret_name='main-certificate-tls')
-            else:
-                if cluster_config.additional_components.traefik_dashboard:
-                    cluster.expose_traefik_dashboard(enable_https=False)
-
-            # TODO: move to Hetzner class as it is provider-specific
-            if is_autoscaling_requested:
-                worker_node_template_rendered = template_loader.render_template(
-                    template_name='cloud-init-autoscaler.yml',
-                    values={'k3s_token': K3S_TOKEN, 'k3s_version': cluster_config.k3s_version, 'master_ip': cluster.access_ip},
-
+                cluster.expose_traefik_dashboard(
+                    username=cluster_config.additional_components.traefik_dashboard.username,
+                    password=cluster_config.additional_components.traefik_dashboard.password,
+                    enable_https=True,
+                    domain_name=cluster_config.domain_name,
+                    secret_name='main-certificate-tls'
+                )
+            elif cluster_config.additional_components.traefik_dashboard.enabled:
+                cluster.expose_traefik_dashboard(
+                    username=cluster_config.additional_components.traefik_dashboard.username,
+                    password=cluster_config.additional_components.traefik_dashboard.password,
+                    enable_https=False,
                 )
 
                 await cluster.install_clusterautoscaler(provider._config.api_token, cluster_config, worker_node_template_rendered)
 
             # TODO: remove hardcoded node name
             cluster.cordon_node(f"{cluster_config.name}-control-plane-node-1")
+
+            self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path), 'access_ip': cluster.access_ip})
         except ResourceUnavailableException as e:
             error_message = f'{str(e)}. Please try removing the cluster and creating it again or choose VM with lower capabilities.'
             self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED, "error_message": error_message})
@@ -253,30 +253,6 @@ class ClusterManager(object):
             error_msg_formatted = re.sub(r'WARNING: Kubernetes configuration file is (?:world|group)-readable\. This is insecure\. Location: .*\.yaml','', str(e))
 
             self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED, "error_message": error_msg_formatted})
-
-        # TODO: move under application class (something like post_init_actions)
-        # if deployment.application_id == 3:
-        #     print('Executing post-init commands')
-        #     command = ["vault", "operator", "init"]
-        #
-        #     output = cluster.execute_command_on_pod('vault-0', namespace, command)
-        #
-        #     unseal_keys = re.findall(r'Unseal Key \d: (.{44})', output)
-        #
-        #     if not unseal_keys:
-        #         raise ValueError(f'Could not find unseal keys in {output}')
-        #     root_token_match = re.search(r'Initial Root Token: (.{28})', output)
-        #
-        #     if root_token_match:
-        #         root_token = root_token_match.group(1)
-        #     else:
-        #         raise ValueError(f'Could not find root token in {output}')
-        #
-        #     print(f'Unsealed keys: {unseal_keys}')
-        #
-        #     for unseal_key in unseal_keys:
-        #         command = ["vault", "operator", "unseal"]
-        #         output = cluster.execute_command_on_pod('vault-0', namespace, command, True, unseal_key)
 
     async def update_deployment(self, cluster_id: int, deployment_id: int, deployment_config: dict):
         cluster_from_db = self.get_cluster(cluster_id)

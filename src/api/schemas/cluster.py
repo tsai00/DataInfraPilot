@@ -5,8 +5,19 @@ from src.api.schemas.application import ApplicationSchema
 from src.api.schemas.deployment import DeploymentSchema
 
 
+class TraefikDashboardConfig(BaseModel):
+    enabled: bool = Field(default=True)
+    username: str = Field(min_length=3, max_length=20)
+    password: str = Field(min_length=4, max_length=20)
+
+
 class ClusterAdditionalComponents(BaseModel):
-    traefik_dashboard: bool
+    traefik_dashboard: TraefikDashboardConfig
+
+    def to_dict(self):
+        return {
+            'traefik_dashboard': self.traefik_dashboard.model_dump(),
+        }
 
 
 class NodePoolAutoscalingConfig(BaseModel):

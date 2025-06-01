@@ -4,6 +4,7 @@ from typing import Any
 
 import yaml
 from src.core.template_loader import template_loader
+from src.core.utils import encrypt_password
 
 from src.api.schemas.cluster import ClusterPool
 from src.core.apps.other import longhorn_chart, certmanager_chart, cluster_autoscaler_chart
@@ -157,7 +158,7 @@ class KubernetesCluster:
         await self.install_or_upgrade_chart(cluster_autoscaler_chart, values, namespace='kube-system')
         print("Installed ClusterAutoscaler successfully")
 
-    def expose_traefik_dashboard(self, enable_https: bool, domain_name: str = None, secret_name: str = None):
+    def expose_traefik_dashboard(self, username: str, password: str, enable_https: bool, domain_name: str = None, secret_name: str = None):
         traefik_custom_config_template = template_loader.get_template('traefik-custom-config.yaml', 'kubernetes')
 
         # Update default Traefik config to allow change of API base path
@@ -167,15 +168,39 @@ class KubernetesCluster:
         except Exception as e:
             print(f"Failed to apply Traefik custom config: {e}")
 
-        values = {'enable_https': enable_https, 'domain_name': domain_name, 'certificate_secret_name': secret_name}
+        encrypted_password = encrypt_password(username, password)
+        dashboard_creds_secret_name = 'traefik-dashboard-creds-secret'
+        dashboard_creds_secret_namespace = 'kube-system'
+        middleware_name = 'traefik-dashboard-auth-middleware'
+
+        self.create_secret(dashboard_creds_secret_name, dashboard_creds_secret_namespace, {'users': encrypted_password})
+
+        values = {
+            'namespace': dashboard_creds_secret_namespace,
+            'secret_name': dashboard_creds_secret_name,
+            'middleware_name': middleware_name,
+        }
+
+        with template_loader.render_to_temp_file('traefik-basic-auth-middleware.yaml', values, 'kubernetes') as rendered_template_file:
+            try:
+                self._client.install_from_yaml(rendered_template_file, with_custom_objects=True)
+                print('Traefik basic auth middleware applied successfully!')
+            except Exception as e:
+                print(f"Failed to apply Traefik basic auth middleware: {e}")
+
+        values = {
+            'enable_https': enable_https,
+            'domain_name': domain_name,
+            'certificate_secret_name': secret_name,
+            'middleware_name': middleware_name,
+        }
 
         with template_loader.render_to_temp_file('traefik-dashboard-ingress-route.yaml', values, 'kubernetes') as rendered_template_file:
             try:
                 self._client.install_from_yaml(rendered_template_file, with_custom_objects=True)
                 print('Traefik dashboard exposed successfully!')
             except Exception as e:
-                print(traceback.format_exc())
-                print(f"Failed to expose traefik dashboard: {e}")
+                print(f"Failed to expose Traefik dashboard: {e}")
 
     def _add_acme_certificate_issuer(self):
         path_to_template = template_loader.get_template('cert-manager-acme-issuer.yaml', 'kubernetes')
