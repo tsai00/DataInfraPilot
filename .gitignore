@@ -8,9 +8,15 @@ wheels/
 
 .idea/
 
+output/
+
 # Virtual environments
 .venv
 
 .env
 
 *.db
+
+# GitHub Actions Act local secrets and variables
+.secrets
+.vars
