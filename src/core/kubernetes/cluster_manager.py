@@ -35,7 +35,11 @@ class ClusterManager(object):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
 
-            cls.storage = SQLiteHandler(f"sqlite:///{str(Path(Path(__file__).parent.parent.parent.parent.absolute(), 'app.db'))}")
+            db_folder = Path(Path(__file__).parent.parent.parent.parent.absolute(), 'data')
+
+            db_folder.mkdir(exist_ok=True)
+
+            cls.storage = SQLiteHandler(f"sqlite:///{str(Path(db_folder, 'app.db'))}")
             # logger
         return cls._instance
 
