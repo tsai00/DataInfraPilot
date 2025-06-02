@@ -291,6 +291,19 @@ class HetznerProvider(BaseProvider):
             }
         )
 
+        is_autoscaling_requested = any(x.autoscaling.enabled for x in cluster_config.pools if x.autoscaling)
+
+        if is_autoscaling_requested:
+            worker_node_template_rendered = template_loader.render_template(
+                template_name='cloud-init-autoscaler.yml',
+                values={'k3s_token': k3s_token, 'k3s_version': cluster_config.k3s_version,
+                        'master_ip': cluster.access_ip},
+
+            )
+
+            await cluster.install_clusterautoscaler(self._config.api_token, cluster_config,
+                                                    worker_node_template_rendered)
+
         cluster.create_object_from_content(yaml.safe_load(hcloud_secret_rendered))
         print('Hetzner secret created')
 

@@ -55,8 +55,6 @@ class ClusterManager(object):
 
         cluster_id = self.storage.create_cluster(cluster)
 
-        is_autoscaling_requested = any(x.autoscaling.enabled for x in cluster_config.pools if x.autoscaling)
-
         try:
             cluster = await provider.create_cluster(cluster_config)
 
@@ -78,8 +76,6 @@ class ClusterManager(object):
                     password=cluster_config.additional_components.traefik_dashboard.password,
                     enable_https=False,
                 )
-
-                await cluster.install_clusterautoscaler(provider._config.api_token, cluster_config, worker_node_template_rendered)
 
             # TODO: remove hardcoded node name
             cluster.cordon_node(f"{cluster_config.name}-control-plane-node-1")
