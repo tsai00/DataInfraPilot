@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.background import BackgroundTasks
+
+from src.core.apps.base_application import AccessEndpointConfig
 from src.core.kubernetes.cluster_manager import ClusterManager
 from src.core.providers.provider_factory import ProviderFactory
 from src.core.kubernetes.configuration import ClusterConfiguration
@@ -90,6 +92,21 @@ async def create_deployment(
     background_tasks.add_task(cluster_manager.create_deployment, cluster_id, deployment)
 
     return {'result': 'ok', 'status': DeploymentStatus.CREATING}
+
+
+# NOTE: this endpoint must be before update_deployment to avoid issue with overlapping path
+@router.post("/clusters/{cluster_id}/deployments/check-endpoint-existence")
+async def check_endpoint_existence(
+    cluster_id: int,
+    endpoint: AccessEndpointConfig,
+    cluster_manager: ClusterManager = Depends(get_cluster_manager)
+):
+    existing_endpoints = cluster_manager.get_existing_endpoints(cluster_id)
+
+    if endpoint.value in existing_endpoints[endpoint.access_type]:
+        return True
+
+    return False
 
 
 @router.post("/clusters/{cluster_id}/deployments/{deployment_id}", response_model=dict, status_code=status.HTTP_202_ACCEPTED)

@@ -6,6 +6,7 @@ from src.api.schemas.deployment import DeploymentCreateSchema
 from src.api.schemas.volume import VolumeCreateSchema
 from src.core.apps.airflow_application import AirflowApplication, AirflowConfig
 from src.core.apps.application_factory import ApplicationFactory
+from src.core.apps.base_application import AccessEndpointType
 from src.core.apps.grafana_application import GrafanaApplication, GrafanaConfig
 from src.core.apps.spark_application import SparkApplication, SparkConfig
 from src.core.exceptions import ResourceUnavailableException
@@ -337,3 +338,27 @@ class ClusterManager(object):
         secret = cluster.get_secret(app_class.get_initial_credentials_secret_name(), deployment.namespace)
 
         return {'username': secret[username_key], 'password': secret[password_key]}
+
+    def get_existing_endpoints(self, cluster_id: int) -> dict:
+        deployments = self.storage.get_deployments(cluster_id)
+
+        existing_cluster_ip_path_endpoints = []
+        existing_domain_path_endpoints = []
+        existing_subdomain_endpoints = []
+
+        for deployment in deployments:
+            for endpoint in deployment.endpoints:
+                if endpoint['access_type'] == AccessEndpointType.CLUSTER_IP_PATH:
+                    existing_cluster_ip_path_endpoints.append(endpoint['value'])
+                elif endpoint['access_type'] == AccessEndpointType.DOMAIN_PATH:
+                    existing_domain_path_endpoints.append(endpoint['value'])
+                elif endpoint['access_type'] == AccessEndpointType.SUBDOMAIN:
+                    existing_subdomain_endpoints.append(endpoint['value'])
+                else:
+                    raise ValueError(f"Unknown access type {endpoint['access_type']} for endpoint {endpoint['name']} in deployment {deployment.name}")
+
+        return {
+            AccessEndpointType.CLUSTER_IP_PATH: existing_cluster_ip_path_endpoints,
+            AccessEndpointType.DOMAIN_PATH: existing_domain_path_endpoints,
+            AccessEndpointType.SUBDOMAIN: existing_subdomain_endpoints
+        }
