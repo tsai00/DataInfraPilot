@@ -15,7 +15,7 @@ from hcloud.ssh_keys import SSHKey
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.core.config import PATH_TO_K3S_YAML_CONFIGS
-from src.core.exceptions import ResourceUnavailableException
+from src.core.exceptions import ResourceUnavailableException, ProjectNotEmptyException
 from traceback import format_exc
 from dataclasses import dataclass
 
@@ -193,7 +193,19 @@ class HetznerProvider(BaseProvider):
 
         return placement_group_response.placement_group
 
+    def _can_create_cluster(self) -> bool:
+        servers = self.client.servers.get_all()
+
+        if servers:
+            print(f'Project is not empty, found {len(servers)} servers')
+            return False
+
+        return True
+
     async def create_cluster(self, cluster_config: ClusterConfiguration) -> KubernetesCluster:
+        if not self._can_create_cluster():
+            raise ProjectNotEmptyException('Project is not empty, please delete existing resources first')
+
         k3s_token = generate_password(20)
         ssh_public_key_path = self._ssh_public_key_path
 
