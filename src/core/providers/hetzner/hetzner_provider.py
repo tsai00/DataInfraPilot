@@ -354,8 +354,14 @@ class HetznerProvider(BaseProvider):
         ssh_keys = self.client.ssh_keys.get_all()
 
         for x in servers + placement_groups + networks + ssh_keys:
-            x.delete()
-            print(f'Removed resource {x}')
+            try:
+                x.delete()
+                print(f'Removed resource {x}')
+            except APIException as e:
+                if e.code == 'not_found':
+                    print(f'Cannot find resource {x} (might have been already deleted)')
+                else:
+                    raise e
 
     def delete_volume(self, volume_name: str):
         try:
