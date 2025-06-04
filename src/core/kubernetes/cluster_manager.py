@@ -1,3 +1,4 @@
+import asyncio
 import re
 import traceback
 from datetime import datetime
@@ -64,6 +65,9 @@ class ClusterManager(object):
             cluster = await provider.create_cluster(cluster_config)
 
             await cluster.install_longhorn()
+
+            # explicit wait to avoid 404 error when exposing Traefik dashboard
+            await asyncio.sleep(10)
 
             if cluster_config.domain_name and cluster_config.additional_components.traefik_dashboard.enabled:
                 await cluster.install_certmanager(cluster_config.domain_name)
