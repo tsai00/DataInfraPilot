@@ -69,7 +69,7 @@ class KubernetesCluster:
                     create_namespace=False,
                     reuse_values=True,
                     namespace=namespace.lower(),
-                    wait=True,
+                    #wait=True,     # wait=True sometime caused errors with Airflow deployment
                     timeout='300s'
                 )
             else:
@@ -80,7 +80,7 @@ class KubernetesCluster:
                     create_namespace=False,
                     reuse_values=True,
                     namespace=namespace.lower(),
-                    wait=True,
+                    #wait=True,
                     timeout='300s'
                 )
         except Exception as e:
