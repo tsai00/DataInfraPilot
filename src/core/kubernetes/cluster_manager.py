@@ -91,7 +91,7 @@ class ClusterManager(object):
 
             self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path), 'access_ip': cluster.access_ip})
         except ResourceUnavailableException as e:
-            error_message = f'{str(e)}. Please try removing the cluster and creating it again or choose VM with lower capabilities.'
+            error_message = f'{str(e)}. Right now Hetzner does not have available machines for selected type/region. Please try removing the cluster and creating it again later or choose VM of different type / location.'
             self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED, "error_message": error_message})
         except Exception as e:
             print(f"Error while creating cluster: {e}")
