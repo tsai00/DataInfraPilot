@@ -148,6 +148,12 @@ class KubernetesCluster:
                 "HCLOUD_NETWORK": f'{cluster_config.name}-network',
                 "HCLOUD_SSH_KEY": f'{cluster_config.name}-ssh-key'
             },
+            # The following args should disable scale down based on utilization,
+            # however seems they don't work as expected, keeping for reference for now
+            "extraArgs": {
+                "scale-down-utilization-threshold": 0,
+                "scale-down-gpu-utilization-threshold": 0
+            },
             "autoscalingGroups": [
                 {"name": f'{x.name}-autoscaled', "minSize": x.autoscaling.min_nodes, "maxSize": x.autoscaling.max_nodes,
                  "instanceType": x.node_type, "region": x.region}
