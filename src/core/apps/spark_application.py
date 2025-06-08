@@ -1,9 +1,9 @@
 from typing import Any
 
 from src.api.schemas.deployment import AccessEndpointConfig
-from src.core.apps.actions.apply_template_post_install_action import ApplyTemplatePostInstallAction
+from src.core.apps.actions.apply_template_action import ApplyTemplateAction
 from src.core.apps.base_application import BaseApplication, AccessEndpoint, AccessEndpointType
-from src.core.apps.actions.base_post_install_action import BasePostInstallAction
+from src.core.apps.actions.base_post_install_action import BasePrePostInstallAction
 from src.core.kubernetes.chart_config import HelmChart
 from pydantic import BaseModel, Field
 from functools import lru_cache
@@ -81,28 +81,28 @@ class SparkApplication(BaseApplication):
         return {}
 
     @property
-    def post_installation_actions(self) -> list[BasePostInstallAction]:
+    def post_installation_actions(self) -> list[BasePrePostInstallAction]:
         return [
-            ApplyTemplatePostInstallAction(
+            ApplyTemplateAction(
                 name="CreateSparkCluster",
                 template_name="spark-cluster.yaml",
                 template_module="kubernetes",
                 with_custom_objects=True
             ),
-            ApplyTemplatePostInstallAction(
+            ApplyTemplateAction(
                 name="CreateSparkStripPrefixMiddleware",
                 template_name="traefik-spark-strip-prefix-middleware.yaml",
                 template_module="kubernetes",
                 with_custom_objects=True
             ),
-            ApplyTemplatePostInstallAction(
+            ApplyTemplateAction(
                 name="CreateSparkIngress",
                 template_name="spark-ingress.yaml",
                 template_module="kubernetes",
                 with_custom_objects=True
             ),
-            ApplyTemplatePostInstallAction(
-                name="CreateSparkIngress",
+            ApplyTemplateAction(
+                name="CreateSparkUIService",
                 template_name="spark-master-svc.yaml",
                 template_module="kubernetes",
                 with_custom_objects=True

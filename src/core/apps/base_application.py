@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass
 from typing import Any, TYPE_CHECKING
 
-from src.core.apps.actions.base_post_install_action import BasePostInstallAction
+from src.core.apps.actions.base_post_install_action import BasePrePostInstallAction
 from src.core.kubernetes.chart_config import HelmChart
 from abc import ABC, abstractmethod
 from enum import StrEnum

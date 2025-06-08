@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 
 
-class BasePostInstallAction(ABC):
+class BasePrePostInstallAction(ABC):
     def __init__(self, name: str):
         self.name = name
 

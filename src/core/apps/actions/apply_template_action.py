@@ -1,11 +1,11 @@
 from typing import override, Any
 
-from src.core.apps.actions.base_post_install_action import BasePostInstallAction
+from src.core.apps.actions.base_post_install_action import BasePrePostInstallAction
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.template_loader import template_loader
 
 
-class ApplyTemplatePostInstallAction(BasePostInstallAction):
+class ApplyTemplateAction(BasePrePostInstallAction):
     def __init__(self, name: str, template_name: str, template_module: str | None, with_custom_objects: bool = False):
         self.template_name = template_name
         self.template_module = template_module
