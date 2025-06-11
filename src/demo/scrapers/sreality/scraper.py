@@ -4,7 +4,7 @@ from typing import Literal
 import httpx
 
 from src.demo.scrapers.base_scraper import BaseScraper, ScraperPageResponse, ScraperRequestDetails, RequestMethod, \
-    ScraperParsingError
+    ScraperParsingError, ScraperError
 
 
 class SrealityScraper(BaseScraper):
@@ -18,13 +18,19 @@ class SrealityScraper(BaseScraper):
         else:
             raise ValueError(f'Unknown listing type: {listing_type}')
 
-        self._api_version = '1.0.358'  # Start API version (will be increased dynamically if needed)
+        self._api_version = '1.0.359'  # Start API version (will be increased dynamically if needed)
 
-        super().__init__('SrealityScraper', 22, 1)
+        disposition_batches = [
+            {'velikost': '1+1,1+kk,3+1,4+1,4+kk,5+1,5+kk,6-a-vice,atypicky,pokoj'},
+            {'velikost': '2+1,2+kk,3+kk'},
+        ]
+
+        super().__init__('SrealityScraper', 22, disposition_batches, 1)
 
         self._check_api_version_availability()
 
-        self._logger.info(f'Scraping {listing_type} listings')
+        self._logger.info(f'Scraping {listing_type} listings with {len(self.dynamic_params_options)} custom "velikost" batches.')
+        self._logger.debug(f'Dynamic parameter combinations: {self.dynamic_params_options}')
 
     def _check_api_version_availability(self):
         self._logger.info(f"Checking availability of API version {self._api_version}...")
@@ -43,15 +49,18 @@ class SrealityScraper(BaseScraper):
                 self._logger.info(f"API version {self._api_version} is available and will be used.")
                 break
 
-    def _build_request_details(self, page: int = 1) -> ScraperRequestDetails:
+    def _build_request_details(self, page: int = 1, dynamic_params: dict | None = None) -> ScraperRequestDetails:
         base_params = {
             'strana': page,
-            'slug': f'{self.listing_type}&slug=byty&slug=praha',
+            'slug': f'{self.listing_type}&slug=byty',
         }
+
+        if dynamic_params and 'velikost' in dynamic_params:
+            base_params['velikost'] = dynamic_params['velikost']
 
         return ScraperRequestDetails(
             method=RequestMethod.GET,
-            url=f'{self.BASE_URL}/_next/data/{self._api_version}/cs/hledani/{self.listing_type}/byty/praha.json',
+            url=f'{self.BASE_URL}/_next/data/{self._api_version}/cs/hledani/{self.listing_type}/byty.json',
             params=base_params,
         )
 
@@ -63,6 +72,9 @@ class SrealityScraper(BaseScraper):
             page_size = data['pagination']['limit']
 
             listings = data['results']
+
+            if total_listings > 9988:
+                raise ScraperError(f'Sreality only show max 454 pages (9988 listings). Current search returned {total_listings}. Please update input parameters.')
 
             total_pages = self.calculate_number_of_pages(total_listings, page_size)
 

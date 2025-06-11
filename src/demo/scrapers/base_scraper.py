@@ -120,8 +120,7 @@ class ScraperRunMetadata:
 
 
 class BaseScraper(ABC):
-
-    def __init__(self, scraper_name: str, page_size: int, start_page: int = 1):
+    def __init__(self, scraper_name: str, page_size: int, dynamic_params_options: list[dict] | None = None, start_page: int = 1):
         self._logger = setup_logger(scraper_name)
         self.page_size = page_size
         self.start_page = start_page
@@ -138,6 +137,8 @@ class BaseScraper(ABC):
         self._async_client: httpx.AsyncClient | None = None
 
         self.scraper_run_metadata = ScraperRunMetadata(scraper_name.replace('Scraper', ''))
+
+        self.dynamic_params_options = dynamic_params_options or [{}]
 
         self._logger.info(f'Starting {scraper_name} scraper run with ID {self.scraper_run_metadata.run_id}')
 
@@ -185,16 +186,80 @@ class BaseScraper(ABC):
 
     def scrape(self) -> list[Any]:
         self._logger.debug(f"Starting synchronous scrape for {self.scraper_name}")
+        all_scraped_items = []
 
-        return self.process_pagination(start_page=self.start_page)
+        # Check if dynamic_params_combinations has more than one entry
+        if self.dynamic_params_options and len(self.dynamic_params_options) > 1:
+            self._logger.debug(f"Processing dynamic synchronous scrape with {len(self.dynamic_params_options)} combinations.")
+            for params_combo in self.dynamic_params_options:
+                self._logger.info(f"Initiating sub-scrape with parameters: {params_combo}")
+                try:
+                    sub_scrape_items, sub_scrape_total_items, sub_scrape_total_pages = \
+                        self._process_single_param_pagination_sync(
+                            start_page=self.start_page,
+                            dynamic_params=params_combo,
+                        )
+                    all_scraped_items.extend(sub_scrape_items)
+                    self.scraper_run_metadata.items_total += sub_scrape_total_items
+                    self.scraper_run_metadata.pages_total += sub_scrape_total_pages
+                except Exception as e:
+                    self._logger.error(f"Error during synchronous sub-scrape with parameters {params_combo}: {e}", exc_info=True)
+                    # Decide if you want to re-raise or continue. Continuing for robustness here.
+        else:
+            # If not using dynamic params or only one combination, run standard pagination
+            self._logger.debug(f"Processing standard (non-dynamic) synchronous scrape for {self.scraper_name}")
+            items, total_items, total_pages = self._process_single_param_pagination_sync(
+                start_page=self.start_page,
+                dynamic_params=self.dynamic_params_options[0] if self.dynamic_params_options else {},
+            )
+            all_scraped_items.extend(items)
+            self.scraper_run_metadata.items_total += total_items
+            self.scraper_run_metadata.pages_total += total_pages
+
+        self.scraper_run_metadata.items_scraped = len(all_scraped_items)
+        return all_scraped_items
 
     async def scrape_async(self, concurrency: int = 10) -> list[Any]:
         self._logger.debug(f"Starting asynchronous scrape for {self.scraper_name}")
+        all_scraped_items = []
 
-        return await self.process_pagination_async(start_page=self.start_page, concurrency=concurrency)
+        # Check if dynamic_params_combinations has more than one entry
+        if self.dynamic_params_options and len(self.dynamic_params_options) > 1:
+            self._logger.debug(f"Processing dynamic asynchronous scrape with {len(self.dynamic_params_options)} combinations.")
+            # For simplicity, iterate sub-scrapes sequentially, but each sub-scrape will be async.
+            # If true parallel sub-scrapes are desired, you'd collect tasks here.
+            for params_combo in self.dynamic_params_options:
+                self._logger.info(f"Initiating async sub-scrape with parameters: {params_combo}")
+                try:
+                    sub_scrape_items, sub_scrape_total_items, sub_scrape_total_pages = \
+                        await self._process_single_param_pagination_async(
+                            start_page=self.start_page,
+                            dynamic_params=params_combo,
+                            concurrency=concurrency
+                        )
+                    all_scraped_items.extend(sub_scrape_items)
+                    self.scraper_run_metadata.items_total += sub_scrape_total_items
+                    self.scraper_run_metadata.pages_total += sub_scrape_total_pages
+                except Exception as e:
+                    self._logger.error(f"Error during asynchronous sub-scrape with parameters {params_combo}: {e}", exc_info=True)
+                    raise ValueError(f"Error during asynchronous sub-scrape with parameters {params_combo}: {e}")
+        else:
+            # If not using dynamic params or only one combination, run standard pagination
+            self._logger.debug(f"Processing standard (non-dynamic) asynchronous scrape for {self.scraper_name}")
+            items, total_items, total_pages = await self._process_single_param_pagination_async(
+                start_page=self.start_page,
+                dynamic_params=self.dynamic_params_options[0] if self.dynamic_params_options else {},
+                concurrency=concurrency
+            )
+            all_scraped_items.extend(items)
+            self.scraper_run_metadata.items_total += total_items
+            self.scraper_run_metadata.pages_total += total_pages
+
+        self.scraper_run_metadata.items_scraped = len(all_scraped_items)
+        return all_scraped_items
 
     @abstractmethod
-    def _build_request_details(self, page: int) -> ScraperRequestDetails:
+    def _build_request_details(self, page: int, dynamic_params: dict | None = None) -> ScraperRequestDetails:
         pass
 
     @abstractmethod
@@ -208,9 +273,9 @@ class BaseScraper(ABC):
         after=after_log(logging.getLogger(__name__), logging.WARNING),
         reraise=True,
     )
-    def _scrape_and_parse_page_sync(self, page: int) -> ScraperPageResponse:
-        self._logger.debug(f"Attempting to scrape and parse page {page} (sync)")
-        request_details = self._build_request_details(page)
+    def _scrape_and_parse_page_sync(self, page: int, dynamic_params: dict | None = None) -> ScraperPageResponse:
+        self._logger.debug(f"Attempting to scrape and parse page {page} with dynamic params {dynamic_params} (sync)")
+        request_details = self._build_request_details(page, dynamic_params)
 
         response = self._send_request(
             method=request_details.method,
@@ -232,9 +297,9 @@ class BaseScraper(ABC):
         after=after_log(logging.getLogger(__name__), logging.WARNING),
         reraise=True
     )
-    async def _scrape_and_parse_page_async(self, page: int) -> ScraperPageResponse:
-        self._logger.debug(f"Attempting to scrape and parse page {page} (async)")
-        request_details = self._build_request_details(page)
+    async def _scrape_and_parse_page_async(self, page: int, dynamic_params: dict | None = None) -> ScraperPageResponse:
+        self._logger.debug(f"Attempting to scrape and parse page {page} with dynamic params {dynamic_params} (async)")
+        request_details = self._build_request_details(page, dynamic_params)
 
         response = await self._send_request_async(
             method=request_details.method,
@@ -425,82 +490,77 @@ class BaseScraper(ABC):
             response.raise_for_status()
             return response
 
-    def process_pagination(
-        self,
-        start_page: int = 1,
-    ) -> list[Any]:
+    def _process_single_param_pagination_sync(
+            self,
+            start_page: int = 1,
+            dynamic_params: dict | None = None,
+    ) -> tuple[list[Any], int, int]:
         self._logger.debug(f"Processing pagination (sync), starting at page {start_page}")
 
-        first_page_r_parsed = self._scrape_and_parse_page_sync(page=start_page)
+        first_page_r_parsed = self._scrape_and_parse_page_sync(page=start_page, dynamic_params=dynamic_params)
 
         num_of_pages = first_page_r_parsed.total_pages
         num_of_items = first_page_r_parsed.total_items
 
-        self.scraper_run_metadata.items_total = num_of_items
-        self.scraper_run_metadata.pages_total = num_of_pages
-
-        self._logger.debug(f'Found {num_of_items} items on {num_of_pages} pages (sequentially)')
+        self._logger.debug(f'Found {num_of_items} items on {num_of_pages} pages (sequentially) for dynamic params {dynamic_params}')
 
         all_items = []
         all_items.extend(first_page_r_parsed.items)
         self._logger.info(
-            f'On page {start_page}: {len(first_page_r_parsed.items)} items (scraped in total: {len(all_items)})'
+            f'On page {start_page}: {len(first_page_r_parsed.items)} items (scraped in total for this sub-run: {len(all_items)})'
         )
 
         for page in range(start_page + 1, num_of_pages + 1 if start_page != 0 else num_of_pages):
-            page_r_parsed = self._scrape_and_parse_page_sync(page=page)
+            page_r_parsed = self._scrape_and_parse_page_sync(page=page, dynamic_params=dynamic_params)
 
             page_items = page_r_parsed.items
             all_items.extend(page_items)
 
             self._logger.info(
-                f'On page {page}: {len(page_items)} products (scraped in total: {len(all_items)})'
+                f'On page {page} for {dynamic_params}: {len(page_items)} products (scraped in total for this sub-run: {len(all_items)})'
             )
 
-        self.scraper_run_metadata.items_scraped = len(all_items)
+        return all_items, num_of_items, num_of_pages
 
-        return all_items
+    async def _process_single_param_pagination_async(
+            self,
+            start_page: int = 1,
+            dynamic_params: dict | None = None,
+            concurrency: int = 10
+    ) -> tuple[list[Any], int, int]:
 
-    async def process_pagination_async(
-        self,
-        start_page: int = 1,
-        concurrency: int = 10,
-    ) -> list[Any]:
-        self._logger.debug(f"Processing pagination (async), starting at page {start_page}")
+        self._logger.debug(f"Processing pagination (async, concurrency {concurrency}), starting at page {start_page}")
 
-        first_page_r_parsed = await self._scrape_and_parse_page_async(page=start_page)
+        first_page_r_parsed = await self._scrape_and_parse_page_async(page=start_page, dynamic_params=dynamic_params)
 
         num_of_pages = first_page_r_parsed.total_pages
         num_of_items = first_page_r_parsed.total_items
 
-        self.scraper_run_metadata.items_total = num_of_items
-        self.scraper_run_metadata.pages_total = num_of_pages
-
-        self._logger.info(f'Found {num_of_items} items on {num_of_pages} pages (asynchronously)')
+        self._logger.info(f'Found {num_of_items} items on {num_of_pages} pages (asynchronously) for dynamic params {dynamic_params}')
 
         first_page_items = [{**x, '_scraped_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')} for x in first_page_r_parsed.items]
         all_items = []
         all_items.extend(first_page_items)
 
         self._logger.info(
-            f'On page {start_page}: {len(first_page_r_parsed.items)} items (scraped in total: {len(all_items)})'
+            f'On page {start_page}: {len(first_page_r_parsed.items)} items (scraped in total for this sub-run: {len(all_items)})'
         )
 
         pages_to_scrape = list(range(start_page + 1, num_of_pages + 1 if start_page != 0 else num_of_pages))
         semaphore = asyncio.Semaphore(concurrency)
 
-        async def fetch_and_parse_page_task(page_num: int):
+        async def fetch_and_parse_page_task(page_num: int, current_dynamic_params: dict):
             async with semaphore:
                 try:
-                    parsed_response = await self._scrape_and_parse_page_async(page=page_num)
+                    parsed_response = await self._scrape_and_parse_page_async(page=page_num, dynamic_params=current_dynamic_params)
                     return parsed_response
                 except Exception as e:
-                    self._logger.error(f"Failed to scrape or parse page {page_num} after all retries: {e}")
+                    self._logger.error(f"Failed to scrape or parse page {page_num} after all retries: {e}", exc_info=True)
                     # If all retries fail, return an empty ScraperPageResponse for this page
                     # The main loop will continue but this page's items will be empty.
                     return ScraperPageResponse(total_items=0, total_pages=0, items=[], page=page_num)
 
-        tasks = [fetch_and_parse_page_task(p) for p in pages_to_scrape]
+        tasks = [fetch_and_parse_page_task(p, dynamic_params) for p in pages_to_scrape]
 
         for future in asyncio.as_completed(tasks):
             result = await future
@@ -509,9 +569,7 @@ class BaseScraper(ABC):
 
             all_items.extend(page_items)
             self._logger.info(
-                f'On page {result.page}: {len(page_items)} products (scraped in total: {len(all_items)})'
+                f'On page {result.page}: {len(page_items)} products (scraped in total: {len(all_items)}/{num_of_items})'
             )
 
-        self.scraper_run_metadata.items_scraped = len(all_items)
-
-        return all_items
+        return all_items, num_of_items, num_of_pages

@@ -22,7 +22,7 @@ class BezrealitkyScraper(BaseScraper):
 
         self._logger.info(f'Scraping {listing_type} listings')
 
-    def _build_request_details(self, page: int = 0) -> ScraperRequestDetails:
+    def _build_request_details(self, page: int = 0, dynamic_params: dict | None = None) -> ScraperRequestDetails:
         json_data = {
             "operationName": "AdvertList",
             "variables": {
