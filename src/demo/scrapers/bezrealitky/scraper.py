@@ -18,7 +18,7 @@ class BezrealitkyScraper(BaseScraper):
         else:
             raise ValueError(f'Unknown listing type: {listing_type}')
 
-        super().__init__('BezrealitkyScraper', 15, 0)
+        super().__init__('BezrealitkyScraper', 15, start_page=0)
 
         self._logger.info(f'Scraping {listing_type} listings')
 
