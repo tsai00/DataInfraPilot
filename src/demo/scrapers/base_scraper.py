@@ -146,7 +146,7 @@ class BaseScraper(ABC):
         self._logger.debug("Entering synchronous context. Initializing httpx.Client.")
 
         if self._sync_client is None:
-            self._sync_client = httpx.Client(proxy=self._proxy, verify=False, timeout=30)
+            self._sync_client = httpx.Client(proxy=self._proxy, verify=False, timeout=120)
 
         self._logger.debug(f'Starting {self.scraper_name} scraper run (sync context)')
 
@@ -167,7 +167,7 @@ class BaseScraper(ABC):
         self._logger.debug("Entering asynchronous context. Initializing httpx.AsyncClient.")
 
         if self._async_client is None:
-            self._async_client = httpx.AsyncClient(proxy=self._proxy, verify=False, timeout=30)
+            self._async_client = httpx.AsyncClient(proxy=self._proxy, verify=False, timeout=120)
 
         self._logger.debug(f'Starting {self.scraper_name} scraper run (async context)')
 
@@ -195,7 +195,7 @@ class BaseScraper(ABC):
                 self._logger.info(f"Initiating sub-scrape with parameters: {params_combo}")
                 try:
                     sub_scrape_items, sub_scrape_total_items, sub_scrape_total_pages = \
-                        self._process_single_param_pagination_sync(
+                        self._process_pagination_sync(
                             start_page=self.start_page,
                             dynamic_params=params_combo,
                         )
@@ -208,7 +208,7 @@ class BaseScraper(ABC):
         else:
             # If not using dynamic params or only one combination, run standard pagination
             self._logger.debug(f"Processing standard (non-dynamic) synchronous scrape for {self.scraper_name}")
-            items, total_items, total_pages = self._process_single_param_pagination_sync(
+            items, total_items, total_pages = self._process_pagination_sync(
                 start_page=self.start_page,
                 dynamic_params=self.dynamic_params_options[0] if self.dynamic_params_options else {},
             )
@@ -232,7 +232,7 @@ class BaseScraper(ABC):
                 self._logger.info(f"Initiating async sub-scrape with parameters: {params_combo}")
                 try:
                     sub_scrape_items, sub_scrape_total_items, sub_scrape_total_pages = \
-                        await self._process_single_param_pagination_async(
+                        await self._process_pagination_async(
                             start_page=self.start_page,
                             dynamic_params=params_combo,
                             concurrency=concurrency
@@ -246,7 +246,7 @@ class BaseScraper(ABC):
         else:
             # If not using dynamic params or only one combination, run standard pagination
             self._logger.debug(f"Processing standard (non-dynamic) asynchronous scrape for {self.scraper_name}")
-            items, total_items, total_pages = await self._process_single_param_pagination_async(
+            items, total_items, total_pages = await self._process_pagination_async(
                 start_page=self.start_page,
                 dynamic_params=self.dynamic_params_options[0] if self.dynamic_params_options else {},
                 concurrency=concurrency
@@ -405,7 +405,7 @@ class BaseScraper(ABC):
         # If scraper is running as a context manager, self._sync_client will be set.
         # Otherwise, create a temporary client for this single request.
         client_to_use = self._sync_client if self._sync_client else httpx.Client(proxy=self._proxy, verify=False,
-                                                                                 timeout=30)
+                                                                                 timeout=120)
 
         self._logger.debug(f'Sending {method} sync request to {url} with params: {params}, headers: {headers}, cookies: {cookies}, json: {json}')
 
@@ -417,7 +417,7 @@ class BaseScraper(ABC):
                 params=params,
                 headers=headers,
                 cookies=cookies,
-                timeout=30
+                timeout=120
             )
 
             return self._handle_response(response)
@@ -445,7 +445,7 @@ class BaseScraper(ABC):
         # If scraper is running as an async context manager, self._async_client will be set.
         # Otherwise, create a temporary async client for this single request.
         client_to_use = self._async_client if self._async_client else httpx.AsyncClient(proxy=self._proxy, verify=False,
-                                                                                        timeout=30)
+                                                                                        timeout=120)
 
         self._logger.debug(f'Sending {method} async request to {url} with params: {params}, headers: {headers}, cookies: {cookies}, json: {json}')
 
@@ -457,7 +457,7 @@ class BaseScraper(ABC):
                 params=params,
                 headers=headers,
                 cookies=cookies,
-                timeout=30
+                timeout=120
             )
 
             return self._handle_response(response)
@@ -490,7 +490,7 @@ class BaseScraper(ABC):
             response.raise_for_status()
             return response
 
-    def _process_single_param_pagination_sync(
+    def _process_pagination_sync(
             self,
             start_page: int = 1,
             dynamic_params: dict | None = None,
@@ -502,7 +502,7 @@ class BaseScraper(ABC):
         num_of_pages = first_page_r_parsed.total_pages
         num_of_items = first_page_r_parsed.total_items
 
-        self._logger.debug(f'Found {num_of_items} items on {num_of_pages} pages (sequentially) for dynamic params {dynamic_params}')
+        self._logger.debug(f'Found {num_of_items} items on {num_of_pages} pages (sequentially)')
 
         all_items = []
         all_items.extend(first_page_r_parsed.items)
@@ -522,7 +522,7 @@ class BaseScraper(ABC):
 
         return all_items, num_of_items, num_of_pages
 
-    async def _process_single_param_pagination_async(
+    async def _process_pagination_async(
             self,
             start_page: int = 1,
             dynamic_params: dict | None = None,
@@ -536,7 +536,7 @@ class BaseScraper(ABC):
         num_of_pages = first_page_r_parsed.total_pages
         num_of_items = first_page_r_parsed.total_items
 
-        self._logger.info(f'Found {num_of_items} items on {num_of_pages} pages (asynchronously) for dynamic params {dynamic_params}')
+        self._logger.info(f'Found {num_of_items} items on {num_of_pages} pages (asynchronously)')
 
         first_page_items = [{**x, '_scraped_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')} for x in first_page_r_parsed.items]
         all_items = []
