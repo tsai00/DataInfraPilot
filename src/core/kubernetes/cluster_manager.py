@@ -22,7 +22,7 @@ from src.core.providers.provider_factory import ProviderFactory
 from traceback import format_exc
 from src.core.kubernetes.deployment_status import DeploymentStatus
 from src.database.models.volume import Volume
-
+from pydantic_core._pydantic_core import ValidationError
 
 
 class ClusterManager(object):
@@ -137,6 +137,7 @@ class ClusterManager(object):
         # TODO: parametrize provider
         cluster = self.storage.get_cluster(cluster_id)
         provider = ProviderFactory.get_provider('hetzner', cluster.provider_config)
+
         provider.delete_cluster()
 
         self.storage.delete_cluster(cluster_id)
@@ -175,11 +176,6 @@ class ClusterManager(object):
             raise ValueError(f"Cluster {cluster_id} was not found")
 
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
-
-        application_instance = ApplicationFactory.get_application(deployment_create.application_id, deployment_config)
-
-        helm_chart = application_instance.get_helm_chart()
-        helm_chart_values = application_instance.chart_values.copy()
 
         if node_pool:
             cluster_pools = [x.name for x in cluster.config.pools]
@@ -222,6 +218,18 @@ class ClusterManager(object):
         )
 
         deployment_id = self.storage.create_deployment(deployment)
+
+        try:
+            application_instance = ApplicationFactory.get_application(deployment_create.application_id,
+                                                                      deployment_config)
+        except ValidationError as e:
+            print(f"Application config validation error: {e.errors()}")
+            self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED,
+                                                           "error_message": f"Application config error: {e.errors()}"})
+            return
+
+        helm_chart = application_instance.get_helm_chart()
+        helm_chart_values = application_instance.chart_values.copy()
 
         namespace = f"{helm_chart.name.split('/')[-1]}-{deployment_id}"
         self.storage.update_deployment(deployment_id, {"namespace": namespace})
