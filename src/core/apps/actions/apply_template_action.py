@@ -6,12 +6,12 @@ from src.core.template_loader import template_loader
 
 
 class ApplyTemplateAction(BasePrePostInstallAction):
-    def __init__(self, name: str, template_name: str, template_module: str | None, with_custom_objects: bool = False):
+    def __init__(self, name: str, template_name: str, template_module: str | None, with_custom_objects: bool = False, condition: bool = True):
         self.template_name = template_name
         self.template_module = template_module
         self.with_custom_objects = with_custom_objects
 
-        super().__init__(name=name)
+        super().__init__(name=name, condition=condition)
 
     @override
     def run(self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]):

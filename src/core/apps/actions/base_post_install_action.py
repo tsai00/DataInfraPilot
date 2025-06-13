@@ -11,8 +11,9 @@ if TYPE_CHECKING:
 
 
 class BasePrePostInstallAction(ABC):
-    def __init__(self, name: str):
+    def __init__(self, name: str, condition: bool):
         self.name = name
+        self.condition = condition
 
         self._validate()
 

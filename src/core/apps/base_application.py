@@ -122,10 +122,25 @@ class BaseApplication(ABC):
         pass
 
     @property
-    def post_installation_actions(self) -> list[BasePostInstallAction]:
+    def pre_installation_actions(self) -> list[BasePrePostInstallAction]:
         return []
+
+    @property
+    def post_installation_actions(self) -> list[BasePrePostInstallAction]:
+        return []
+
+    def run_pre_install_actions(self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]) -> None:
+        for action in self.pre_installation_actions:
+            if not action.condition:
+                print(f'Skipping pre-install action: {action.name} as its condition is not met')
+            else:
+                print(f'Running pre-install action: {action.name}')
+                action.run(cluster, namespace, config_values)
 
     def run_post_install_actions(self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]) -> None:
         for action in self.post_installation_actions:
-            print(f'Running post-install action: {action.name}')
-            action.run(cluster, namespace, config_values)
+            if not action.condition:
+                print(f'Skipping post-install action: {action.name} as its condition is not met')
+            else:
+                print(f'Running post-install action: {action.name}')
+                action.run(cluster, namespace, config_values)
