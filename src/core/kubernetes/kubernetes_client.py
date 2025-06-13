@@ -1,3 +1,4 @@
+import json
 import time
 import traceback
 
@@ -138,8 +139,39 @@ class KubernetesClient:
         except Exception as e:
             print(f'Error while deleting namespace {namespace}: {e}')
 
+    def create_docker_registry_secret(self, secret_name: str, registry_url: str, registry_username: str, registry_password: str, namespace: str = "default"):
+        print(f'Creating secret {secret_name} of type "docker-registry"')
+
+        cred_payload = {
+            "auths": {
+                registry_url: {
+                    "username": registry_username,
+                    "password": registry_password,
+                }
+            }
+        }
+
+        data = {
+            ".dockerconfigjson": base64.b64encode(
+                json.dumps(cred_payload).encode()
+            ).decode()
+        }
+
+        secret = client.V1Secret(
+            api_version="v1",
+            data=data,
+            kind="Secret",
+            metadata=dict(name=secret_name, namespace=namespace),
+            type="kubernetes.io/dockerconfigjson",
+        )
+
+        self._clients.Core.create_namespaced_secret(namespace, body=secret)
+
+        print(f'Secret {secret_name} of type "docker-registry" created successfully!')
+
     def create_secret(self, secret_name: str, namespace: str, data: dict[str, str]):
         print(f'Creating secret {secret_name}')
+
         secret = client.V1Secret(
             api_version="v1",
             kind="Secret",

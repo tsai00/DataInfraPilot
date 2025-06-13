@@ -266,8 +266,13 @@ class KubernetesCluster:
     def create_object_from_content(self, yaml_content: dict | list[dict]):
         self._client.install_from_content(yaml_content)
 
-    def create_secret(self, secret_name: str, namespace: str, data: dict[str, str]):
-        self._client.create_secret(secret_name, namespace, data)
+    def create_secret(self, secret_name: str, namespace: str, data: dict[str, str], secret_type: str | None = None):
+        self.create_namespace(namespace)
+
+        if secret_type == 'docker-registry':
+            self._client.create_docker_registry_secret(secret_name, data['url'], data['username'], data['password'], namespace)
+        else:
+            self._client.create_secret(secret_name, namespace, data)
 
     def get_secret(self, secret_name: str, namespace: str) -> dict | None:
         return self._client.get_secret(secret_name, namespace)
