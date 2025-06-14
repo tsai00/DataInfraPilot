@@ -85,7 +85,8 @@ class SrealityScraper(BaseScraper):
 
             if total_listings > 9988:
                 raise ScraperError(
-                    f'Sreality only show max 454 pages (9988 listings). Current search returned {total_listings}. Please update input parameters.'
+                    f'Sreality only show max 454 pages (9988 listings). '
+                    f'Current search returned {total_listings}. Please update input parameters.'
                 )
 
             total_pages = self.calculate_number_of_pages(total_listings, page_size)
@@ -98,6 +99,7 @@ class SrealityScraper(BaseScraper):
             raise ScraperParsingError('Failed to parse response') from e
         except Exception as e:
             self._logger.exception(
-                f'An unexpected error occurred while parsing page {response.url}. Response text: {response.text[:500]}... -> Retrying...'
+                f'An unexpected error occurred while parsing page {response.url}. '
+                f'Response text: {response.text[:500]}... -> Retrying...'
             )
             raise ScraperParsingError('An unexpected error occurred while parsing response') from e

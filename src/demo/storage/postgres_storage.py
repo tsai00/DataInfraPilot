@@ -86,7 +86,10 @@ class PostgresStorage(BaseStorage[pd.DataFrame]):
             if if_exists == 'append':
                 with self.engine.connect() as connection:
                     table_exists_query = text(
-                        f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '{path}');"  # noqa: S608 (no user input)
+                        f'SELECT EXISTS ('  # noqa: S608 (no user input)
+                        f'SELECT 1 FROM information_schema.tables '
+                        f"WHERE table_schema = 'public' "
+                        f"AND table_name = '{path}');"
                     )
                     table_exists = connection.execute(table_exists_query).scalar()
                     if table_exists:
@@ -138,7 +141,8 @@ class PostgresStorage(BaseStorage[pd.DataFrame]):
             raise
         except ProgrammingError:
             self._logger.exception(
-                f"PostgreSQL download failed: Programming error. Check table '{query_or_table}' existence/permissions or query syntax."
+                f'PostgreSQL download failed: Programming error. '
+                f"Check table '{query_or_table}' existence/permissions or query syntax."
             )
             raise
         except Exception:

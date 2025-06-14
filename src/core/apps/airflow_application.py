@@ -216,7 +216,9 @@ class AirflowApplication(BaseApplication):
 
     @property
     def chart_values(self) -> dict[str, Any]:
-        # dags_repository_ssh_key_base64 = base64.b64encode(self._config.dags_repository_ssh_private_key.encode()).decode()
+        # dags_repository_ssh_key_base64 = (
+        #     base64.b64encode(self._config.dags_repository_ssh_private_key.encode()).decode()
+        # )
 
         values = {
             'airflowVersion': self._config.version if not self._config.use_custom_image else '2.11.0',
@@ -252,7 +254,8 @@ class AirflowApplication(BaseApplication):
                     'depth': 1,
                     'maxFailures': 1,
                     'subPath': self._config.dags_repository_subpath,
-                    # "sshKeySecret": "airflow-ssh-secret" if self._config.dags_repository_ssh_private_key is not None else None
+                    # "sshKeySecret": "airflow-ssh-secret" if self._config.dags_repository_ssh_private_key is not None
+                    # else None
                 }
             },
             'logs': {

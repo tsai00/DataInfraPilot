@@ -394,7 +394,8 @@ class BaseScraper(ABC):
         )
 
         self._logger.debug(
-            f'Sending {method} sync request to {url} with params: {params}, headers: {headers}, cookies: {cookies}, json: {json}'
+            f'Sending {method} sync request to {url} with params: {params}, '
+            f'headers: {headers}, cookies: {cookies}, json: {json}'
         )
 
         try:
@@ -433,7 +434,8 @@ class BaseScraper(ABC):
         )
 
         self._logger.debug(
-            f'Sending {method} async request to {url} with params: {params}, headers: {headers}, cookies: {cookies}, json: {json}'
+            f'Sending {method} async request to {url} with params: {params}, '
+            f'headers: {headers}, cookies: {cookies}, json: {json}'
         )
 
         try:
@@ -486,7 +488,7 @@ class BaseScraper(ABC):
         all_items = []
         all_items.extend(first_page_r_parsed.items)
         self._logger.info(
-            f'On page {start_page}: {len(first_page_r_parsed.items)} items (scraped in total for this sub-run: {len(all_items)})'
+            f'On page {start_page}: {len(first_page_r_parsed.items)} items (scraped in total: {len(all_items)})'
         )
 
         for page in range(start_page + 1, num_of_pages + 1 if start_page != 0 else num_of_pages):
@@ -496,7 +498,7 @@ class BaseScraper(ABC):
             all_items.extend(page_items)
 
             self._logger.info(
-                f'On page {page} for {dynamic_params}: {len(page_items)} products (scraped in total for this sub-run: {len(all_items)})'
+                f'On page {page} for {dynamic_params}: {len(page_items)} products (scraped in total: {len(all_items)})'
             )
 
         return all_items, num_of_items, num_of_pages
@@ -520,7 +522,7 @@ class BaseScraper(ABC):
         all_items.extend(first_page_items)
 
         self._logger.info(
-            f'On page {start_page}: {len(first_page_r_parsed.items)} items (scraped in total for this sub-run: {len(all_items)})'
+            f'On page {start_page}: {len(first_page_r_parsed.items)} items (scraped in total: {len(all_items)})'
         )
 
         pages_to_scrape = list(range(start_page + 1, num_of_pages + 1 if start_page != 0 else num_of_pages))

@@ -173,7 +173,8 @@ class HetznerProvider(BaseProvider):
         server = response.server
 
         self._logger.info(
-            f'Created server {server.name=}, {server.status=}, IP={server.public_net.ipv4.ip}, waiting until k3s is installed'
+            f'Created server {server.name=}, {server.status=}, '
+            f'IP={server.public_net.ipv4.ip}, waiting until k3s is installed'
         )
 
         await self._wait_until_server_is_initialised(server.id)

@@ -92,13 +92,18 @@ class ClusterManager:
                 },
             )
         except ResourceUnavailableError as e:
-            error_message = f'{e!s}. Right now Hetzner does not have available machines for selected type/region. Please try removing the cluster and creating it again later or choose VM of different type / location.'
+            error_message = (
+                f'{e!s}. Right now Hetzner does not have available machines for selected type/region. '
+                f'Please try removing the cluster and creating it again later or '
+                f'choose VM of different type / location.'
+            )
             self.storage.update_cluster(cluster_id, {'status': DeploymentStatus.FAILED, 'error_message': error_message})
         except Exception as e:
             self._logger.exception('Error while creating cluster', exc_info=True)
 
             error_msg_formatted = re.sub(
-                r'WARNING: Kubernetes configuration file is (?:world|group)-readable\. This is insecure\. Location: .*\.yaml',
+                r'WARNING: Kubernetes configuration file is (?:world|group)-readable\. '
+                r'This is insecure\. Location: .*\.yaml',
                 '',
                 str(e),
             )
@@ -279,7 +284,8 @@ class ClusterManager:
         except Exception as e:
             self._logger.exception('Error during application deployment', exc_info=True)
             error_msg_formatted = re.sub(
-                r'WARNING: Kubernetes configuration file is (?:world|group)-readable\. This is insecure\. Location: .*\.yaml',
+                r'WARNING: Kubernetes configuration file is (?:world|group)-readable\. '
+                r'This is insecure\. Location: .*\.yaml',
                 '',
                 str(e),
             )
@@ -388,7 +394,8 @@ class ClusterManager:
                     existing_subdomain_endpoints.append(endpoint['value'])
                 else:
                     raise ValueError(
-                        f'Unknown access type {endpoint["access_type"]} for endpoint {endpoint["name"]} in deployment {deployment.name}'
+                        f'Unknown access type {endpoint["access_type"]} for '
+                        f'endpoint {endpoint["name"]} in deployment {deployment.name}'
                     )
 
         return {

@@ -53,7 +53,8 @@ class AccessEndpointConfig:
 
 
 class BaseApplication(ABC):
-    # TODO: refactor to either expose app config or make application instance config-idepedenent and load config in separate method
+    # TODO: refactor to either expose app config or
+    #  make application instance config-idepedenent and load config in separate method
 
     _helm_chart: HelmChart
 

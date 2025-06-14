@@ -39,7 +39,8 @@ class ADLSStorage(BaseStorage[ADLSIOType]):
             return self
         except ClientAuthenticationError:
             self._logger.exception(
-                'Azure authentication failed. Ensure accessing identity is configured correctly and has Storage Blob Data Contributor role.'
+                'Azure authentication failed. Ensure accessing identity is configured correctly and '
+                'has Storage Blob Data Contributor role.'
             )
             raise
         except Exception:
