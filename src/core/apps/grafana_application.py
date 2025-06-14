@@ -21,7 +21,6 @@ class GrafanaApplication(BaseApplication):
 
     def __init__(self, config: GrafanaConfig):
         self._config = config
-        self._version = self._config.version
 
         super().__init__("Grafana")
 
@@ -30,10 +29,6 @@ class GrafanaApplication(BaseApplication):
     def get_available_versions(cls) -> list[str]:
         # TODO: replace with actual version list + move to base class
         return ['2.10.3']
-
-    def __post_init__(self):
-        if self._version not in self.get_available_versions():
-            raise ValueError
 
     @classmethod
     def get_accessible_endpoints(cls) -> list[AccessEndpoint]:

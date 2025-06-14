@@ -50,7 +50,6 @@ class AirflowApplication(BaseApplication):
 
     def __init__(self, config: AirflowConfig):
         self._config = config
-        self._version = self._config.version
 
         super().__init__("Airflow")
 
@@ -215,17 +214,13 @@ class AirflowApplication(BaseApplication):
             raise
         return [x['tag_name'] for x in r if bool(re.search(r"^2\.\d{1,2}\.\d$", x['tag_name']))][:5]
 
-    def __post_init__(self):
-        if self._version not in self.get_available_versions():
-            raise ValueError
-
     @property
     def chart_values(self) -> dict[str, Any]:
         dags_repository_ssh_key_base64 = base64.b64encode(self._config.dags_repository_ssh_private_key.encode()).decode()
 
         values = {
-            "airflowVersion": self._version if not self._config.use_custom_image else "2.11.0",
-            "defaultAirflowTag": self._version if not self._config.use_custom_image else self._config.private_registry_image_tag,
+            "airflowVersion": self._config.version if not self._config.use_custom_image else "2.11.0",
+            "defaultAirflowTag": self._config.version if not self._config.use_custom_image else self._config.private_registry_image_tag,
             "executor": self._config.executor,
             "flower": {
                 "enabled": self._config.flower_enabled
@@ -349,7 +344,7 @@ class AirflowApplication(BaseApplication):
                 name="CreatePrivateRegistryCredentialsSecret",
                 secret_name="private-registry-creds",
                 secret_data={
-                    "url": self._config.private_registry_url[:self._config.private_registry_url.index('/', 8)],
+                    "url": self._config.private_registry_url[:self._config.private_registry_url.index('/', 8)] if self._config.private_registry_url else None,
                     "username": self._config.private_registry_username,
                     "password": self._config.private_registry_password
                 },

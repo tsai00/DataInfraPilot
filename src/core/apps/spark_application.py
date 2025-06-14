@@ -28,7 +28,6 @@ class SparkApplication(BaseApplication):
 
     def __init__(self, config: SparkConfig):
         self._config = config
-        self._version = self._config.version
 
         super().__init__("Spark")
 
@@ -37,17 +36,6 @@ class SparkApplication(BaseApplication):
     def get_available_versions(cls) -> list[str]:
         # TODO: replace with actual version list + move to base class
         return ['3.5.1']
-
-    def __post_init__(self):
-        if self._version not in self.get_available_versions():
-            raise ValueError
-
-    @classmethod
-    def get_initial_credentials_secret_name(cls) -> str | None:
-        return None
-
-    def get_initial_credentials(self) -> dict[str, str]:
-        return {}
 
     @classmethod
     def get_accessible_endpoints(cls) -> list[AccessEndpoint]:
