@@ -47,8 +47,8 @@ class KubernetesClient:
         try:
             utils.create_from_yaml(self._clients.api, yaml_objects=yaml_content)
             self._logger.info('Custom object installed successfully!')
-        except Exception as e:
-            self._logger.exception(f'Error while installing object: {e}', exc_info=True)
+        except Exception:
+            self._logger.exception('Error while installing object', exc_info=True)
 
     def cordon_node(self, node_name: str) -> None:
         body = {
@@ -139,8 +139,8 @@ class KubernetesClient:
     def delete_namespace(self, namespace: str) -> None:
         try:
             self._clients.core.delete_namespace(namespace)
-        except Exception as e:
-            self._logger.exception(f'Error while deleting namespace {namespace}: {e}', exc_info=False)
+        except Exception:
+            self._logger.exception(f'Error while deleting namespace {namespace}', exc_info=False)
 
     def create_docker_registry_secret(
         self,

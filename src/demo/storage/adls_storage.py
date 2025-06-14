@@ -37,13 +37,13 @@ class ADLSStorage(BaseStorage[ADLSIOType]):
 
             self._logger.debug(f'ADLS BlobServiceClient initialized for account: {self.account_url}')
             return self
-        except ClientAuthenticationError as e:
+        except ClientAuthenticationError:
             self._logger.exception(
-                f'Azure authentication failed: {e}. Ensure accessing identity is configured correctly and has Storage Blob Data Contributor role.'
+                'Azure authentication failed. Ensure accessing identity is configured correctly and has Storage Blob Data Contributor role.'
             )
             raise
-        except Exception as e:
-            self._logger.exception(f'Failed to initialize ADLS BlobServiceClient: {e}')
+        except Exception:
+            self._logger.exception('Failed to initialize ADLS BlobServiceClient')
             raise
 
     def __exit__(
@@ -58,19 +58,19 @@ class ADLSStorage(BaseStorage[ADLSIOType]):
             container_client.get_container_properties()
             self._logger.debug(f"ADLS health check successful for container '{self.container_name}'.")
             return True
-        except ClientAuthenticationError as e:
-            self._logger.exception(f'ADLS health check failed: Authentication error. Ensure correct permissions. {e}')
+        except ClientAuthenticationError:
+            self._logger.exception('ADLS health check failed: Authentication error. Ensure correct permissions.')
             return False
         except ResourceNotFoundError:
             self._logger.exception(
                 f"ADLS health check failed: Container '{self.container_name}' not found. Please create it."
             )
             return False
-        except AzureError as e:
-            self._logger.exception(f'ADLS health check failed due to Azure error: {e}')
+        except AzureError:
+            self._logger.exception('ADLS health check failed due to Azure error')
             return False
-        except Exception as e:
-            self._logger.exception(f'ADLS health check failed due to unexpected error: {e}')
+        except Exception:
+            self._logger.exception('ADLS health check failed due to unexpected error')
             return False
 
     def upload_data(self, data: ADLSIOType, path: str) -> str:
@@ -85,11 +85,11 @@ class ADLSStorage(BaseStorage[ADLSIOType]):
             blob_client.upload_blob(data, overwrite=True)
             self._logger.info(f'Data successfully uploaded to ADLS at: {self.container_name}/{path}')
             return f'{self.container_name}/{path}'
-        except AzureError as e:
-            self._logger.exception(f'Failed to upload data to ADLS at {self.container_name}/{path}: {e}')
+        except AzureError:
+            self._logger.exception(f'Failed to upload data to ADLS at {self.container_name}/{path}')
             raise
-        except Exception as e:
-            self._logger.exception(f'An unexpected error occurred during ADLS upload: {e}')
+        except Exception:
+            self._logger.exception('An unexpected error occurred during ADLS upload')
             raise
 
     def download_data(self, path: str) -> ADLSIOType:
@@ -108,11 +108,11 @@ class ADLSStorage(BaseStorage[ADLSIOType]):
         except ResourceNotFoundError:
             self._logger.warning(f'File not found at {self.container_name}/{path}. Returning empty string.')
             return ''
-        except AzureError as e:
-            self._logger.exception(f'Failed to download file from ADLS at {self.container_name}/{path}: {e}')
+        except AzureError:
+            self._logger.exception(f'Failed to download file from ADLS at {self.container_name}/{path}')
             raise
-        except Exception as e:
-            self._logger.exception(f'An unexpected error occurred during ADLS download: {e}')
+        except Exception:
+            self._logger.exception('An unexpected error occurred during ADLS download')
             raise
 
     def upload_df_to_parquet(self, dataframe: pd.DataFrame, path: str) -> str:

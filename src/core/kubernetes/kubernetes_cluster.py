@@ -196,8 +196,8 @@ class KubernetesCluster:
         try:
             self._client.install_from_yaml(traefik_custom_config_template, with_custom_objects=True)
             self._logger.info('Traefik custom config applied successfully!')
-        except Exception as e:
-            self._logger.exception(f'Failed to apply Traefik custom config: {e}', exc_info=False)
+        except Exception:
+            self._logger.exception('Failed to apply Traefik custom config', exc_info=False)
 
         encrypted_password = encrypt_password(username, password)
         dashboard_creds_secret_name = 'traefik-dashboard-creds-secret'  # noqa: S105 (not a secret)
@@ -218,8 +218,8 @@ class KubernetesCluster:
             try:
                 self._client.install_from_yaml(rendered_template_file, with_custom_objects=True)
                 self._logger.info('Traefik basic auth middleware applied successfully!')
-            except Exception as e:
-                self._logger.exception(f'Failed to apply Traefik basic auth middleware: {e}', exc_info=False)
+            except Exception:
+                self._logger.exception('Failed to apply Traefik basic auth middleware', exc_info=False)
 
         values = {
             'enable_https': enable_https,
@@ -234,8 +234,8 @@ class KubernetesCluster:
             try:
                 self._client.install_from_yaml(rendered_template_file, with_custom_objects=True)
                 self._logger.info('Traefik dashboard exposed successfully!')
-            except Exception as e:
-                self._logger.exception(f'Failed to expose Traefik dashboard: {e}', exc_info=True)
+            except Exception:
+                self._logger.exception('Failed to expose Traefik dashboard', exc_info=True)
 
     def _add_acme_certificate_issuer(self) -> None:
         path_to_template = template_loader.get_template('cert-manager-acme-issuer.yaml', 'kubernetes')
@@ -243,8 +243,8 @@ class KubernetesCluster:
         try:
             self._client.install_from_yaml(path_to_template, with_custom_objects=True)
             self._logger.info('Certificate issuer successfully added!')
-        except Exception as e:
-            self._logger.exception(f'Failed to add certificate issuer: {e}', exc_info=False)
+        except Exception:
+            self._logger.exception('Failed to add certificate issuer', exc_info=False)
 
     def create_certificate(self, certificate_name: str, domain_name: str, secret_name: str, namespace: str) -> None:
         self._logger.info(f'Creating certificate {certificate_name} for domain {domain_name} as secret {secret_name}')
@@ -262,8 +262,8 @@ class KubernetesCluster:
             try:
                 self._client.install_from_yaml(rendered_template_file, with_custom_objects=True)
                 self._logger.info('Certificate successfully created!')
-            except Exception as e:
-                self._logger.exception(f'Failed to create certificate: {e}', exc_info=False)
+            except Exception:
+                self._logger.exception('Failed to create certificate', exc_info=False)
 
     def install_csi(self, provider: str) -> None:
         path_to_template = template_loader.get_template(f'{provider}-csi.yaml', 'kubernetes')
@@ -271,8 +271,8 @@ class KubernetesCluster:
         try:
             self._client.install_from_yaml(path_to_template)
             self._logger.info(f'{provider.capitalize()} CSI installed successfully!')
-        except Exception as e:
-            self._logger.exception(f'Failed to install {provider.capitalize()} CSI: {e}', exc_info=False)
+        except Exception:
+            self._logger.exception(f'Failed to install {provider.capitalize()} CSI', exc_info=False)
 
     def install_cloud_controller(self, provider: str) -> None:
         path_to_template = template_loader.get_template(f'{provider}-cloud-controller.yaml', 'kubernetes')
@@ -280,8 +280,8 @@ class KubernetesCluster:
         try:
             self._client.install_from_yaml(path_to_template)
             self._logger.info(f'{provider.capitalize()} Clod Controller installed successfully!')
-        except Exception as e:
-            self._logger.exception(f'Failed to install {provider.capitalize()} Cloud Controller: {e}', exc_info=False)
+        except Exception:
+            self._logger.exception(f'Failed to install {provider.capitalize()} Cloud Controller', exc_info=False)
 
     def execute_command_on_pod(
         self, pod: str, namespace: str, command: list[str], interactive: bool = False, command_input: str | None = None
@@ -297,8 +297,8 @@ class KubernetesCluster:
         try:
             self._client.install_from_yaml(path_to_template, with_custom_objects)
             self._logger.info(f'Applied file {path_to_template} successfully!')
-        except Exception as e:
-            self._logger.exception(f'Failed to apply file {path_to_template}: {e}', exc_info=False)
+        except Exception:
+            self._logger.exception(f'Failed to apply file {path_to_template}', exc_info=False)
             raise
 
     def create_object_from_content(self, yaml_content: dict | list[dict]) -> None:

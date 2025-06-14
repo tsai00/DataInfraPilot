@@ -209,8 +209,8 @@ class AirflowApplication(BaseApplication):
     def get_available_versions(cls) -> list[str]:
         try:
             r = requests.get('https://api.github.com/repos/apache/airflow/releases', timeout=15).json()
-        except Exception as e:
-            cls._logger.exception(f'Failed to retrieve available versions for Airflow: {e}')
+        except Exception:
+            cls._logger.exception('Failed to retrieve available versions for Airflow')
             return ['2.11.0']
         return [x['tag_name'] for x in r if bool(re.search(r'^2\.\d{1,2}\.\d$', x['tag_name']))][:5]
 

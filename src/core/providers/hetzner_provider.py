@@ -355,8 +355,8 @@ class HetznerProvider(BaseProvider):
             ) as conn:
                 await asyncssh.scp((conn, remote_path), local_path)
                 self._logger.info(f'File downloaded to {local_path}')
-        except Exception as e:
-            self._logger.exception(f'Failed to download file: {e}')
+        except Exception:
+            self._logger.exception('Failed to download file')
 
     def delete_cluster(self) -> None:
         try:

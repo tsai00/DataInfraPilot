@@ -212,9 +212,9 @@ class BaseScraper(ABC):
                     all_scraped_items.extend(sub_scrape_items)
                     self.scraper_run_metadata.items_total += sub_scrape_total_items
                     self.scraper_run_metadata.pages_total += sub_scrape_total_pages
-                except Exception as e:
+                except Exception:
                     self._logger.exception(
-                        f'Error during synchronous sub-scrape with parameters {params_combo}: {e}', exc_info=True
+                        f'Error during synchronous sub-scrape with parameters {params_combo}', exc_info=True
                     )
         else:
             self._logger.debug(f'Processing standard (non-dynamic) synchronous scrape for {self.scraper_name}')
@@ -254,7 +254,7 @@ class BaseScraper(ABC):
                     self.scraper_run_metadata.pages_total += sub_scrape_total_pages
                 except Exception as e:
                     self._logger.exception(
-                        f'Error during asynchronous sub-scrape with parameters {params_combo}: {e}', exc_info=True
+                        f'Error during asynchronous sub-scrape with parameters {params_combo}', exc_info=True
                     )
                     raise ValueError(f'Error during asynchronous sub-scrape with parameters {params_combo}: {e}') from e
         else:
@@ -533,9 +533,9 @@ class BaseScraper(ABC):
                         page=page_num, dynamic_params=current_dynamic_params
                     )
                     return parsed_response
-                except Exception as e:
+                except Exception:
                     self._logger.exception(
-                        f'Failed to scrape or parse page {page_num} after all retries: {e}', exc_info=True
+                        f'Failed to scrape or parse page {page_num} after all retries.', exc_info=True
                     )
                     # If all retries fail, return an empty ScraperPageResponse for this page
                     # The main loop will continue but this page's items will be empty.

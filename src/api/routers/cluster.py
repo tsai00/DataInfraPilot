@@ -185,12 +185,12 @@ async def proxy_health_check(target_url: str) -> None:
             status_code=e.response.status_code, detail=f'Target service returned error: {e.response.text}'
         ) from e
     except httpx.RequestError as e:
-        logger.exception(f'Network error when connecting to {target_url}: {e}', exc_info=False)
+        logger.exception(f'Network error when connecting to {target_url}', exc_info=False)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f'Could not connect to target service: {e}'
         ) from e
     except Exception as e:
-        logger.exception(f'An unexpected error occurred while proxying {target_url}: {e}', exc_info=False)
+        logger.exception(f'An unexpected error occurred while proxying {target_url}', exc_info=False)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f'An unexpected error occurred: {e}'
         ) from e

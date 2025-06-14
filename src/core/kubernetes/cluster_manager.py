@@ -95,7 +95,7 @@ class ClusterManager:
             error_message = f'{e!s}. Right now Hetzner does not have available machines for selected type/region. Please try removing the cluster and creating it again later or choose VM of different type / location.'
             self.storage.update_cluster(cluster_id, {'status': DeploymentStatus.FAILED, 'error_message': error_message})
         except Exception as e:
-            self._logger.exception(f'Error while creating cluster: {e}', exc_info=True)
+            self._logger.exception('Error while creating cluster', exc_info=True)
 
             error_msg_formatted = re.sub(
                 r'WARNING: Kubernetes configuration file is (?:world|group)-readable\. This is insecure\. Location: .*\.yaml',
@@ -127,7 +127,7 @@ class ClusterManager:
             self._logger.info(f'Volume {volume_config.name} created')
             self.storage.update_volume(volume_id, {'status': DeploymentStatus.RUNNING})
         except Exception as e:
-            self._logger.exception(f'Error while creating volume: {e}')
+            self._logger.exception('Error while creating volume')
             self.storage.update_volume(volume_id, {'status': DeploymentStatus.FAILED, 'error_message': str(e)})
 
     def get_cluster_kubeconfig(self, cluster_id: int) -> str:
@@ -277,7 +277,7 @@ class ClusterManager:
                 cluster, namespace, {**deployment_config, **access_endpoints_values}
             )
         except Exception as e:
-            self._logger.exception(f'Error during application deployment: {e}', exc_info=True)
+            self._logger.exception('Error during application deployment', exc_info=True)
             error_msg_formatted = re.sub(
                 r'WARNING: Kubernetes configuration file is (?:world|group)-readable\. This is insecure\. Location: .*\.yaml',
                 '',
@@ -321,7 +321,7 @@ class ClusterManager:
             self._logger.info(f'Successfully updated application {application_instance.name} {cluster_from_db.name}')
             self.storage.update_deployment(deployment_from_db.application_id, {'status': DeploymentStatus.RUNNING})
         except Exception as e:
-            self._logger.exception(f'Error while updating application: {e}', exc_info=True)
+            self._logger.exception('Error while updating application', exc_info=True)
             self.storage.update_deployment(
                 deployment_from_db.application_id, {'status': DeploymentStatus.FAILED, 'error_message': str(e)}
             )
