@@ -18,10 +18,7 @@ from src.core.providers.base_provider import BaseProvider
 from src.core.providers.provider_factory import ProviderFactory
 from src.core.utils import setup_logger
 from src.database.handlers.sqlite_handler import SQLiteHandler
-from src.database.models import Application
-from src.database.models.cluster import Cluster
-from src.database.models.deployment import Deployment
-from src.database.models.volume import Volume
+from src.database.models import Application, Cluster, Deployment, Volume
 
 
 class ClusterManager:

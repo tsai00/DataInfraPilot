@@ -2,8 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import joinedload, sessionmaker
 
 from src.database.handlers.base_database_handler import BaseDatabaseHandler
-from src.database.models import Application, BaseModel, Cluster, Deployment
-from src.database.models.volume import Volume
+from src.database.models import Application, BaseModel, Cluster, Deployment, Volume
 
 
 class SQLiteHandler(BaseDatabaseHandler):

@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.database.models.base_model import BaseModel
+from src.database.models import BaseModel
 
 
 class Volume(BaseModel):
@@ -16,6 +16,6 @@ class Volume(BaseModel):
     name: Mapped[str] = mapped_column(nullable=False)
     size: Mapped[int] = mapped_column(nullable=False)
     status: Mapped[str] = mapped_column(nullable=False)
-    error_message: Mapped[str] = mapped_column(nullable=True, default="")
-    description: Mapped[str] = mapped_column(nullable=True, default="")
+    error_message: Mapped[str] = mapped_column(nullable=True, default='')
+    description: Mapped[str] = mapped_column(nullable=True, default='')
     created_at: Mapped[datetime] = mapped_column(nullable=False, default_factory=lambda: datetime.now())

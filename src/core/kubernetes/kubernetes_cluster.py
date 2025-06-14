@@ -15,7 +15,7 @@ from src.core.kubernetes.helm_client import HelmClient
 from src.core.kubernetes.kubernetes_client import KubernetesClient
 from src.core.template_loader import template_loader
 from src.core.utils import encrypt_password, setup_logger
-from src.database.models.cluster import Cluster
+from src.database.models import Cluster
 
 
 class KubernetesCluster:

@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.database.models.base_model import BaseModel
+from src.database.models import BaseModel
 
 
 class Cluster(BaseModel):
@@ -19,10 +19,10 @@ class Cluster(BaseModel):
     additional_components: Mapped[dict] = mapped_column(JSON, nullable=False)
     pools: Mapped[list[dict]] = mapped_column(JSON, nullable=False)
     status: Mapped[str] = mapped_column(nullable=False)
-    access_ip: Mapped[str] = mapped_column(nullable=True, default="")
-    error_message: Mapped[str] = mapped_column(nullable=True, default="")
+    access_ip: Mapped[str] = mapped_column(nullable=True, default='')
+    error_message: Mapped[str] = mapped_column(nullable=True, default='')
     domain_name: Mapped[str] = mapped_column(nullable=True, default=None)
     kubeconfig_path: Mapped[str] = mapped_column(nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(nullable=False, default_factory=lambda: datetime.now())
 
-    deployments = relationship("Deployment", back_populates="cluster", cascade="all,delete")
+    deployments = relationship('Deployment', back_populates='cluster', cascade='all,delete')
