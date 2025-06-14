@@ -91,8 +91,8 @@ class KubernetesClient:
                 self._logger.info(f'{namespace}/{resource_name} created')
 
     def execute_command(
-        self, pod: str, namespace: str, command: list[str], interactive: bool = False, command_input: str = None
-    ) -> None:
+        self, pod: str, namespace: str, command: list[str], interactive: bool = False, command_input: str | None = None
+    ) -> tuple[str, str] | tuple[None, str]:
         self._logger.info(f'Executing command: {pod=}, {namespace=}, {command=}, {interactive=}, {command_input=}')
         try:
             resp = self._clients.core.read_namespaced_pod(name=pod, namespace=namespace)

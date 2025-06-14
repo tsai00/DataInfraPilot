@@ -63,7 +63,7 @@ class KubernetesCluster:
                         raise
 
     async def install_or_upgrade_chart(
-        self, helm_chart: HelmChart, values: dict[str, Any] = None, namespace: str = None
+        self, helm_chart: HelmChart, values: dict[str, Any] | None = None, namespace: str | None = None
     ) -> None:
         values = values or {}
         namespace = namespace or helm_chart.name.lower().split('/')[-1]
@@ -183,7 +183,12 @@ class KubernetesCluster:
         self._logger.info('Installed ClusterAutoscaler successfully')
 
     def expose_traefik_dashboard(
-        self, username: str, password: str, enable_https: bool, domain_name: str = None, secret_name: str = None
+        self,
+        username: str,
+        password: str,
+        enable_https: bool,
+        domain_name: str | None = None,
+        secret_name: str | None = None,
     ) -> None:
         traefik_custom_config_template = template_loader.get_template('traefik-custom-config.yaml', 'kubernetes')
 
@@ -279,7 +284,7 @@ class KubernetesCluster:
             self._logger.exception(f'Failed to install {provider.capitalize()} Cloud Controller: {e}', exc_info=False)
 
     def execute_command_on_pod(
-        self, pod: str, namespace: str, command: list[str], interactive: bool = False, command_input: str = None
+        self, pod: str, namespace: str, command: list[str], interactive: bool = False, command_input: str | None = None
     ) -> None:
         output, errors = self._client.execute_command(pod, namespace, command, interactive, command_input)
 

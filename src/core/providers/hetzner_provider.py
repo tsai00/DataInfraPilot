@@ -285,8 +285,8 @@ class HetznerProvider(BaseProvider):
 
         worker_nodes = await asyncio.gather(*tasks)
 
-        for s in [master_plane_node] + worker_nodes:
-            self._logger.info(f'{s["name"]} ({s["ip"]})')
+        for s in [master_plane_node, *worker_nodes]:
+            self._logger.info(f'Created server: {s["name"]} ({s["ip"]})')
 
         local_config = Path(PATH_TO_K3S_YAML_CONFIGS, 'k3s-config-cluster-id.yaml')
 
@@ -299,7 +299,7 @@ class HetznerProvider(BaseProvider):
 
         text = local_config.read_text()
         local_config.write_text(text.replace('127.0.0.1', master_plane_node['ip']))
-        self._logger.info(f'run export KUBECONFIG={str(local_config)}')
+        self._logger.info(f'run export KUBECONFIG={local_config!s}')
 
         cluster = KubernetesCluster(cluster_config, master_plane_node['ip'], local_config)
 

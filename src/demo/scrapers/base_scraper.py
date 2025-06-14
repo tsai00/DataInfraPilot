@@ -327,7 +327,7 @@ class BaseScraper(ABC):
         self._logger.debug(f'Successfully scraped and parsed page {page} (async)')
         return parsed_response
 
-    def calculate_number_of_pages(self, num_of_items: int, page_size: int = None) -> int:
+    def calculate_number_of_pages(self, num_of_items: int, page_size: int | None = None) -> int:
         page_size = page_size or self.page_size
 
         if num_of_items <= 0:
@@ -348,14 +348,24 @@ class BaseScraper(ABC):
         )
 
     def send_post_request(
-        self, url: str, json: dict = None, params: dict = None, headers: dict = None, cookies: dict = None
+        self,
+        url: str,
+        json: dict | None = None,
+        params: dict | None = None,
+        headers: dict | None = None,
+        cookies: dict | None = None,
     ) -> httpx.Response:
         return self._send_request(
             method=RequestMethod.POST, url=url, json=json, params=params, headers=headers, cookies=cookies
         )
 
     async def send_post_request_async(
-        self, url: str, json: dict = None, params: dict = None, headers: dict = None, cookies: dict = None
+        self,
+        url: str,
+        json: dict | None = None,
+        params: dict | None = None,
+        headers: dict | None = None,
+        cookies: dict | None = None,
     ) -> httpx.Response:
         return await self._send_request_async(
             method=RequestMethod.POST, url=url, json=json, params=params, headers=headers, cookies=cookies
@@ -372,10 +382,10 @@ class BaseScraper(ABC):
         self,
         method: RequestMethod,
         url: str,
-        json: dict = None,
-        params: dict = None,
-        headers: dict = None,
-        cookies: dict = None,
+        json: dict | None = None,
+        params: dict | None = None,
+        headers: dict | None = None,
+        cookies: dict | None = None,
     ) -> httpx.Response:
         # If scraper is running as a context manager, self._sync_client will be set.
         # Otherwise, create a temporary client for this single request.
@@ -409,10 +419,10 @@ class BaseScraper(ABC):
         self,
         method: RequestMethod,
         url: str,
-        json: dict = None,
-        params: dict = None,
-        headers: dict = None,
-        cookies: dict = None,
+        json: dict | None = None,
+        params: dict | None = None,
+        headers: dict | None = None,
+        cookies: dict | None = None,
     ) -> httpx.Response:
         # If scraper is running as an async context manager, self._async_client will be set.
         # Otherwise, create a temporary async client for this single request.

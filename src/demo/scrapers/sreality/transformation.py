@@ -95,7 +95,7 @@ class SrealityTransformation(BaseTransformation):
     def add_new_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         df_copy = df.copy()
 
-        df_copy['area'] = df_copy['name'].str.extract(r'(\d{1,}) m²').astype(int)
+        df_copy['area'] = df_copy['name'].str.extract(r'(\d{1,}) m²').astype(int)  # noqa: RUF001 (safe to use)
 
         df_copy['priceUnitCb'] = df_copy['priceUnitCb'].apply(self.get_dict_element, dict_key='name')
 

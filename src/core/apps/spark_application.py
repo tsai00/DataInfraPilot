@@ -56,7 +56,7 @@ class SparkApplication(BaseApplication):
     def get_ingress_helm_values(
         self, access_endpoint_configs: list[AccessEndpointConfig], cluster_base_ip: str, namespace: str
     ) -> dict[str, Any]:
-        web_ui_access_endpoint = [x for x in access_endpoint_configs if x.name == 'web-ui'][0]
+        web_ui_access_endpoint = next(iter([x for x in access_endpoint_configs if x.name == 'web-ui']))
 
         return {'web_ui_path': web_ui_access_endpoint.value}
 

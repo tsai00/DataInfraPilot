@@ -63,7 +63,7 @@ class GrafanaApplication(BaseApplication):
             'traefik.ingress.kubernetes.io/router.priority': '10',
         }
 
-        web_ui_access_endpoint = [x for x in access_endpoint_configs if x.name == 'web-ui'][0]
+        web_ui_access_endpoint = next(iter([x for x in access_endpoint_configs if x.name == 'web-ui']))
 
         web_ui_config = self._generate_endpoint_helm_values(web_ui_access_endpoint, cluster_base_ip, namespace)
 

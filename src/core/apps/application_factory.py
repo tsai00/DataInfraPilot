@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import ClassVar
 
 from pydantic import BaseModel
 
@@ -13,7 +14,7 @@ class ApplicationMetadata:
 
 class ApplicationFactory:
     # The internal registry mapping app_id to (AppClass, ConfigClass, ApplicationMetadata).
-    _registry: dict[int, tuple[type[BaseApplication], type[BaseModel], ApplicationMetadata]] = {}
+    _registry: ClassVar[dict[int, tuple[type[BaseApplication], type[BaseModel], ApplicationMetadata]]] = {}
 
     @classmethod
     def register_application(

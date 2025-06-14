@@ -24,7 +24,7 @@ class ClusterManager:
     _instance: 'ClusterManager' = None
     _logger: logging.Logger = None
 
-    def __new__(cls, *args, **kwargs) -> None:
+    def __new__(cls, *args, **kwargs) -> 'ClusterManager':
         if cls._instance is None:
             cls._instance = super().__new__(cls)
 
@@ -34,7 +34,7 @@ class ClusterManager:
 
             db_folder.mkdir(exist_ok=True)
 
-            cls.storage = SQLiteHandler(f'sqlite:///{str(Path(db_folder, "app.db"))}')
+            cls.storage = SQLiteHandler(f'sqlite:///{Path(db_folder, "app.db")!s}')
 
             cls._logger.info('ClusterManager initialised')
         return cls._instance
@@ -92,7 +92,7 @@ class ClusterManager:
                 },
             )
         except ResourceUnavailableError as e:
-            error_message = f'{str(e)}. Right now Hetzner does not have available machines for selected type/region. Please try removing the cluster and creating it again later or choose VM of different type / location.'
+            error_message = f'{e!s}. Right now Hetzner does not have available machines for selected type/region. Please try removing the cluster and creating it again later or choose VM of different type / location.'
             self.storage.update_cluster(cluster_id, {'status': DeploymentStatus.FAILED, 'error_message': error_message})
         except Exception as e:
             self._logger.exception(f'Error while creating cluster: {e}', exc_info=True)
