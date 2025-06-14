@@ -13,6 +13,8 @@ from functools import lru_cache
 class AirflowExecutor(StrEnum):
     CeleryExecutor = 'CeleryExecutor'
     LocalExecutor = 'LocalExecutor'
+    KubernetesExecutor = 'KubernetesExecutor'
+    CeleryKubernetesExecutor = 'CeleryKubernetesExecutor'
 
 
 class AirflowConfig(BaseModel):
