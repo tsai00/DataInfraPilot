@@ -23,7 +23,6 @@ from src.core.template_loader import template_loader
 from pathlib import Path
 
 from enum import StrEnum
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from src.core.utils import generate_password
 
@@ -136,7 +135,6 @@ class HetznerProvider(BaseProvider):
 
         return ssh_key
 
-    @retry(retry=retry_if_exception_type(ResourceUnavailableException), wait=wait_fixed(5), stop=stop_after_attempt(5), reraise=True)
     async def _create_server(
             self, name: str,
             node_type: HetznerNodeType,
@@ -165,7 +163,7 @@ class HetznerProvider(BaseProvider):
             if e.code == 'uniqueness_error':
                 print(f'Server with name "{name}" already exists')
             elif e.code == 'resource_unavailable':
-                print(f'Failed to get server with name "{name}", retrying...')
+                print(f'Failed to get server with name "{name}"')
                 raise ResourceUnavailableException(f"Resource {name} unavailable")
 
             raise
@@ -194,7 +192,13 @@ class HetznerProvider(BaseProvider):
         return placement_group_response.placement_group
 
     def _can_create_cluster(self) -> bool:
-        servers = self.client.servers.get_all()
+        try:
+            servers = self.client.servers.get_all()
+        except APIException as e:
+            if e.code == 'unauthorized':
+                raise ValueError('Wrong Hetzner token provided')
+            else:
+                raise e
 
         if servers:
             print(f'Project is not empty, found {len(servers)} servers')
@@ -348,10 +352,17 @@ class HetznerProvider(BaseProvider):
             print(format_exc())
 
     def delete_cluster(self):
-        servers = self.client.servers.get_all()
-        placement_groups = self.client.placement_groups.get_all()
-        networks = self.client.networks.get_all()
-        ssh_keys = self.client.ssh_keys.get_all()
+        try:
+            servers = self.client.servers.get_all()
+            placement_groups = self.client.placement_groups.get_all()
+            networks = self.client.networks.get_all()
+            ssh_keys = self.client.ssh_keys.get_all()
+        except APIException as e:
+            if e.code == 'unauthorized':
+                print('Could not delete resources, please remove them meanually from Hetzner console')
+                return
+            else:
+                raise e
 
         for x in servers + placement_groups + networks + ssh_keys:
             try:
@@ -372,3 +383,11 @@ class HetznerProvider(BaseProvider):
 
         if volume:
             volume.delete()
+
+    def get_volumes(self):
+        try:
+            volumes = self.client.volumes.get_all()
+        except Exception as e:
+            raise ValueError(f'Error while fetching volumes: {e}')
+
+        return volumes
