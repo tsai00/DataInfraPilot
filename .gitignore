@@ -20,3 +20,7 @@ output/
 # GitHub Actions Act local secrets and variables
 .secrets
 .vars
+
+*.xlsx
+*.parquet
+*.csv
