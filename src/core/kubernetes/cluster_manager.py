@@ -244,10 +244,6 @@ class ClusterManager(object):
                 self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.RUNNING})
 
                 application_instance.run_post_install_actions(cluster, namespace, {**deployment_config, **access_endpoints_values})
-
-                # TODO: move decision create/not create secret to application class or od exists_ok paamater to create_secret
-                if deployment.application_id != 2 and application_instance.get_initial_credentials_secret_name():
-                    cluster.create_secret(application_instance.get_initial_credentials_secret_name(), namespace, application_instance.get_initial_credentials())
             else:
                 print(f"Failed to deploy application {deployment.application_id} to cluster {cluster_from_db.name}")
                 self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED, "error_message": f"Failed to deploy application {deployment.application_id} to cluster {cluster_from_db.name}"})
@@ -331,7 +327,7 @@ class ClusterManager(object):
         application = ApplicationFactory.get_application_class(application_id)
         application_metadata = ApplicationFactory.get_application_metadata(application_id)
 
-        secret = cluster.get_secret(application.get_initial_credentials_secret_name(), deployment.namespace)
+        secret = cluster.get_secret(application.credentials_secret_name, deployment.namespace)
 
         return {'username': secret[application_metadata.username_key], 'password': secret[application_metadata.password_key]}
 

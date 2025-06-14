@@ -59,6 +59,8 @@ class BaseApplication(ABC):
 
     _helm_chart: HelmChart
 
+    credentials_secret_name: str
+
     def __init__(self, name: str):
         self.name = name
 
@@ -111,11 +113,6 @@ class BaseApplication(ABC):
                 raise ValueError(f"Cluster IP path for {endpoint_config.name} must start with '/'.")
 
     def validate_volume_requirements(self, volume_requirements: list) -> None: ...
-
-    def get_initial_credentials(self) -> dict[str, str]: ...
-
-    @classmethod
-    def get_initial_credentials_secret_name(cls) -> str: ...
 
     @classmethod
     @abstractmethod

@@ -24,6 +24,8 @@ class SparkApplication(BaseApplication):
         version="1.0.0",
     )
 
+    credentials_secret_name = ""
+
     def __init__(self, config: SparkConfig):
         self._config = config
         self._version = self._config.version

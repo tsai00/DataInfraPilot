@@ -17,6 +17,8 @@ class GrafanaApplication(BaseApplication):
         version="8.12.1",
     )
 
+    credentials_secret_name = "grafana"
+
     def __init__(self, config: GrafanaConfig):
         self._config = config
         self._version = self._config.version

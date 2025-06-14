@@ -11,6 +11,8 @@ import re
 import base64
 from functools import lru_cache
 
+from src.core.utils import generate_password
+
 
 class AirflowExecutor(StrEnum):
     CeleryExecutor = 'CeleryExecutor'
@@ -44,6 +46,8 @@ class AirflowApplication(BaseApplication):
         version="1.15.0",
     )
 
+    credentials_secret_name = "airflow-creds"
+
     def __init__(self, config: AirflowConfig):
         self._config = config
         self._version = self._config.version
@@ -56,11 +60,51 @@ class AirflowApplication(BaseApplication):
             VolumeRequirement(name='airflow-logs', size=100, description='Persistent storage for Airflow logs')
         ]
 
-    def validate_volume_requirements(self):
-        pass
-
-    def get_initial_credentials(self) -> dict[str, str]:
-        return {'username': 'admin', 'password': 'admin'}
+    @classmethod
+    def get_resource_values(cls) -> dict:
+        return {
+            'workers': {
+                'resources': {
+                    'requests': {
+                        'cpu': '200m',
+                        'memory': '256Mi'
+                    },
+                    # 'limits': {
+                    #     'cpu': '2',
+                    #     'memory': '2Gi'
+                    # }
+                }
+            },
+            'scheduler': {
+                'resources': {
+                    'requests': {
+                        'cpu': '500m',
+                        'memory': '512Mi'
+                    },
+                    # 'limits': {
+                    #     'cpu': '1',
+                    #     'memory': '1Gi'
+                    # }
+                }
+            },
+            'webserver': {
+                "startupProbe": {
+                    "timeoutSeconds": 360,
+                    "failureThreshold": 20,
+                    "periodSeconds": 30
+                },
+                'resources': {
+                    'requests': {
+                        'cpu': '1',
+                        'memory': '2Gi'
+                    },
+                    # 'limits': {
+                    #     'cpu': '2',
+                    #     'memory': '4Gi'
+                    # }
+                }
+            }
+        }
 
     @classmethod
     def get_accessible_endpoints(cls) -> list[AccessEndpoint]:
@@ -240,13 +284,44 @@ class AirflowApplication(BaseApplication):
             #         "host": ""
             #     }
             # },
-            "nodeSelector": self._config.node_selector
+            "nodeSelector": self._config.node_selector,
             # "extraSecrets": f"""
             # 'airflow-ssh-secret':
             #     type: 'Opaque'
             #     data: |
             #       gitSshKey: '{dags_repository_ssh_key_base64}'
             # """
+            "createUserJob": {
+                "env": [
+                    {
+                        "name": "ADMIN_PASSWORD",
+                        "valueFrom": {
+                            "secretKeyRef": {
+                                "name": self.credentials_secret_name,
+                                "key": "password"
+                            }
+                        }
+                    },
+                ],
+                "args": [
+                    "bash",
+                    "-c",
+                    "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"users create\" \"create_user\" }} \"$@\"",
+                    "--",
+                    "-r",
+                    "{{ .Values.webserver.defaultUser.role }}",
+                    "-u",
+                    "{{ .Values.webserver.defaultUser.username }}",
+                    "-e",
+                    "{{ .Values.webserver.defaultUser.email }}",
+                    "-f",
+                    "{{ .Values.webserver.defaultUser.firstName }}",
+                    "-l",
+                    "{{ .Values.webserver.defaultUser.lastName }}",
+                    "-p",
+                    "$(ADMIN_PASSWORD)"
+                ]
+            }
         }
 
         # if self._config.use_custom_image:
@@ -261,6 +336,15 @@ class AirflowApplication(BaseApplication):
     @property
     def pre_installation_actions(self) -> list[BasePrePostInstallAction]:
         return [
+            CreateSecretAction(
+                name="CreateAirflowCredentialsSecret",
+                secret_name=self.credentials_secret_name,
+                secret_data={
+                    "username": "admin",
+                    "password": generate_password(10)
+                },
+                secret_type='regular',
+            ),
             CreateSecretAction(
                 name="CreatePrivateRegistryCredentialsSecret",
                 secret_name="private-registry-creds",
