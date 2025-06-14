@@ -4,10 +4,13 @@ from src.core.apps.application_factory import ApplicationFactory
 from src.core.kubernetes.cluster_manager import ClusterManager
 from src.api.schemas.application import ApplicationSchema
 from src.core.apps.airflow_application import AccessEndpoint
+from src.core.utils import setup_logger
 
 router = APIRouter()
 
 cluster_manager = ClusterManager()
+
+logger = setup_logger('APIApplicationRouter')
 
 
 def get_cluster_manager():
@@ -18,9 +21,7 @@ def get_cluster_manager():
 def get_applications(
     cluster_manager: ClusterManager = Depends(get_cluster_manager)
 ):
-    applications = cluster_manager.get_applications()
-    print(applications)
-    return applications
+    return cluster_manager.get_applications()
 
 
 @router.get("/applications/{application_id}", response_model=ApplicationSchema)

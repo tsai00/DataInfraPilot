@@ -16,7 +16,6 @@ from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.core.config import PATH_TO_K3S_YAML_CONFIGS
 from src.core.exceptions import ResourceUnavailableException, ProjectNotEmptyException
-from traceback import format_exc
 from dataclasses import dataclass
 
 from src.core.template_loader import template_loader
@@ -58,6 +57,8 @@ class HetznerProvider(BaseProvider):
     name = 'hetzner'
 
     def __init__(self, config: HetznerConfig):
+        super().__init__()
+
         self.client = Client(token=config.api_token)
 
         self._ssh_private_key_path = Path(config.ssh_private_key_path).expanduser()
@@ -65,17 +66,15 @@ class HetznerProvider(BaseProvider):
 
         self._config = config
 
-        super().__init__()
-
     async def _wait_until_server_is_initialised(self, server_id):
         while True:
             server = await asyncio.to_thread(self.client.servers.get_by_id, server_id)
 
             if server.status == 'running':
-                print(f'Server {server_id} is running.')
+                self._logger.info(f'Server {server_id} is running.')
                 break
             else:
-                print(f'Server {server_id} not ready yet, status: {server.status}')
+                self._logger.warning(f'Server {server_id} not ready yet, status: {server.status}')
                 await asyncio.sleep(2)
 
     async def _wait_until_cloud_init_finished(self, ip, username):
@@ -84,12 +83,12 @@ class HetznerProvider(BaseProvider):
                 async with asyncssh.connect(ip, username=username, client_keys=[self._ssh_private_key_path], known_hosts=None) as ssh:
                     result = await ssh.run('test -f /var/lib/cloud/instance/boot-finished && echo "done"', check=True)
                     if result.stdout.strip() == "done":
-                        print("Cloud-init finished successfully.")
+                        self._logger.info("Cloud-init finished successfully.")
                         break
                     else:
-                        print("Cloud-init still running...")
+                        self._logger.warning("Cloud-init still running...")
             except Exception as e:
-                print(f"SSH connection failed: {e}")
+                self._logger.warning(f"SSH connection failed: {e}")
 
             await asyncio.sleep(5)
 
@@ -98,9 +97,9 @@ class HetznerProvider(BaseProvider):
             async with asyncssh.connect(ip, username=username, client_keys=[self._ssh_private_key_path], known_hosts=None) as ssh:
                 result = await ssh.run(content, check=True)
 
-                print("K3s installed successfully.")
+                self._logger.info("K3s installed successfully.")
         except Exception as e:
-            print(f"SSH connection failed: {e}")
+            self._logger.warning(f"SSH connection failed: {e}")
 
     async def _create_network(self, name: str) -> Network:
         try:
@@ -112,7 +111,7 @@ class HetznerProvider(BaseProvider):
         except APIException as e:
             # TODO: add general exception handler, mapping Hetzner error (uniqueness_error, protected, ...)
             if e.code == 'uniqueness_error':
-                print(f'Network with name "{name}" already exists')
+                self._logger.warning(f'Network with name "{name}" already exists')
                 return self.client.networks.get_by_name(name)
 
             raise
@@ -128,7 +127,7 @@ class HetznerProvider(BaseProvider):
         except APIException as e:
             # TODO: add general exception handler, mapping Hetzner error (uniqueness_error, protected, ...)
             if e.code == 'uniqueness_error':
-                print(f'SSHKey with name "{name}" already exists')
+                self._logger.warning(f'SSHKey with name "{name}" already exists')
                 return self.client.ssh_keys.get_by_name(name)
 
             raise
@@ -145,7 +144,7 @@ class HetznerProvider(BaseProvider):
             ssh_keys: list[SSHKey] | None = None,
             enable_public_ip: bool = False,
     ) -> dict:
-        print(f"Creating server {name}...")
+        self._logger.info(f"Creating server {name}...")
 
         try:
             response = self.client.servers.create(
@@ -161,21 +160,21 @@ class HetznerProvider(BaseProvider):
             )
         except APIException as e:
             if e.code == 'uniqueness_error':
-                print(f'Server with name "{name}" already exists')
+                self._logger.warning(f'Server with name "{name}" already exists')
             elif e.code == 'resource_unavailable':
-                print(f'Failed to get server with name "{name}"')
+                self._logger.exception(f'Failed to get server with name "{name}"', exc_info=False)
                 raise ResourceUnavailableException(f"Resource {name} unavailable")
 
             raise
 
         server = response.server
 
-        print(f"Created server {server.name=}, {server.status=}, IP={server.public_net.ipv4.ip}, waiting until k3s is installed")
+        self._logger.info(f"Created server {server.name=}, {server.status=}, IP={server.public_net.ipv4.ip}, waiting until k3s is installed")
 
         await self._wait_until_server_is_initialised(server.id)
         await self._wait_until_cloud_init_finished(server.public_net.ipv4.ip, 'root')
 
-        print(f'Server {server.name} ready')
+        self._logger.info(f'Server {server.name} ready')
 
         return {'name': server.name, 'ip': server.public_net.ipv4.ip}
 
@@ -184,7 +183,7 @@ class HetznerProvider(BaseProvider):
             placement_group_response: CreatePlacementGroupResponse = self.client.placement_groups.create(name=name, type='spread')
         except APIException as e:
             if e.code == 'uniqueness_error':
-                print(f'Placement Group with name "{name}" already exists')
+                self._logger.warning(f'Placement Group with name "{name}" already exists')
                 return self.client.placement_groups.get_by_name(name)
 
             raise
@@ -201,7 +200,7 @@ class HetznerProvider(BaseProvider):
                 raise e
 
         if servers:
-            print(f'Project is not empty, found {len(servers)} servers')
+            self._logger.warning(f'Project is not empty, found {len(servers)} servers')
             return False
 
         return True
@@ -280,7 +279,7 @@ class HetznerProvider(BaseProvider):
         worker_nodes = await asyncio.gather(*tasks)
 
         for s in [master_plane_node] + worker_nodes:
-            print(f"{s['name']} ({s['ip']})")
+            self._logger.info(f"{s['name']} ({s['ip']})")
 
         local_config = Path(PATH_TO_K3S_YAML_CONFIGS, f'k3s-config-cluster-id.yaml')
 
@@ -293,7 +292,7 @@ class HetznerProvider(BaseProvider):
 
         text = local_config.read_text()
         local_config.write_text(text.replace('127.0.0.1', master_plane_node['ip']))
-        print(f'run export KUBECONFIG={str(local_config)}')
+        self._logger.info(f'run export KUBECONFIG={str(local_config)}')
 
         cluster = KubernetesCluster(cluster_config, master_plane_node['ip'], local_config)
 
@@ -321,7 +320,7 @@ class HetznerProvider(BaseProvider):
                                                     worker_node_template_rendered)
 
         cluster.create_object_from_content(yaml.safe_load(hcloud_secret_rendered))
-        print('Hetzner secret created')
+        self._logger.info('Hetzner secret created')
 
         cluster.install_csi('hetzner')
         cluster.install_cloud_controller('hetzner')
@@ -346,10 +345,9 @@ class HetznerProvider(BaseProvider):
         try:
             async with asyncssh.connect(ip, username=username, client_keys=[self._ssh_private_key_path], known_hosts=None) as conn:
                 await asyncssh.scp((conn, remote_path), local_path)
-                print(f"File downloaded to {local_path}")
+                self._logger.info(f"File downloaded to {local_path}")
         except Exception as e:
-            print(f"Failed to download file: {e}")
-            print(format_exc())
+            self._logger.exception(f"Failed to download file: {e}")
 
     def delete_cluster(self):
         try:
@@ -359,7 +357,7 @@ class HetznerProvider(BaseProvider):
             ssh_keys = self.client.ssh_keys.get_all()
         except APIException as e:
             if e.code == 'unauthorized':
-                print('Could not delete resources, please remove them meanually from Hetzner console')
+                self._logger.warning('Could not delete resources, please remove them manually from Hetzner console')
                 return
             else:
                 raise e
@@ -367,10 +365,10 @@ class HetznerProvider(BaseProvider):
         for x in servers + placement_groups + networks + ssh_keys:
             try:
                 x.delete()
-                print(f'Removed resource {x}')
+                self._logger.info(f'Removed resource {x}')
             except APIException as e:
                 if e.code == 'not_found':
-                    print(f'Cannot find resource {x} (might have been already deleted)')
+                    self._logger.warning(f'Cannot find resource {x} (might have been already deleted)')
                 else:
                     raise e
 

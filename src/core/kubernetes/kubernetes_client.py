@@ -1,6 +1,5 @@
 import json
 import time
-import traceback
 
 from kubernetes import client, config, utils
 from kubernetes.client import ApiException, Configuration
@@ -11,26 +10,29 @@ import yaml
 from kubernetes.stream import stream
 import urllib3
 import base64
-from dataclasses import dataclass
+
+from src.core.utils import setup_logger
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
-@dataclass(frozen=True)
 class KubernetesClients:
-    api = client.ApiClient()
-    core = client.CoreV1Api()  # Pods, Services, ConfigMaps
-    apps = client.AppsV1Api()  # Deployments, StatefulSets, DaemonSets
-    batch = client.BatchV1Api()  # Jobs, CronJobs
-    networking = client.NetworkingV1Api()  # Ingress, NetworkPolicies
-    rbac = client.RbacAuthorizationV1Api()  # Role-Based Access Control
-    custom_objects = client.CustomObjectsApi()  # Custom Resources (CRDs)
-    namespaces = client.V1Namespace()
-    dynamic = DynamicClient(client.ApiClient())
+    def __init__(self):
+        self.api = client.ApiClient()
+        self.core = client.CoreV1Api()  # Pods, Services, ConfigMaps
+        self.apps = client.AppsV1Api()  # Deployments, StatefulSets, DaemonSets
+        self.batch = client.BatchV1Api()  # Jobs, CronJobs
+        self.networking = client.NetworkingV1Api()  # Ingress, NetworkPolicies
+        self.rbac = client.RbacAuthorizationV1Api()  # Role-Based Access Control
+        self.custom_objects = client.CustomObjectsApi()  # Custom Resources (CRDs)
+        self.namespaces = client.V1Namespace()
+
+        self.dynamic = DynamicClient(client.ApiClient())
 
 
 class KubernetesClient:
     def __init__(self, kubeconfig_path: Path):
+        self._logger = setup_logger('KubernetesClient')
         config.load_kube_config(str(kubeconfig_path))
 
         Configuration._default.verify_ssl = False
@@ -43,10 +45,9 @@ class KubernetesClient:
 
         try:
             utils.create_from_yaml(self._clients.api, yaml_objects=yaml_content)
-            print(f'Custom object installed successfully!')
+            self._logger.info(f'Custom object installed successfully!')
         except Exception as e:
-            print(f'Error while installing object: {e}')
-            print(traceback.format_exc())
+            self._logger.exception(f'Error while installing object: {e}', exc_info=True)
 
     def cordon_node(self, node_name: str):
         body = {
@@ -55,16 +56,16 @@ class KubernetesClient:
             },
         }
 
-        print(f'Cordoning node: {node_name}')
+        self._logger.debug(f'Cordoning node: {node_name}')
         self._clients.core.patch_node(node_name, body)
-        print(f'Node {node_name} cordoned successfully!')
+        self._logger.info(f'Node {node_name} cordoned successfully!')
 
     def install_from_yaml(self, path_to_yaml: Path, with_custom_objects: bool = False):
         if path_to_yaml.is_dir():
             utils.create_from_directory(self._clients.custom_objects, str(path_to_yaml))
         else:
             if with_custom_objects:
-                print('Applying custom objects')
+                self._logger.info('Applying custom objects...')
                 manifest = yaml.safe_load(path_to_yaml.read_text())
                 self._apply_simple_item(manifest)
             else:
@@ -82,25 +83,25 @@ class KubernetesClient:
             crd_api.get(namespace=namespace, name=resource_name)
             crd_api.patch(body=manifest, content_type="application/merge-patch+json")
             if verbose:
-                print(f"{namespace}/{resource_name} patched")
+                self._logger.info(f"{namespace}/{resource_name} patched")
         except NotFoundError:
             crd_api.create(body=manifest, namespace=namespace)
             if verbose:
-                print(f"{namespace}/{resource_name} created")
+                self._logger.info(f"{namespace}/{resource_name} created")
 
     def execute_command(self, pod: str, namespace: str, command: list[str], interactive: bool = False,
                         command_input: str = None):
-        print(f"Executing command: {pod=}, {namespace=}, {command=}, {interactive=}, {command_input=}")
+        self._logger.info(f"Executing command: {pod=}, {namespace=}, {command=}, {interactive=}, {command_input=}")
         try:
             resp = self._clients.core.read_namespaced_pod(name=pod, namespace=namespace)
         except ApiException as e:
             if e.status != 404:
-                raise ValueError(f"Unknown error: {e}")
-            print(f"Pod '{pod}' in namespace '{namespace}' not found.")
+                raise ValueError(f"Unknown error during command execution: {e}")
+            self._logger.exception(f"Pod '{pod}' in namespace '{namespace}' not found.", exc_info=False)
             return None, f"Pod '{pod}' not found."
 
         while resp.status.phase != 'Running':
-            print(f'Pod not ready yet: {resp.status.phase}...')
+            self._logger.info(f'Pod not ready yet: {resp.status.phase}...')
             resp = self._clients.core.read_namespaced_pod(name=pod, namespace=namespace)
             time.sleep(3)
 
@@ -137,10 +138,10 @@ class KubernetesClient:
         try:
             self._clients.core.delete_namespace(namespace)
         except Exception as e:
-            print(f'Error while deleting namespace {namespace}: {e}')
+            self._logger.exception(f'Error while deleting namespace {namespace}: {e}', exc_info=False)
 
     def create_docker_registry_secret(self, secret_name: str, registry_url: str, registry_username: str, registry_password: str, namespace: str = "default"):
-        print(f'Creating secret {secret_name} of type "docker-registry"')
+        self._logger.info(f'Creating secret {secret_name} of type "docker-registry"')
 
         cred_payload = {
             "auths": {
@@ -167,10 +168,10 @@ class KubernetesClient:
 
         self._clients.core.create_namespaced_secret(namespace, body=secret)
 
-        print(f'Secret {secret_name} of type "docker-registry" created successfully!')
+        self._logger.info(f'Secret {secret_name} of type "docker-registry" created successfully!')
 
     def create_secret(self, secret_name: str, namespace: str, data: dict[str, str]):
-        print(f'Creating secret {secret_name}')
+        self._logger.info(f'Creating secret {secret_name}')
 
         secret = client.V1Secret(
             api_version="v1",
@@ -179,7 +180,7 @@ class KubernetesClient:
             string_data=data,
         )
         self._clients.core.create_namespaced_secret(namespace=namespace, body=secret)
-        print(f'Secret {secret_name} created successfully!')
+        self._logger.info(f'Secret {secret_name} created successfully!')
 
     def get_secret(self, secret_name: str, namespace: str):
         try:
@@ -187,7 +188,9 @@ class KubernetesClient:
             return {k: base64.b64decode(v) for k, v in secret.data.items()} if secret.data is not None else None
         except ApiException as e:
             if e.status == 404:
-                print(f"Secret '{secret_name}' not found in namespace '{namespace}'.")
+                msg = f"Secret '{secret_name}' not found in namespace '{namespace}'."
             else:
-                print(f"Error retrieving secret '{secret_name}': {e}")
-        return None
+                msg = f"Error retrieving secret '{secret_name}': {e}"
+
+            self._logger.exception(msg, exc_info=False)
+            raise ValueError(msg)

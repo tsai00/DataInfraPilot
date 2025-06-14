@@ -12,6 +12,9 @@ from src.core.apps.airflow_application import AirflowApplication, AirflowConfig
 from src.core.apps.application_factory import ApplicationFactory, ApplicationMetadata
 from src.core.apps.grafana_application import GrafanaApplication, GrafanaConfig
 from src.core.apps.spark_application import SparkApplication, SparkConfig
+from src.core.utils import setup_logger
+
+logger = setup_logger("APIMain")
 
 app = FastAPI()
 
@@ -35,7 +38,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.on_event("startup")
 async def register_applications():
-    print("Registering applications with ApplicationFactory...")
+    logger.info("Registering applications with ApplicationFactory...")
 
     ApplicationFactory.register_application(
         app_id=1,
@@ -54,13 +57,13 @@ async def register_applications():
         config_class=SparkConfig,
     )
 
-    print("Applications registration complete.")
+    logger.info("Applications registration complete.")
 
 
 @app.on_event("startup")
 @repeat_every(seconds=60)
 def remove_expired_tokens_task() -> None:
-    print('Debug periodic task')
+    logger.info('Debug periodic task')
 
 
 app.include_router(cluster_router)

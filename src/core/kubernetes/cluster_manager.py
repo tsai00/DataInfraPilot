@@ -1,6 +1,6 @@
 import asyncio
+import logging
 import re
-import traceback
 from datetime import datetime
 
 from src.api.schemas.deployment import DeploymentCreateSchema
@@ -11,34 +11,38 @@ from src.core.exceptions import ResourceUnavailableException
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.providers.base_provider import BaseProvider
 from src.core.kubernetes.configuration import ClusterConfiguration
+from src.core.utils import setup_logger
 from src.database.handlers.sqlite_handler import SQLiteHandler
 from src.database.models.cluster import Cluster
 from src.database.models.deployment import Deployment
 from pathlib import Path
 from src.core.providers.provider_factory import ProviderFactory
-from traceback import format_exc
 from src.core.kubernetes.deployment_status import DeploymentStatus
 from src.database.models.volume import Volume
 from pydantic_core._pydantic_core import ValidationError
 
 
 class ClusterManager(object):
-    _instance = None
+    _instance: "ClusterManager" = None
+    _logger: logging.Logger = None
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+
+            cls._logger = setup_logger('ClusterManager')
 
             db_folder = Path(Path(__file__).parent.parent.parent.parent.absolute(), 'data')
 
             db_folder.mkdir(exist_ok=True)
 
             cls.storage = SQLiteHandler(f"sqlite:///{str(Path(db_folder, 'app.db'))}")
-            # logger
+
+            cls._logger.info("ClusterManager initialised")
         return cls._instance
 
     async def create_cluster(self, provider: BaseProvider, cluster_config: ClusterConfiguration):
-        print(f'Will create cluster {cluster_config}')
+        self._logger.info(f'Will create cluster {cluster_config}')
 
         cluster = Cluster(
             name=cluster_config.name,
@@ -86,12 +90,13 @@ class ClusterManager(object):
             error_message = f'{str(e)}. Right now Hetzner does not have available machines for selected type/region. Please try removing the cluster and creating it again later or choose VM of different type / location.'
             self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED, "error_message": error_message})
         except Exception as e:
-            print(f"Error while creating cluster: {e}")
-            print(format_exc())
+            self._logger.exception(f"Error while creating cluster: {e}", exc_info=True)
 
             error_msg_formatted = re.sub(r'WARNING: Kubernetes configuration file is (?:world|group)-readable\. This is insecure\. Location: .*\.yaml','', str(e))
 
             self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED, "error_message": error_msg_formatted})
+
+        self._logger.info(f'Cluster {cluster.name} created')
 
     async def create_volume(self, provider: str, volume_config: VolumeCreateSchema):
         provider = ProviderFactory.get_provider(provider)
@@ -108,10 +113,10 @@ class ClusterManager(object):
         try:
             await provider.create_volume(volume_config.name, volume_config.size, volume_config.region)
 
-            print(f'Volume {volume_config.name} created')
+            self._logger.info(f'Volume {volume_config.name} created')
             self.storage.update_volume(volume_id, {'status': DeploymentStatus.RUNNING})
         except Exception as e:
-            print(f'Error while creating volume: {e}')
+            self._logger.exception(f'Error while creating volume: {e}')
             self.storage.update_volume(volume_id, {'status': DeploymentStatus.FAILED, 'error_message': str(e)})
 
     def get_cluster_kubeconfig(self, cluster_id: int):
@@ -160,12 +165,14 @@ class ClusterManager(object):
 
         deployment_config = deployment_create.config.copy()
 
-        print(f"Deploying application to cluster {cluster_id}, config: {deployment_config}")
+        self._logger.info(f"Deploying application to cluster {cluster_id}, config: {deployment_config}")
 
         cluster_from_db = self.get_cluster(cluster_id)
 
         if not cluster_from_db:
-            raise ValueError(f"Cluster {cluster_id} was not found")
+            msg = f"Cluster {cluster_id} was not found"
+            self._logger.exception(msg)
+            raise ValueError(msg)
 
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
 
@@ -173,18 +180,19 @@ class ClusterManager(object):
             cluster_pools = [x.name for x in cluster.config.pools]
 
             if node_pool not in cluster_pools:
-                raise ValueError(
-                    f"Node pool {node_pool} does not exist in cluster {cluster_id}. Available pools: {cluster_pools}")
+                msg = f"Node pool {node_pool} does not exist in cluster {cluster_id}. Available pools: {cluster_pools}"
+                self._logger.exception(msg)
+                raise ValueError(msg)
 
             if deployment_create.application_id == 1:
                 deployment_config['node_selector'] = {"pool": node_pool}
 
         # for volume_requirement in volume_requirements:
         #     if volume_requirement.volume_type == "new":
-        #         print(f'Will create new volume as per requirement {volume_requirement}')
+        #         self._logger.info(f'Will create new volume as per requirement {volume_requirement}')
         #         helm_chart_values['logs']['persistence']['size'] = f'{volume_requirement.size}Gi'
         #     elif volume_requirement.volume_type == "existing":
-        #         print(f'Will use existing volume as per requirement {volume_requirement}')
+        #         self._logger.info(f'Will use existing volume as per requirement {volume_requirement}')
         #         volumes = [x for x in self.storage.get_volumes() if x.name == volume_requirement.name]
         #
         #         if not volumes:
@@ -215,7 +223,7 @@ class ClusterManager(object):
             application_instance = ApplicationFactory.get_application(deployment_create.application_id,
                                                                       deployment_config)
         except ValidationError as e:
-            print(f"Application config validation error: {e.errors()}")
+            self._logger.exception(f"Application config validation error: {e.errors()}", exc_info=False)
             self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED,
                                                            "error_message": f"Application config error: {e.errors()}"})
             return
@@ -237,34 +245,31 @@ class ClusterManager(object):
         try:
             application_instance.run_pre_install_actions(cluster, namespace, deployment_config)
 
-            chart_installed = await cluster.install_or_upgrade_chart(helm_chart, helm_chart_values, namespace)
+            await cluster.install_or_upgrade_chart(helm_chart, helm_chart_values, namespace)
 
-            if chart_installed:
-                print(f"Successfully deployed application {deployment.application_id} to cluster {cluster_from_db.name}")
-                self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.RUNNING})
+            self._logger.info(f"Successfully deployed application {deployment.application_id} to cluster {cluster_from_db.name}")
+            self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.RUNNING})
 
-                application_instance.run_post_install_actions(cluster, namespace, {**deployment_config, **access_endpoints_values})
-            else:
-                print(f"Failed to deploy application {deployment.application_id} to cluster {cluster_from_db.name}")
-                self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED, "error_message": f"Failed to deploy application {deployment.application_id} to cluster {cluster_from_db.name}"})
-
+            application_instance.run_post_install_actions(cluster, namespace, {**deployment_config, **access_endpoints_values})
         except Exception as e:
-            print(f"Error during application deployment: {e}")
-            print(traceback.format_exc())
+            self._logger.exception(f"Error during application deployment: {e}", exc_info=True)
             error_msg_formatted = re.sub(r'WARNING: Kubernetes configuration file is (?:world|group)-readable\. This is insecure\. Location: .*\.yaml','', str(e))
-
             self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED, "error_message": error_msg_formatted})
 
     async def update_deployment(self, cluster_id: int, deployment_id: int, deployment_config: dict):
         cluster_from_db = self.get_cluster(cluster_id)
 
         if not cluster_from_db:
-            raise ValueError(f"Cluster {cluster_id} was not found")
+            msg = f"Cluster {cluster_id} was not found"
+            self._logger.exception(msg)
+            raise ValueError(msg)
 
         deployment_from_db = self.get_deployment(deployment_id)
 
         if not deployment_from_db:
-            raise ValueError(f"Deployment {deployment_id} was not found")
+            msg = f"Deployment {deployment_id} was not found"
+            self._logger.exception(msg)
+            raise ValueError(msg)
 
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
 
@@ -277,18 +282,13 @@ class ClusterManager(object):
                                      {"status": DeploymentStatus.UPDATING, "config": deployment_config})
 
         try:
-            chart_updated = await cluster.install_or_upgrade_chart(application_instance.get_helm_chart(),
+            await cluster.install_or_upgrade_chart(application_instance.get_helm_chart(),
                                                                      application_instance.chart_values, deployment_from_db.namespace)
 
-            if chart_updated:
-                print(f"Successfully updated application {application_instance.name} {cluster_from_db.name}")
-                self.storage.update_deployment(deployment_from_db.application_id, {"status": DeploymentStatus.RUNNING})
-            else:
-                print(f"Failed to update application {application_instance.name} to cluster {cluster_from_db.name}")
-                self.storage.update_deployment(deployment_from_db.application_id, {"status": DeploymentStatus.FAILED, "error_message": f"Failed to update application {application_instance.name} to cluster {cluster_from_db.name}"})
+            self._logger.info(f"Successfully updated application {application_instance.name} {cluster_from_db.name}")
+            self.storage.update_deployment(deployment_from_db.application_id, {"status": DeploymentStatus.RUNNING})
         except Exception as e:
-            print(traceback.format_exc())
-            print(f'Error while updating application: {e}')
+            self._logger.exception(f'Error while updating application: {e}', exc_info=True)
             self.storage.update_deployment(deployment_from_db.application_id, {"status": DeploymentStatus.FAILED, "error_message": str(e)})
 
     async def remove_deployment(self, deployment_id: int):
@@ -317,7 +317,9 @@ class ClusterManager(object):
         deployment = self.get_deployment(deployment_id)
 
         if not deployment:
-            raise ValueError(f"Deployment {deployment_id} was not found")
+            msg = f"Deployment {deployment_id} was not found"
+            self._logger.exception(msg)
+            raise ValueError(msg)
 
         cluster_from_db = self.get_cluster(deployment.cluster_id)
 

@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import logging
 import re
 from dataclasses import dataclass
 from typing import Any, TYPE_CHECKING
@@ -7,6 +9,7 @@ from src.core.apps.actions.base_post_install_action import BasePrePostInstallAct
 from src.core.kubernetes.chart_config import HelmChart
 from abc import ABC, abstractmethod
 from enum import StrEnum
+from src.core.utils import setup_logger
 
 
 if TYPE_CHECKING:
@@ -60,6 +63,8 @@ class BaseApplication(ABC):
     _helm_chart: HelmChart
 
     credentials_secret_name: str
+
+    _logger: logging.Logger = setup_logger('Application')
 
     def __init__(self, name: str):
         self.name = name
@@ -130,15 +135,15 @@ class BaseApplication(ABC):
     def run_pre_install_actions(self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]) -> None:
         for action in self.pre_installation_actions:
             if not action.condition:
-                print(f'Skipping pre-install action: {action.name} as its condition is not met')
+                self._logger.warning(f'Skipping pre-install action: {action.name} as its condition is not met')
             else:
-                print(f'Running pre-install action: {action.name}')
+                self._logger.info(f'Running pre-install action: {action.name}')
                 action.run(cluster, namespace, config_values)
 
     def run_post_install_actions(self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]) -> None:
         for action in self.post_installation_actions:
             if not action.condition:
-                print(f'Skipping post-install action: {action.name} as its condition is not met')
+                self._logger.warning(f'Skipping post-install action: {action.name} as its condition is not met')
             else:
-                print(f'Running post-install action: {action.name}')
+                self._logger.info(f'Running post-install action: {action.name}')
                 action.run(cluster, namespace, config_values)

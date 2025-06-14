@@ -210,8 +210,8 @@ class AirflowApplication(BaseApplication):
         try:
             r = requests.get('https://api.github.com/repos/apache/airflow/releases').json()
         except Exception as e:
-            print(f'Failed to retrieve availble verions for Airflow: {e}')
-            raise
+            cls._logger.error(f'Failed to retrieve available versions for Airflow: {e}')
+            return ['2.11.0']
         return [x['tag_name'] for x in r if bool(re.search(r"^2\.\d{1,2}\.\d$", x['tag_name']))][:5]
 
     @property

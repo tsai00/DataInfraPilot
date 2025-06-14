@@ -5,15 +5,17 @@ from src.core.kubernetes.configuration import ClusterConfiguration
 
 from typing import TYPE_CHECKING, Any
 
+from src.core.utils import setup_logger
+
 if TYPE_CHECKING:
     from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
+
 
 class BaseProvider(ABC):
     name: str
 
     def __init__(self):
-        # logger
-        pass
+        self._logger = setup_logger(self.name.capitalize())
 
     @abstractmethod
     def create_cluster(self, cluster_config: ClusterConfiguration) -> KubernetesCluster:

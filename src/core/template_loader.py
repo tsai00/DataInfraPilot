@@ -7,11 +7,15 @@ from contextlib import contextmanager
 from jinja2 import Environment, FileSystemLoader, meta, Template
 from jinja2.exceptions import TemplateNotFound
 
+from src.core.utils import setup_logger
+
 
 class TemplateLoader:
     _TEMPLATE_SUBFOLDERS = ('kubernetes', 'traefik')
 
     def __init__(self):
+        self._logger = setup_logger('TemplateLoader')
+
         templates_dir = Path(__file__).parent.resolve() / 'templates'
 
         if not templates_dir.is_dir():
@@ -38,6 +42,7 @@ class TemplateLoader:
         try:
             return self._environment.get_template(template_full_path)
         except TemplateNotFound:
+            self._logger.exception(f"Template '{template_full_path}' not found.", exc_info=False)
             raise TemplateNotFound(
                 f"Template '{template_full_path}' not found. "
                 "Please ensure the template file exists in the correct path relative to the 'templates' directory."
@@ -54,7 +59,9 @@ class TemplateLoader:
         values = values or {}
 
         if not isinstance(values, dict):
-            raise TypeError("Values must be a dictionary.")
+            msg = f'Template values must be a dictionary'
+            self._logger.exception(msg, exc_info=True)
+            raise TypeError(msg)
 
         resolved_template_module = self._validate_template_module(template_module)
 

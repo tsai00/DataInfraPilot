@@ -10,6 +10,10 @@ from src.api.schemas.deployment import DeploymentCreateSchema, DeploymentSchema,
 from src.core.kubernetes.deployment_status import DeploymentStatus
 import httpx
 
+from src.core.utils import setup_logger
+
+logger = setup_logger('APIClusterRouter')
+
 router = APIRouter()
 
 cluster_manager = ClusterManager()
@@ -25,7 +29,7 @@ async def create_cluster(
     background_tasks: BackgroundTasks,
     cluster_manager: ClusterManager = Depends(get_cluster_manager)
 ) -> ClusterCreateResponseSchema:
-    print(f'Received request to create cluster: {cluster}')
+    logger.info(f'Received request to create cluster: {cluster}')
     provider = ProviderFactory.get_provider(cluster.provider, cluster.provider_config)
 
     cluster_config = ClusterConfiguration(
@@ -87,7 +91,7 @@ async def create_deployment(
     background_tasks: BackgroundTasks,
     cluster_manager: ClusterManager = Depends(get_cluster_manager)
 ) -> dict:
-    print(f'Received request to deploy app: {deployment}')
+    logger.debug(f'Received request to deploy app: {deployment}')
 
     background_tasks.add_task(cluster_manager.create_deployment, cluster_id, deployment)
 
@@ -117,7 +121,7 @@ async def update_deployment(
     background_tasks: BackgroundTasks,
     cluster_manager: ClusterManager = Depends(get_cluster_manager)
 ) -> dict:
-    print(f'Received request to update deployment: {deployment}')
+    logger.debug(f'Received request to update deployment: {deployment}')
 
     background_tasks.add_task(cluster_manager.update_deployment, cluster_id, deployment_id, deployment.config)
 
@@ -138,7 +142,7 @@ async def get_cluster_deployments(
     cluster_id: int,
     cluster_manager: ClusterManager = Depends(get_cluster_manager)
 ) -> list[DeploymentSchema]:
-    print('Request to get cluster deployments')
+    logger.debug('Request to get cluster deployments')
     deployments = cluster_manager.get_deployments(cluster_id)
 
     return deployments
@@ -170,7 +174,7 @@ async def get_cluster_deployment_credentials(
 async def proxy_health_check(
     target_url: str
 ) -> None:
-    print(f"Received proxy health check request for: {target_url}")
+    logger.debug(f"Received proxy health check request for: {target_url}")
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -178,22 +182,22 @@ async def proxy_health_check(
 
             response.raise_for_status()
 
-            print(f"Successfully proxied health check for {target_url}. Status: {response.status_code}, {response}")
+            logger.debug(f"Successfully proxied health check for {target_url}. Status: {response.status_code}, {response}")
 
     except httpx.HTTPStatusError as e:
-        print(f"Target service {target_url} returned an error status: {e.response.status_code} - {e.response.text}")
+        logger.exception(f"Target service {target_url} returned an error status: {e.response.status_code} - {e.response.text}", exc_info=False)
         raise HTTPException(
             status_code=e.response.status_code,
             detail=f"Target service returned error: {e.response.text}"
         )
     except httpx.RequestError as e:
-        print(f"Network error when connecting to {target_url}: {e}")
+        logger.exception(f"Network error when connecting to {target_url}: {e}", exc_info=False)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Could not connect to target service: {e}"
         )
     except Exception as e:
-        print(f"An unexpected error occurred while proxying {target_url}: {e}")
+        logger.exception(f"An unexpected error occurred while proxying {target_url}: {e}", exc_info=False)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {e}"
