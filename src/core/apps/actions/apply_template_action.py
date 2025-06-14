@@ -6,7 +6,14 @@ from src.core.template_loader import template_loader
 
 
 class ApplyTemplateAction(BasePrePostInstallAction):
-    def __init__(self, name: str, template_name: str, template_module: str | None, with_custom_objects: bool = False, condition: bool = True):
+    def __init__(
+        self,
+        name: str,
+        template_name: str,
+        template_module: str | None,
+        with_custom_objects: bool = False,
+        condition: bool = True,
+    ) -> None:
         self.template_name = template_name
         self.template_module = template_module
         self.with_custom_objects = with_custom_objects
@@ -14,12 +21,14 @@ class ApplyTemplateAction(BasePrePostInstallAction):
         super().__init__(name=name, condition=condition)
 
     @override
-    def run(self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]):
+    def run(self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]) -> None:
         values = {namespace: namespace, **config_values}
 
-        with template_loader.render_to_temp_file(self.template_name, values, self.template_module) as rendered_template_file:
+        with template_loader.render_to_temp_file(
+            self.template_name, values, self.template_module
+        ) as rendered_template_file:
             cluster.apply_file(rendered_template_file, with_custom_objects=self.with_custom_objects)
 
-    def _validate(self):
+    def _validate(self) -> None:
         if not self.template_name.endswith('.yaml'):
-            raise ValueError(f"Template file {self.template_name} must be a YAML file.")
+            raise ValueError(f'Template file {self.template_name} must be a YAML file.')

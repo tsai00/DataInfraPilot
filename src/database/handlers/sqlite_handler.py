@@ -1,4 +1,3 @@
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import joinedload, sessionmaker
 
@@ -8,7 +7,7 @@ from src.database.models.volume import Volume
 
 
 class SQLiteHandler(BaseDatabaseHandler):
-    def __init__(self, db_url: str):
+    def __init__(self, db_url: str) -> None:
         self.engine = create_engine(db_url)
 
         BaseModel.metadata.create_all(self.engine)
@@ -17,20 +16,17 @@ class SQLiteHandler(BaseDatabaseHandler):
         if not self.session().query(Application).count():
             initial_apps = [
                 Application(
-                    name="Airflow",
-                    description="Airflow is a platform to programmatically author, schedule and monitor workflows.",
+                    name='Airflow',
+                    description='Airflow is a platform to programmatically author, schedule and monitor workflows.',
                 ),
-                Application(
-                    name="Grafana",
-                    description=""
-                )
+                Application(name='Grafana', description=''),
             ]
             session = self.session()
             session.add_all(initial_apps)
             session.commit()
             session.close()
 
-    def create_cluster(self, cluster: Cluster):
+    def create_cluster(self, cluster: Cluster) -> int:
         with self.session() as session:
             session.add(cluster)
             session.commit()
@@ -39,7 +35,7 @@ class SQLiteHandler(BaseDatabaseHandler):
 
             return cluster_id
 
-    def get_cluster(self, cluster_id) -> type[Cluster] | None:
+    def get_cluster(self, cluster_id: int) -> type[Cluster] | None:
         with self.session() as session:
             cluster = session.query(Cluster).filter_by(id=cluster_id).options(joinedload(Cluster.deployments)).first()
 
@@ -51,19 +47,19 @@ class SQLiteHandler(BaseDatabaseHandler):
 
             return clusters
 
-    def delete_cluster(self, cluster_id):
+    def delete_cluster(self, cluster_id: int) -> None:
         with self.session() as session:
             cluster = session.query(Cluster).filter_by(id=cluster_id).first()
             if cluster:
                 session.delete(cluster)
                 session.commit()
 
-    def update_cluster(self, cluster_id, updated_data: dict):
+    def update_cluster(self, cluster_id: int, updated_data: dict) -> None:
         with self.session() as session:
             session.query(Cluster).filter_by(id=cluster_id).update(updated_data)
             session.commit()
 
-    def get_application(self, application_id) -> type[Application] | None:
+    def get_application(self, application_id: int) -> type[Application] | None:
         with self.session() as session:
             application = session.query(Application).filter_by(id=application_id).first()
 
@@ -75,7 +71,7 @@ class SQLiteHandler(BaseDatabaseHandler):
 
             return applications
 
-    def create_volume(self, volume: Volume):
+    def create_volume(self, volume: Volume) -> int:
         with self.session() as session:
             session.add(volume)
             session.commit()
@@ -84,12 +80,12 @@ class SQLiteHandler(BaseDatabaseHandler):
 
             return volume_id
 
-    def update_volume(self, volume_id: int, updated_data: dict):
+    def update_volume(self, volume_id: int, updated_data: dict) -> None:
         with self.session() as session:
             session.query(Volume).filter_by(id=volume_id).update(updated_data)
             session.commit()
 
-    def get_volume(self, volume_id) -> type[Volume] | None:
+    def get_volume(self, volume_id: int) -> type[Volume] | None:
         with self.session() as session:
             volume = session.query(Volume).filter_by(id=volume_id).first()
 
@@ -101,14 +97,14 @@ class SQLiteHandler(BaseDatabaseHandler):
 
             return volumes
 
-    def delete_volume(self, volume_id):
+    def delete_volume(self, volume_id: int) -> None:
         with self.session() as session:
             volume = session.query(Volume).filter_by(id=volume_id).first()
             if volume:
                 session.delete(volume)
                 session.commit()
 
-    def create_deployment(self, deployment: Deployment):
+    def create_deployment(self, deployment: Deployment) -> int:
         with self.session() as session:
             session.add(deployment)
             session.commit()
@@ -117,14 +113,14 @@ class SQLiteHandler(BaseDatabaseHandler):
 
             return deployment_id
 
-    def delete_deployment(self, deployment_id):
+    def delete_deployment(self, deployment_id: int) -> None:
         with self.session() as session:
             deployment = session.query(Deployment).filter_by(id=deployment_id).first()
             if deployment:
                 session.delete(deployment)
                 session.commit()
 
-    def update_deployment(self, deployment_id: int, updated_data: dict):
+    def update_deployment(self, deployment_id: int, updated_data: dict) -> None:
         with self.session() as session:
             session.query(Deployment).filter_by(id=deployment_id).update(updated_data)
             session.commit()
@@ -133,10 +129,7 @@ class SQLiteHandler(BaseDatabaseHandler):
         with self.session() as session:
             deployments = (
                 session.query(Deployment)
-                .options(
-                    joinedload(Deployment.cluster),
-                    joinedload(Deployment.application)
-                )
+                .options(joinedload(Deployment.cluster), joinedload(Deployment.application))
                 .filter_by(cluster_id=cluster_id)
                 .all()
             )

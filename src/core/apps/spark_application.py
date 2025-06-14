@@ -13,24 +13,23 @@ from src.core.kubernetes.chart_config import HelmChart
 class SparkConfig(BaseModel):
     version: str = '3.5.0'
     cluster_name: str
-    min_workers: int = Field(default=1, ge=1, description="Minimum number of worker nodes")
-    max_workers: int = Field(default=3, ge=2, description="Maximum number of worker nodes")
+    min_workers: int = Field(default=1, ge=1, description='Minimum number of worker nodes')
+    max_workers: int = Field(default=3, ge=2, description='Maximum number of worker nodes')
 
 
 class SparkApplication(BaseApplication):
-
     _helm_chart = HelmChart(
-        name="spark-kubernetes-operator",
-        repo_url="https://apache.github.io/spark-kubernetes-operator",
-        version="1.0.0",
+        name='spark-kubernetes-operator',
+        repo_url='https://apache.github.io/spark-kubernetes-operator',
+        version='1.0.0',
     )
 
-    credentials_secret_name = ""
+    credentials_secret_name = ''
 
-    def __init__(self, config: SparkConfig):
+    def __init__(self, config: SparkConfig) -> None:
         self._config = config
 
-        super().__init__("Spark")
+        super().__init__('Spark')
 
     @classmethod
     @lru_cache
@@ -42,21 +41,23 @@ class SparkApplication(BaseApplication):
     def get_accessible_endpoints(cls) -> list[AccessEndpoint]:
         return [
             AccessEndpoint(
-                name="web-ui",
-                description="Spark Web UI",
+                name='web-ui',
+                description='Spark Web UI',
                 default_access=AccessEndpointType.CLUSTER_IP_PATH,
-                default_value="/spark",
+                default_value='/spark',
                 required=True,
             )
         ]
 
-    def _generate_endpoint_helm_values(self, endpoint_config: AccessEndpointConfig, cluster_base_ip: str,
-                                       namespace: str) -> dict[str, Any]:
+    def _generate_endpoint_helm_values(
+        self, endpoint_config: AccessEndpointConfig, cluster_base_ip: str, namespace: str
+    ) -> dict[str, Any]:
         pass
 
-    def get_ingress_helm_values(self, access_endpoint_configs: list[AccessEndpointConfig], cluster_base_ip: str,
-                                namespace: str) -> dict[str, Any]:
-        web_ui_access_endpoint = [x for x in access_endpoint_configs if x.name == "web-ui"][0]
+    def get_ingress_helm_values(
+        self, access_endpoint_configs: list[AccessEndpointConfig], cluster_base_ip: str, namespace: str
+    ) -> dict[str, Any]:
+        web_ui_access_endpoint = [x for x in access_endpoint_configs if x.name == 'web-ui'][0]
 
         return {'web_ui_path': web_ui_access_endpoint.value}
 
@@ -75,27 +76,27 @@ class SparkApplication(BaseApplication):
     def post_installation_actions(self) -> list[BasePrePostInstallAction]:
         return [
             ApplyTemplateAction(
-                name="CreateSparkCluster",
-                template_name="spark-cluster.yaml",
-                template_module="kubernetes",
-                with_custom_objects=True
+                name='CreateSparkCluster',
+                template_name='spark-cluster.yaml',
+                template_module='kubernetes',
+                with_custom_objects=True,
             ),
             ApplyTemplateAction(
-                name="CreateSparkStripPrefixMiddleware",
-                template_name="traefik-spark-strip-prefix-middleware.yaml",
-                template_module="kubernetes",
-                with_custom_objects=True
+                name='CreateSparkStripPrefixMiddleware',
+                template_name='traefik-spark-strip-prefix-middleware.yaml',
+                template_module='kubernetes',
+                with_custom_objects=True,
             ),
             ApplyTemplateAction(
-                name="CreateSparkIngress",
-                template_name="spark-ingress.yaml",
-                template_module="kubernetes",
-                with_custom_objects=True
+                name='CreateSparkIngress',
+                template_name='spark-ingress.yaml',
+                template_module='kubernetes',
+                with_custom_objects=True,
             ),
             ApplyTemplateAction(
-                name="CreateSparkUIService",
-                template_name="spark-master-svc.yaml",
-                template_module="kubernetes",
-                with_custom_objects=True
-            )
+                name='CreateSparkUIService',
+                template_name='spark-master-svc.yaml',
+                template_module='kubernetes',
+                with_custom_objects=True,
+            ),
         ]

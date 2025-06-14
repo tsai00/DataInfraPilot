@@ -15,42 +15,38 @@ from src.core.apps.grafana_application import GrafanaApplication, GrafanaConfig
 from src.core.apps.spark_application import SparkApplication, SparkConfig
 from src.core.utils import setup_logger
 
-logger = setup_logger("APIMain")
+logger = setup_logger('APIMain')
 
 app = FastAPI()
 
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=['*'],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=['*'],
+    allow_headers=['*'],
 )
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     exc_str = f'{exc}'.replace('\n', ' ').replace('   ', ' ')
-    logging.error(f"{request}: {exc_str}")
+    logging.error(f'{request}: {exc_str}')
     content = {'status_code': 10422, 'message': exc_str, 'data': None}
     return JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
-@app.on_event("startup")
-async def register_applications():
-    logger.info("Registering applications with ApplicationFactory...")
+@app.on_event('startup')
+async def register_applications() -> None:
+    logger.info('Registering applications with ApplicationFactory...')
 
-    ApplicationFactory.register_application(
-        app_id=1,
-        app_class=AirflowApplication,
-        config_class=AirflowConfig
-    )
+    ApplicationFactory.register_application(app_id=1, app_class=AirflowApplication, config_class=AirflowConfig)
     ApplicationFactory.register_application(
         app_id=2,
         app_class=GrafanaApplication,
         config_class=GrafanaConfig,
-        metadata=ApplicationMetadata(username_key='admin-user', password_key='admin-password')  # noqa: S106 (not a secret)
+        metadata=ApplicationMetadata(username_key='admin-user', password_key='admin-password'),  # noqa: S106 (not a secret)
     )
     ApplicationFactory.register_application(
         app_id=3,
@@ -58,10 +54,10 @@ async def register_applications():
         config_class=SparkConfig,
     )
 
-    logger.info("Applications registration complete.")
+    logger.info('Applications registration complete.')
 
 
-@app.on_event("startup")
+@app.on_event('startup')
 @repeat_every(seconds=60)
 def remove_expired_tokens_task() -> None:
     logger.info('Debug periodic task')

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class BaseProvider(ABC):
     name: str
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._logger = setup_logger(self.name.capitalize())
 
     @abstractmethod
@@ -21,13 +21,13 @@ class BaseProvider(ABC):
         pass
 
     @abstractmethod
-    def create_volume(self, name: str, size: int, region: str | None = None) -> Any:
+    def create_volume(self, name: str, size: int, region: str | None = None) -> Any:  # noqa: ANN401 (volume type is provider-specific for now)
         pass
 
     @abstractmethod
-    def delete_cluster(self):
+    def delete_cluster(self) -> None:
         pass
 
     @abstractmethod
-    def delete_volume(self, volume_name: str):
+    def delete_volume(self, volume_name: str) -> None:
         pass

@@ -13,6 +13,7 @@ from hcloud.placement_groups import CreatePlacementGroupResponse, PlacementGroup
 from hcloud.server_types import ServerType
 from hcloud.servers import ServerCreatePublicNetwork
 from hcloud.ssh_keys import SSHKey
+from hcloud.volumes import Volume
 
 from src.core.config import PATH_TO_K3S_YAML_CONFIGS
 from src.core.exceptions import ProjectNotEmptyError, ResourceUnavailableError
@@ -24,16 +25,16 @@ from src.core.utils import generate_password
 
 
 class HetznerNodeType(StrEnum):
-    CX22 = "cx22"
-    CX32 = "cx32"
-    CX42 = "cx42"
-    CX52 = "cx52"
+    CX22 = 'cx22'
+    CX32 = 'cx32'
+    CX42 = 'cx42'
+    CX52 = 'cx52'
 
 
 class HetznerRegion(StrEnum):
-    FSN1 = "fsn1"
-    NBG1 = "nbg1"
-    HEL1 = "hel1"
+    FSN1 = 'fsn1'
+    NBG1 = 'nbg1'
+    HEL1 = 'hel1'
 
 
 @dataclass
@@ -44,16 +45,16 @@ class HetznerConfig:
 
     def to_dict(self) -> dict:
         return {
-            "api_token": self.api_token,
-            "ssh_private_key_path": self.ssh_private_key_path,
-            "ssh_public_key_path": self.ssh_public_key_path,
+            'api_token': self.api_token,
+            'ssh_private_key_path': self.ssh_private_key_path,
+            'ssh_public_key_path': self.ssh_public_key_path,
         }
 
 
 class HetznerProvider(BaseProvider):
     name = 'hetzner'
 
-    def __init__(self, config: HetznerConfig):
+    def __init__(self, config: HetznerConfig) -> None:
         super().__init__()
 
         self.client = Client(token=config.api_token)
@@ -63,7 +64,7 @@ class HetznerProvider(BaseProvider):
 
         self._config = config
 
-    async def _wait_until_server_is_initialised(self, server_id):
+    async def _wait_until_server_is_initialised(self, server_id: str) -> None:
         while True:
             server = await asyncio.to_thread(self.client.servers.get_by_id, server_id)
 
@@ -74,36 +75,40 @@ class HetznerProvider(BaseProvider):
                 self._logger.warning(f'Server {server_id} not ready yet, status: {server.status}')
                 await asyncio.sleep(2)
 
-    async def _wait_until_cloud_init_finished(self, ip, username):
+    async def _wait_until_cloud_init_finished(self, ip: str, username: str) -> None:
         while True:
             try:
-                async with asyncssh.connect(ip, username=username, client_keys=[self._ssh_private_key_path], known_hosts=None) as ssh:
+                async with asyncssh.connect(
+                    ip, username=username, client_keys=[self._ssh_private_key_path], known_hosts=None
+                ) as ssh:
                     result = await ssh.run('test -f /var/lib/cloud/instance/boot-finished && echo "done"', check=True)
-                    if result.stdout.strip() == "done":
-                        self._logger.info("Cloud-init finished successfully.")
+                    if result.stdout.strip() == 'done':
+                        self._logger.info('Cloud-init finished successfully.')
                         break
                     else:
-                        self._logger.warning("Cloud-init still running...")
+                        self._logger.warning('Cloud-init still running...')
             except Exception as e:
-                self._logger.warning(f"SSH connection failed: {e}")
+                self._logger.warning(f'SSH connection failed: {e}')
 
             await asyncio.sleep(5)
 
-    async def _install_k3s(self, ip, username, content):
+    async def _install_k3s(self, ip: str, username: str, content: str) -> None:
         try:
-            async with asyncssh.connect(ip, username=username, client_keys=[self._ssh_private_key_path], known_hosts=None) as ssh:
+            async with asyncssh.connect(
+                ip, username=username, client_keys=[self._ssh_private_key_path], known_hosts=None
+            ) as ssh:
                 await ssh.run(content, check=True)
 
-                self._logger.info("K3s installed successfully.")
+                self._logger.info('K3s installed successfully.')
         except Exception as e:
-            self._logger.warning(f"SSH connection failed: {e}")
+            self._logger.warning(f'SSH connection failed: {e}')
 
     async def _create_network(self, name: str) -> Network:
         try:
             network = self.client.networks.create(
                 name=name,
                 ip_range='10.0.0.0/16',
-                subnets=[NetworkSubnet(ip_range='10.0.1.0/24', network_zone='eu-central', type='cloud')]
+                subnets=[NetworkSubnet(ip_range='10.0.1.0/24', network_zone='eu-central', type='cloud')],
             )
         except APIException as e:
             # TODO: add general exception handler, mapping Hetzner error (uniqueness_error, protected, ...)
@@ -132,41 +137,44 @@ class HetznerProvider(BaseProvider):
         return ssh_key
 
     async def _create_server(
-            self, name: str,
-            node_type: HetznerNodeType,
-            node_region: HetznerRegion,
-            user_data: str,
-            placement_group: PlacementGroup,
-            networks: list[Network],
-            ssh_keys: list[SSHKey] | None = None,
-            enable_public_ip: bool = False,
+        self,
+        name: str,
+        node_type: HetznerNodeType,
+        node_region: HetznerRegion,
+        user_data: str,
+        placement_group: PlacementGroup,
+        networks: list[Network],
+        ssh_keys: list[SSHKey] | None = None,
+        enable_public_ip: bool = False,
     ) -> dict:
-        self._logger.info(f"Creating server {name}...")
+        self._logger.info(f'Creating server {name}...')
 
         try:
             response = self.client.servers.create(
                 name=name,
                 server_type=ServerType(name=node_type),
-                image=Image(name="ubuntu-22.04"),
+                image=Image(name='ubuntu-22.04'),
                 user_data=user_data,
                 location=Location(name=node_region),
                 placement_group=placement_group,
                 networks=networks,
                 ssh_keys=ssh_keys,
-                public_net=ServerCreatePublicNetwork(enable_ipv4=enable_public_ip, enable_ipv6=enable_public_ip)
+                public_net=ServerCreatePublicNetwork(enable_ipv4=enable_public_ip, enable_ipv6=enable_public_ip),
             )
         except APIException as e:
             if e.code == 'uniqueness_error':
                 self._logger.warning(f'Server with name "{name}" already exists')
             elif e.code == 'resource_unavailable':
                 self._logger.exception(f'Failed to get server with name "{name}"', exc_info=False)
-                raise ResourceUnavailableError(f"Resource {name} unavailable") from e
+                raise ResourceUnavailableError(f'Resource {name} unavailable') from e
 
             raise
 
         server = response.server
 
-        self._logger.info(f"Created server {server.name=}, {server.status=}, IP={server.public_net.ipv4.ip}, waiting until k3s is installed")
+        self._logger.info(
+            f'Created server {server.name=}, {server.status=}, IP={server.public_net.ipv4.ip}, waiting until k3s is installed'
+        )
 
         await self._wait_until_server_is_initialised(server.id)
         await self._wait_until_cloud_init_finished(server.public_net.ipv4.ip, 'root')
@@ -177,7 +185,9 @@ class HetznerProvider(BaseProvider):
 
     async def _create_placement_group(self, name: str) -> PlacementGroup:
         try:
-            placement_group_response: CreatePlacementGroupResponse = self.client.placement_groups.create(name=name, type='spread')
+            placement_group_response: CreatePlacementGroupResponse = self.client.placement_groups.create(
+                name=name, type='spread'
+            )
         except APIException as e:
             if e.code == 'uniqueness_error':
                 self._logger.warning(f'Placement Group with name "{name}" already exists')
@@ -221,7 +231,7 @@ class HetznerProvider(BaseProvider):
         private_network = await self._create_network(f'{cluster_config.name}-network')
 
         control_plane_pool = cluster_config.pools[0]
-        control_plane_pool_name = f"{cluster_config.name}-{control_plane_pool.name}"
+        control_plane_pool_name = f'{cluster_config.name}-{control_plane_pool.name}'
         control_plane_placement_group = await self._create_placement_group(control_plane_pool_name)
 
         control_plane_node_content = template_loader.render_template(
@@ -229,26 +239,26 @@ class HetznerProvider(BaseProvider):
             values={
                 'k3s_token': k3s_token,
                 'k3s_version': cluster_config.k3s_version,
-                'pool_name': control_plane_pool_name
-            }
+                'pool_name': control_plane_pool_name,
+            },
         )
 
         master_plane_node = await self._create_server(
-            name=f"{cluster_config.name}-control-plane-node-1",
+            name=f'{cluster_config.name}-control-plane-node-1',
             node_type=HetznerNodeType[control_plane_pool.node_type.upper()],
             user_data=control_plane_node_content,
             node_region=HetznerRegion[control_plane_pool.region.upper()],
             placement_group=control_plane_placement_group,
             ssh_keys=[ssh_key],
             networks=[private_network],
-            enable_public_ip=True
+            enable_public_ip=True,
         )
 
         master_plane_ip = master_plane_node['ip']
 
         tasks = [
             self._create_server(
-                name=f"{cluster_config.name}-worker-node-{i}",
+                name=f'{cluster_config.name}-worker-node-{i}',
                 node_type=HetznerNodeType[pool.node_type.upper()],
                 user_data=template_loader.render_template(
                     template_name='cloud-init-worker.yml',
@@ -256,14 +266,14 @@ class HetznerProvider(BaseProvider):
                         'k3s_token': k3s_token,
                         'k3s_version': cluster_config.k3s_version,
                         'master_ip': master_plane_ip,
-                        'pool_name': pool.name
-                    }
+                        'pool_name': pool.name,
+                    },
                 ),
                 node_region=HetznerRegion[pool.region.upper()],
                 placement_group=await self._create_placement_group(f'{cluster_config.name}-{pool.name}'),
                 networks=[private_network],
                 ssh_keys=[ssh_key],
-                enable_public_ip=True
+                enable_public_ip=True,
             )
             for i, pool in enumerate(
                 pool
@@ -276,7 +286,7 @@ class HetznerProvider(BaseProvider):
         worker_nodes = await asyncio.gather(*tasks)
 
         for s in [master_plane_node] + worker_nodes:
-            self._logger.info(f"{s['name']} ({s['ip']})")
+            self._logger.info(f'{s["name"]} ({s["ip"]})')
 
         local_config = Path(PATH_TO_K3S_YAML_CONFIGS, 'k3s-config-cluster-id.yaml')
 
@@ -284,7 +294,7 @@ class HetznerProvider(BaseProvider):
             ip=master_plane_node['ip'],
             username='root',
             remote_path='/etc/rancher/k3s/k3s.yaml',
-            local_path=local_config
+            local_path=local_config,
         )
 
         text = local_config.read_text()
@@ -297,10 +307,7 @@ class HetznerProvider(BaseProvider):
         hcloud_secret_rendered = template_loader.render_template(
             template_name='hetzner-token-secret.yaml',
             template_module='kubernetes',
-            values={
-                'hcloud_token': self._config.api_token,
-                'network_name': f'{cluster_config.name}-network'
-            }
+            values={'hcloud_token': self._config.api_token, 'network_name': f'{cluster_config.name}-network'},
         )
 
         is_autoscaling_requested = any(x.autoscaling.enabled for x in cluster_config.pools if x.autoscaling)
@@ -308,13 +315,16 @@ class HetznerProvider(BaseProvider):
         if is_autoscaling_requested:
             worker_node_template_rendered = template_loader.render_template(
                 template_name='cloud-init-autoscaler.yml',
-                values={'k3s_token': k3s_token, 'k3s_version': cluster_config.k3s_version,
-                        'master_ip': cluster.access_ip},
-
+                values={
+                    'k3s_token': k3s_token,
+                    'k3s_version': cluster_config.k3s_version,
+                    'master_ip': cluster.access_ip,
+                },
             )
 
-            await cluster.install_clusterautoscaler(self._config.api_token, cluster_config,
-                                                    worker_node_template_rendered)
+            await cluster.install_clusterautoscaler(
+                self._config.api_token, cluster_config, worker_node_template_rendered
+            )
 
         cluster.create_object_from_content(yaml.safe_load(hcloud_secret_rendered))
         self._logger.info('Hetzner secret created')
@@ -324,12 +334,12 @@ class HetznerProvider(BaseProvider):
 
         return cluster
 
-    async def create_volume(self, name: str, size: int, region: str | None = None):
+    async def create_volume(self, name: str, size: int, region: str | None = None) -> None:
         try:
             self.client.volumes.create(
                 name=name,
                 size=size,
-                location=Location(name=region or "fsn1"),
+                location=Location(name=region or 'fsn1'),
             )
         except APIException as e:
             # TODO: add general exception handler, mapping Hetzner error (uniqueness_error, protected, ...)
@@ -338,15 +348,17 @@ class HetznerProvider(BaseProvider):
 
             raise
 
-    async def _download_kubeconfig(self, ip, username, remote_path, local_path):
+    async def _download_kubeconfig(self, ip: str, username: str, remote_path: str, local_path: Path) -> None:
         try:
-            async with asyncssh.connect(ip, username=username, client_keys=[self._ssh_private_key_path], known_hosts=None) as conn:
+            async with asyncssh.connect(
+                ip, username=username, client_keys=[self._ssh_private_key_path], known_hosts=None
+            ) as conn:
                 await asyncssh.scp((conn, remote_path), local_path)
-                self._logger.info(f"File downloaded to {local_path}")
+                self._logger.info(f'File downloaded to {local_path}')
         except Exception as e:
-            self._logger.exception(f"Failed to download file: {e}")
+            self._logger.exception(f'Failed to download file: {e}')
 
-    def delete_cluster(self):
+    def delete_cluster(self) -> None:
         try:
             servers = self.client.servers.get_all()
             placement_groups = self.client.placement_groups.get_all()
@@ -369,7 +381,7 @@ class HetznerProvider(BaseProvider):
                 else:
                     raise
 
-    def delete_volume(self, volume_name: str):
+    def delete_volume(self, volume_name: str) -> None:
         try:
             volume = self.client.volumes.get_by_name(volume_name)
         except Exception as e:
@@ -379,7 +391,7 @@ class HetznerProvider(BaseProvider):
         if volume:
             volume.delete()
 
-    def get_volumes(self):
+    def get_volumes(self) -> list[Volume]:
         try:
             volumes = self.client.volumes.get_all()
         except Exception as e:

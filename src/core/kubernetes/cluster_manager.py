@@ -18,16 +18,17 @@ from src.core.providers.base_provider import BaseProvider
 from src.core.providers.provider_factory import ProviderFactory
 from src.core.utils import setup_logger
 from src.database.handlers.sqlite_handler import SQLiteHandler
+from src.database.models import Application
 from src.database.models.cluster import Cluster
 from src.database.models.deployment import Deployment
 from src.database.models.volume import Volume
 
 
 class ClusterManager:
-    _instance: "ClusterManager" = None
+    _instance: 'ClusterManager' = None
     _logger: logging.Logger = None
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **kwargs) -> None:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
 
@@ -37,15 +38,15 @@ class ClusterManager:
 
             db_folder.mkdir(exist_ok=True)
 
-            cls.storage = SQLiteHandler(f"sqlite:///{str(Path(db_folder, 'app.db'))}")
+            cls.storage = SQLiteHandler(f'sqlite:///{str(Path(db_folder, "app.db"))}')
 
-            cls._logger.info("ClusterManager initialised")
+            cls._logger.info('ClusterManager initialised')
         return cls._instance
 
-    async def create_cluster(self, provider: BaseProvider, cluster_config: ClusterConfiguration):
+    async def create_cluster(self, provider: BaseProvider, cluster_config: ClusterConfiguration) -> None:
         self._logger.info(f'Will create cluster {cluster_config}')
 
-        cluster = Cluster(
+        cluster_db = Cluster(
             name=cluster_config.name,
             k3s_version=cluster_config.k3s_version,
             domain_name=cluster_config.domain_name,
@@ -53,10 +54,10 @@ class ClusterManager:
             provider_config=provider._config.to_dict(),
             pools=[x.to_dict() for x in cluster_config.pools],
             status=DeploymentStatus.CREATING,
-            additional_components=cluster_config.additional_components.dict()
+            additional_components=cluster_config.additional_components.dict(),
         )
 
-        cluster_id = self.storage.create_cluster(cluster)
+        cluster_id = self.storage.create_cluster(cluster_db)
 
         try:
             cluster = await provider.create_cluster(cluster_config)
@@ -74,7 +75,7 @@ class ClusterManager:
                     password=cluster_config.additional_components.traefik_dashboard.password,
                     enable_https=True,
                     domain_name=cluster_config.domain_name,
-                    secret_name='main-certificate-tls'  # noqa: S106 (not a secret)
+                    secret_name='main-certificate-tls',  # noqa: S106 (not a secret)
                 )
             elif cluster_config.additional_components.traefik_dashboard.enabled:
                 cluster.expose_traefik_dashboard(
@@ -84,22 +85,35 @@ class ClusterManager:
                 )
 
             # TODO: remove hardcoded node name
-            cluster.cordon_node(f"{cluster_config.name}-control-plane-node-1")
+            cluster.cordon_node(f'{cluster_config.name}-control-plane-node-1')
 
-            self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path), 'access_ip': cluster.access_ip})
+            self.storage.update_cluster(
+                cluster_id,
+                {
+                    'status': DeploymentStatus.RUNNING,
+                    'kubeconfig_path': str(cluster.kubeconfig_path),
+                    'access_ip': cluster.access_ip,
+                },
+            )
         except ResourceUnavailableError as e:
             error_message = f'{str(e)}. Right now Hetzner does not have available machines for selected type/region. Please try removing the cluster and creating it again later or choose VM of different type / location.'
-            self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED, "error_message": error_message})
+            self.storage.update_cluster(cluster_id, {'status': DeploymentStatus.FAILED, 'error_message': error_message})
         except Exception as e:
-            self._logger.exception(f"Error while creating cluster: {e}", exc_info=True)
+            self._logger.exception(f'Error while creating cluster: {e}', exc_info=True)
 
-            error_msg_formatted = re.sub(r'WARNING: Kubernetes configuration file is (?:world|group)-readable\. This is insecure\. Location: .*\.yaml','', str(e))
+            error_msg_formatted = re.sub(
+                r'WARNING: Kubernetes configuration file is (?:world|group)-readable\. This is insecure\. Location: .*\.yaml',
+                '',
+                str(e),
+            )
 
-            self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED, "error_message": error_msg_formatted})
+            self.storage.update_cluster(
+                cluster_id, {'status': DeploymentStatus.FAILED, 'error_message': error_msg_formatted}
+            )
 
-        self._logger.info(f'Cluster {cluster.name} created')
+        self._logger.info(f'Cluster {cluster_db.name} created')
 
-    async def create_volume(self, provider: str, volume_config: VolumeCreateSchema):
+    async def create_volume(self, provider: str, volume_config: VolumeCreateSchema) -> None:
         provider = ProviderFactory.get_provider(provider)
 
         volume = Volume(
@@ -107,7 +121,7 @@ class ClusterManager:
             region=volume_config.region,
             name=volume_config.name,
             size=volume_config.size,
-            status=DeploymentStatus.CREATING
+            status=DeploymentStatus.CREATING,
         )
         volume_id = self.storage.create_volume(volume)
 
@@ -120,18 +134,18 @@ class ClusterManager:
             self._logger.exception(f'Error while creating volume: {e}')
             self.storage.update_volume(volume_id, {'status': DeploymentStatus.FAILED, 'error_message': str(e)})
 
-    def get_cluster_kubeconfig(self, cluster_id: int):
+    def get_cluster_kubeconfig(self, cluster_id: int) -> str:
         kubeconfig_path = Path(self.storage.get_cluster(cluster_id).kubeconfig_path)
 
         return kubeconfig_path.read_text()
 
-    def get_cluster(self, cluster_id: int):
+    def get_cluster(self, cluster_id: int) -> type[Cluster]:
         return self.storage.get_cluster(cluster_id)
 
-    def get_clusters(self):
+    def get_clusters(self) -> list[type[Cluster]]:
         return self.storage.get_clusters()
 
-    def delete_cluster(self, cluster_id: int):
+    def delete_cluster(self, cluster_id: int) -> None:
         # TODO: parametrize provider
         cluster = self.storage.get_cluster(cluster_id)
         provider = ProviderFactory.get_provider('hetzner', cluster.provider_config)
@@ -140,19 +154,19 @@ class ClusterManager:
 
         self.storage.delete_cluster(cluster_id)
 
-    def get_applications(self):
+    def get_applications(self) -> list[type[Application]]:
         return self.storage.get_applications()
 
-    def get_application(self, application_id: int):
+    def get_application(self, application_id: int) -> type[Application]:
         return self.storage.get_application(application_id)
 
-    def get_volumes(self):
+    def get_volumes(self) -> list[type[Volume]]:
         return self.storage.get_volumes()
 
-    def get_volume(self, volume_id: int):
+    def get_volume(self, volume_id: int) -> type[Volume]:
         return self.get_volume(volume_id)
 
-    def delete_volume(self, volume_id: int):
+    def delete_volume(self, volume_id: int) -> None:
         # TODO: parametrize provider
         provider = ProviderFactory.get_provider('hetzner')
         volume_from_db = self.storage.get_volume(volume_id)
@@ -160,18 +174,18 @@ class ClusterManager:
 
         self.storage.delete_volume(volume_id)
 
-    async def create_deployment(self, cluster_id: int, deployment_create: DeploymentCreateSchema):
-        #volume_requirements = deployment_create.volumes or []
-        node_pool = deployment_create.node_pool if deployment_create.node_pool != "noselection" else None
+    async def create_deployment(self, cluster_id: int, deployment_create: DeploymentCreateSchema) -> None:
+        # volume_requirements = deployment_create.volumes or []
+        node_pool = deployment_create.node_pool if deployment_create.node_pool != 'noselection' else None
 
         deployment_config = deployment_create.config.copy()
 
-        self._logger.info(f"Deploying application to cluster {cluster_id}, config: {deployment_config}")
+        self._logger.info(f'Deploying application to cluster {cluster_id}, config: {deployment_config}')
 
         cluster_from_db = self.get_cluster(cluster_id)
 
         if not cluster_from_db:
-            msg = f"Cluster {cluster_id} was not found"
+            msg = f'Cluster {cluster_id} was not found'
             self._logger.exception(msg)
             raise ValueError(msg)
 
@@ -181,12 +195,12 @@ class ClusterManager:
             cluster_pools = [x.name for x in cluster.config.pools]
 
             if node_pool not in cluster_pools:
-                msg = f"Node pool {node_pool} does not exist in cluster {cluster_id}. Available pools: {cluster_pools}"
+                msg = f'Node pool {node_pool} does not exist in cluster {cluster_id}. Available pools: {cluster_pools}'
                 self._logger.exception(msg)
                 raise ValueError(msg)
 
             if deployment_create.application_id == 1:
-                deployment_config['node_selector'] = {"pool": node_pool}
+                deployment_config['node_selector'] = {'pool': node_pool}
 
         # for volume_requirement in volume_requirements:
         #     if volume_requirement.volume_type == "new":
@@ -221,25 +235,35 @@ class ClusterManager:
         deployment_id = self.storage.create_deployment(deployment)
 
         try:
-            application_instance = ApplicationFactory.get_application(deployment_create.application_id,
-                                                                      deployment_config)
+            application_instance = ApplicationFactory.get_application(
+                deployment_create.application_id, deployment_config
+            )
         except ValidationError as e:
-            self._logger.exception(f"Application config validation error: {e.errors()}", exc_info=False)
-            self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED,
-                                                           "error_message": f"Application config error: {e.errors()}"})
+            self._logger.exception(f'Application config validation error: {e.errors()}', exc_info=False)
+            self.storage.update_deployment(
+                deployment_id,
+                {'status': DeploymentStatus.FAILED, 'error_message': f'Application config error: {e.errors()}'},
+            )
             return
 
         helm_chart = application_instance.get_helm_chart()
         helm_chart_values = application_instance.chart_values.copy()
 
-        namespace = f"{helm_chart.name.split('/')[-1]}-{deployment_id}"
-        self.storage.update_deployment(deployment_id, {"namespace": namespace})
+        namespace = f'{helm_chart.name.split("/")[-1]}-{deployment_id}'
+        self.storage.update_deployment(deployment_id, {'namespace': namespace})
 
         for x in deployment_create.endpoints:
             if x.access_type in ('subdomain', 'domain_path'):
-                cluster.create_certificate(f'{namespace}-{x.name}-tls', x.value[:x.value.find('/')], f'{namespace}-{x.name}-tls', namespace=namespace)
+                cluster.create_certificate(
+                    f'{namespace}-{x.name}-tls',
+                    x.value[: x.value.find('/')],
+                    f'{namespace}-{x.name}-tls',
+                    namespace=namespace,
+                )
 
-        access_endpoints_values = application_instance.get_ingress_helm_values(deployment_create.endpoints, cluster.access_ip, namespace)
+        access_endpoints_values = application_instance.get_ingress_helm_values(
+            deployment_create.endpoints, cluster.access_ip, namespace
+        )
 
         helm_chart_values = {**helm_chart_values, **access_endpoints_values}
 
@@ -248,55 +272,69 @@ class ClusterManager:
 
             await cluster.install_or_upgrade_chart(helm_chart, helm_chart_values, namespace)
 
-            self._logger.info(f"Successfully deployed application {deployment.application_id} to cluster {cluster_from_db.name}")
-            self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.RUNNING})
+            self._logger.info(
+                f'Successfully deployed application {deployment.application_id} to cluster {cluster_from_db.name}'
+            )
+            self.storage.update_deployment(deployment_id, {'status': DeploymentStatus.RUNNING})
 
-            application_instance.run_post_install_actions(cluster, namespace, {**deployment_config, **access_endpoints_values})
+            application_instance.run_post_install_actions(
+                cluster, namespace, {**deployment_config, **access_endpoints_values}
+            )
         except Exception as e:
-            self._logger.exception(f"Error during application deployment: {e}", exc_info=True)
-            error_msg_formatted = re.sub(r'WARNING: Kubernetes configuration file is (?:world|group)-readable\. This is insecure\. Location: .*\.yaml','', str(e))
-            self.storage.update_deployment(deployment_id, {"status": DeploymentStatus.FAILED, "error_message": error_msg_formatted})
+            self._logger.exception(f'Error during application deployment: {e}', exc_info=True)
+            error_msg_formatted = re.sub(
+                r'WARNING: Kubernetes configuration file is (?:world|group)-readable\. This is insecure\. Location: .*\.yaml',
+                '',
+                str(e),
+            )
+            self.storage.update_deployment(
+                deployment_id, {'status': DeploymentStatus.FAILED, 'error_message': error_msg_formatted}
+            )
 
-    async def update_deployment(self, cluster_id: int, deployment_id: int, deployment_config: dict):
+    async def update_deployment(self, cluster_id: int, deployment_id: int, deployment_config: dict) -> None:
         cluster_from_db = self.get_cluster(cluster_id)
 
         if not cluster_from_db:
-            msg = f"Cluster {cluster_id} was not found"
+            msg = f'Cluster {cluster_id} was not found'
             self._logger.exception(msg)
             raise ValueError(msg)
 
         deployment_from_db = self.get_deployment(deployment_id)
 
         if not deployment_from_db:
-            msg = f"Deployment {deployment_id} was not found"
+            msg = f'Deployment {deployment_id} was not found'
             self._logger.exception(msg)
             raise ValueError(msg)
 
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
 
         if deployment_from_db.application_id == 1:
-            deployment_config['node_selector'] = {"pool": deployment_from_db.node_pool}
+            deployment_config['node_selector'] = {'pool': deployment_from_db.node_pool}
 
         application_instance = ApplicationFactory.get_application(deployment_from_db.application_id, deployment_config)
 
-        self.storage.update_deployment(deployment_from_db.application_id,
-                                     {"status": DeploymentStatus.UPDATING, "config": deployment_config})
+        self.storage.update_deployment(
+            deployment_from_db.application_id, {'status': DeploymentStatus.UPDATING, 'config': deployment_config}
+        )
 
         try:
-            await cluster.install_or_upgrade_chart(application_instance.get_helm_chart(),
-                                                                     application_instance.chart_values, deployment_from_db.namespace)
+            await cluster.install_or_upgrade_chart(
+                application_instance.get_helm_chart(), application_instance.chart_values, deployment_from_db.namespace
+            )
 
-            self._logger.info(f"Successfully updated application {application_instance.name} {cluster_from_db.name}")
-            self.storage.update_deployment(deployment_from_db.application_id, {"status": DeploymentStatus.RUNNING})
+            self._logger.info(f'Successfully updated application {application_instance.name} {cluster_from_db.name}')
+            self.storage.update_deployment(deployment_from_db.application_id, {'status': DeploymentStatus.RUNNING})
         except Exception as e:
             self._logger.exception(f'Error while updating application: {e}', exc_info=True)
-            self.storage.update_deployment(deployment_from_db.application_id, {"status": DeploymentStatus.FAILED, "error_message": str(e)})
+            self.storage.update_deployment(
+                deployment_from_db.application_id, {'status': DeploymentStatus.FAILED, 'error_message': str(e)}
+            )
 
-    async def remove_deployment(self, deployment_id: int):
+    async def remove_deployment(self, deployment_id: int) -> None:
         deployment_from_db = self.get_deployment(deployment_id)
 
         if not deployment_from_db:
-            raise ValueError(f"Deployment {deployment_id} was not found")
+            raise ValueError(f'Deployment {deployment_id} was not found')
 
         cluster_from_db = self.get_cluster(deployment_from_db.cluster_id)
 
@@ -308,17 +346,17 @@ class ClusterManager:
 
         self.storage.delete_deployment(deployment_id)
 
-    def get_deployments(self, cluster_id: int):
+    def get_deployments(self, cluster_id: int) -> list[type[Deployment]]:
         return self.storage.get_deployments(cluster_id)
 
-    def get_deployment(self, deployment_id: int):
+    def get_deployment(self, deployment_id: int) -> type[Deployment]:
         return self.storage.get_deployment(deployment_id)
 
     def get_deployment_initial_credentials(self, deployment_id: int) -> dict:
         deployment = self.get_deployment(deployment_id)
 
         if not deployment:
-            msg = f"Deployment {deployment_id} was not found"
+            msg = f'Deployment {deployment_id} was not found'
             self._logger.exception(msg)
             raise ValueError(msg)
 
@@ -332,7 +370,10 @@ class ClusterManager:
 
         secret = cluster.get_secret(application.credentials_secret_name, deployment.namespace)
 
-        return {'username': secret[application_metadata.username_key], 'password': secret[application_metadata.password_key]}
+        return {
+            'username': secret[application_metadata.username_key],
+            'password': secret[application_metadata.password_key],
+        }
 
     def get_existing_endpoints(self, cluster_id: int) -> dict:
         deployments = self.storage.get_deployments(cluster_id)
@@ -350,10 +391,12 @@ class ClusterManager:
                 elif endpoint['access_type'] == AccessEndpointType.SUBDOMAIN:
                     existing_subdomain_endpoints.append(endpoint['value'])
                 else:
-                    raise ValueError(f"Unknown access type {endpoint['access_type']} for endpoint {endpoint['name']} in deployment {deployment.name}")
+                    raise ValueError(
+                        f'Unknown access type {endpoint["access_type"]} for endpoint {endpoint["name"]} in deployment {deployment.name}'
+                    )
 
         return {
             AccessEndpointType.CLUSTER_IP_PATH: existing_cluster_ip_path_endpoints,
             AccessEndpointType.DOMAIN_PATH: existing_domain_path_endpoints,
-            AccessEndpointType.SUBDOMAIN: existing_subdomain_endpoints
+            AccessEndpointType.SUBDOMAIN: existing_subdomain_endpoints,
         }

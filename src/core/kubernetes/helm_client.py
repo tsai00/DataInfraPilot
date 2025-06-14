@@ -6,50 +6,42 @@ from pydantic import DirectoryPath, Field, FilePath, HttpUrl
 from pyhelm3 import Chart, Client, ReleaseRevision, mergeconcat
 from yaml import SafeLoader
 
-Name = Annotated[str, Field(pattern=r"^[a-z0-9-]+$")]
-OCIPath = Annotated[str, Field(pattern=r"oci:\/\/*")]
+Name = Annotated[str, Field(pattern=r'^[a-z0-9-]+$')]
+OCIPath = Annotated[str, Field(pattern=r'oci:\/\/*')]
 
 
 class HelmChartOCI(Chart):
     ref: DirectoryPath | FilePath | HttpUrl | OCIPath | Name = Field(
         ...,
     )
-    repo: HttpUrl | OCIPath | None = Field(None, description="The repository URL.")
+    repo: HttpUrl | OCIPath | None = Field(None, description='The repository URL.')
 
 
 class HelmClient(Client):
-    async def get_oci_chart(self, chart_ref, *, devel=False, repo=None, version=None):
-        metadata = await self._show_oci_chart(
-            chart_ref,
-            devel=devel,
-            repo=repo,
-            version=version
-        )
-        return HelmChartOCI(
-            _command=self._command,
-            ref=chart_ref,
-            repo=repo,
-            metadata=metadata
-        )
+    async def get_oci_chart(
+        self, chart_ref: str, *, devel: bool = False, repo: str | None = None, version: str | None = None
+    ) -> HelmChartOCI:
+        metadata = await self._show_oci_chart(chart_ref, devel=devel, repo=repo, version=version)
+        return HelmChartOCI(_command=self._command, ref=chart_ref, repo=repo, metadata=metadata)
 
     async def install_or_upgrade_oci_release(
-            self,
-            release_name: str,
-            chart: Chart,
-            *values: dict[str, Any],
-            atomic: bool = False,
-            cleanup_on_fail: bool = False,
-            create_namespace: bool = True,
-            description: str | None = None,
-            dry_run: bool = False,
-            force: bool = False,
-            namespace: str | None = None,
-            no_hooks: bool = False,
-            reset_values: bool = False,
-            reuse_values: bool = False,
-            skip_crds: bool = False,
-            timeout: int | str | None = None,
-            wait: bool = False
+        self,
+        release_name: str,
+        chart: Chart,
+        *values: dict[str, Any],
+        atomic: bool = False,
+        cleanup_on_fail: bool = False,
+        create_namespace: bool = True,
+        description: str | None = None,
+        dry_run: bool = False,
+        force: bool = False,
+        namespace: str | None = None,
+        no_hooks: bool = False,
+        reset_values: bool = False,
+        reuse_values: bool = False,
+        skip_crds: bool = False,
+        timeout: int | str | None = None,
+        wait: bool = False,
     ) -> ReleaseRevision:
         """
         Install or upgrade the named release using the given chart and values and return
@@ -73,28 +65,22 @@ class HelmClient(Client):
                 skip_crds=skip_crds,
                 timeout=timeout,
                 version=chart.metadata.version,
-                wait=wait
+                wait=wait,
             ),
-            self._command
+            self._command,
         )
 
     async def _show_oci_chart(
-        self,
-        chart_ref: pathlib.Path | str,
-        *,
-        devel: bool = False,
-        repo: str | None = None,
-        version: str | None = None
+        self, chart_ref: pathlib.Path | str, *, devel: bool = False, repo: str | None = None, version: str | None = None
     ) -> dict[str, Any]:
         """
         Returns the contents of Chart.yaml for the specified chart.
         """
-        command = ["show", "chart", f'{repo}/{chart_ref}']
+        command = ['show', 'chart', f'{repo}/{chart_ref}']
         if devel:
-            command.append("--devel")
+            command.append('--devel')
         if self._command._insecure_skip_tls_verify:
-            command.append("--insecure-skip-tls-verify")
+            command.append('--insecure-skip-tls-verify')
         if version:
-            command.extend(["--version", version])
+            command.extend(['--version', version])
         return yaml.load(await self._command.run(command), Loader=SafeLoader)
-

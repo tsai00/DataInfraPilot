@@ -8,7 +8,7 @@ from src.core.apps.base_application import BaseApplication
 @dataclass(frozen=True)
 class ApplicationMetadata:
     username_key: str = 'username'
-    password_key: str = 'password'      # noqa: S105 (not a secret)
+    password_key: str = 'password'  # noqa: S105 (not a secret)
 
 
 class ApplicationFactory:
@@ -21,8 +21,8 @@ class ApplicationFactory:
         app_id: int,
         app_class: type[BaseApplication],
         config_class: type[BaseModel],
-        metadata: ApplicationMetadata = None
-    ):
+        metadata: ApplicationMetadata = None,
+    ) -> None:
         if app_id in cls._registry:
             raise ValueError(f"Application ID '{app_id}' is already registered.")
 

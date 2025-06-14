@@ -18,14 +18,14 @@ if TYPE_CHECKING:
 @dataclass
 class VolumeRequirement:
     name: str
-    size: int   # in GB
+    size: int  # in GB
     description: str
 
 
 class AccessEndpointType(StrEnum):
-    SUBDOMAIN = "subdomain"
-    DOMAIN_PATH = "domain_path"
-    CLUSTER_IP_PATH = "cluster_ip_path"
+    SUBDOMAIN = 'subdomain'
+    DOMAIN_PATH = 'domain_path'
+    CLUSTER_IP_PATH = 'cluster_ip_path'
 
 
 @dataclass(frozen=True)
@@ -48,12 +48,8 @@ class AccessEndpointConfig:
     access_type: AccessEndpointType
     value: str
 
-    def to_dict(self):
-        return {
-            "name": self.name,
-            "access_type": self.access_type,
-            "value": self.value
-        }
+    def to_dict(self) -> dict:
+        return {'name': self.name, 'access_type': self.access_type, 'value': self.value}
 
 
 class BaseApplication(ABC):
@@ -65,7 +61,7 @@ class BaseApplication(ABC):
 
     _logger: logging.Logger = setup_logger('Application')
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         self.name = name
 
     @classmethod
@@ -89,29 +85,28 @@ class BaseApplication(ABC):
     def get_accessible_endpoints(cls) -> list[AccessEndpoint]: ...
 
     @abstractmethod
-    def _generate_endpoint_helm_values(self, endpoint_config: AccessEndpointConfig, cluster_base_ip: str, namespace: str) -> dict[str, Any]: ...
+    def _generate_endpoint_helm_values(
+        self, endpoint_config: AccessEndpointConfig, cluster_base_ip: str, namespace: str
+    ) -> dict[str, Any]: ...
 
     @abstractmethod
-    def get_ingress_helm_values(self, access_endpoint_configs: list[AccessEndpointConfig], cluster_base_ip: str, namespace: str) -> dict[str, Any]: ...
-
-    def _deep_merge_dicts(self, dict1: dict, dict2: dict):
-        for k, v in dict2.items():
-            if k in dict1 and isinstance(dict1[k], dict) and isinstance(v, dict):
-                self._deep_merge_dicts(dict1[k], v)
-            else:
-                dict1[k] = v
+    def get_ingress_helm_values(
+        self, access_endpoint_configs: list[AccessEndpointConfig], cluster_base_ip: str, namespace: str
+    ) -> dict[str, Any]: ...
 
     @staticmethod
-    def _validate_access_config(endpoint_config: AccessEndpointConfig):
+    def _validate_access_config(endpoint_config: AccessEndpointConfig) -> None:
         if endpoint_config.access_type == AccessEndpointType.SUBDOMAIN:
-            if not re.match(r"^[a-zA-Z0-9.-]+$",
-                            endpoint_config.value) or "--" in endpoint_config.value:
-                raise ValueError(f"Invalid subdomain format for {endpoint_config.name}: {endpoint_config.value}")
+            if not re.match(r'^[a-zA-Z0-9.-]+$', endpoint_config.value) or '--' in endpoint_config.value:
+                raise ValueError(f'Invalid subdomain format for {endpoint_config.name}: {endpoint_config.value}')
         elif endpoint_config.access_type == AccessEndpointType.DOMAIN_PATH:
             if '/' not in endpoint_config.value:
                 raise ValueError(
-                    f"Domain path for {endpoint_config.name} must include a domain (e.g., mydomain.com/path).")
-        elif endpoint_config.access_type == AccessEndpointType.CLUSTER_IP_PATH and not endpoint_config.value.startswith('/'):
+                    f'Domain path for {endpoint_config.name} must include a domain (e.g., mydomain.com/path).'
+                )
+        elif endpoint_config.access_type == AccessEndpointType.CLUSTER_IP_PATH and not endpoint_config.value.startswith(
+            '/'
+        ):
             raise ValueError(f"Cluster IP path for {endpoint_config.name} must start with '/'.")
 
     @classmethod
@@ -127,7 +122,9 @@ class BaseApplication(ABC):
     def post_installation_actions(self) -> list[BasePrePostInstallAction]:
         return []
 
-    def run_pre_install_actions(self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]) -> None:
+    def run_pre_install_actions(
+        self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]
+    ) -> None:
         for action in self.pre_installation_actions:
             if not action.condition:
                 self._logger.warning(f'Skipping pre-install action: {action.name} as its condition is not met')
@@ -135,7 +132,9 @@ class BaseApplication(ABC):
                 self._logger.info(f'Running pre-install action: {action.name}')
                 action.run(cluster, namespace, config_values)
 
-    def run_post_install_actions(self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]) -> None:
+    def run_post_install_actions(
+        self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]
+    ) -> None:
         for action in self.post_installation_actions:
             if not action.condition:
                 self._logger.warning(f'Skipping post-install action: {action.name} as its condition is not met')

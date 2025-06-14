@@ -13,39 +13,34 @@ cluster_manager = ClusterManager()
 logger = setup_logger('APIApplicationRouter')
 
 
-def get_cluster_manager():
+def get_cluster_manager() -> ClusterManager:
     return cluster_manager
 
 
-@router.get("/applications", response_model=list[ApplicationSchema])
-def get_applications(
-    cluster_manager: ClusterManager = Depends(get_cluster_manager)
-):
+@router.get('/applications', response_model=list[ApplicationSchema])
+def get_applications(cluster_manager: ClusterManager = Depends(get_cluster_manager)) -> list[ApplicationSchema]:
     return cluster_manager.get_applications()
 
 
-@router.get("/applications/{application_id}", response_model=ApplicationSchema)
+@router.get('/applications/{application_id}', response_model=ApplicationSchema)
 def get_application(
-    application_id: int,
-    cluster_manager: ClusterManager = Depends(get_cluster_manager)
-):
+    application_id: int, cluster_manager: ClusterManager = Depends(get_cluster_manager)
+) -> ApplicationSchema:
     application = cluster_manager.get_application(application_id)
 
     if not application:
-        raise HTTPException(status_code=404, detail="Application not found")
+        raise HTTPException(status_code=404, detail='Application not found')
 
     return application
 
 
-@router.get("/applications/{application_id}/versions", response_model=list[str])
-def get_application_available_versions(
-    application_id: int
-) -> list[str]:
+@router.get('/applications/{application_id}/versions', response_model=list[str])
+def get_application_available_versions(application_id: int) -> list[str]:
     return ApplicationFactory.get_application_class(application_id).get_available_versions()
 
 
-@router.get("/applications/{application_id}/access_endpoints", response_model=list[AccessEndpoint])
+@router.get('/applications/{application_id}/access_endpoints', response_model=list[AccessEndpoint])
 async def get_application_accessible_endpoints(
     application_id: int,
-):
+) -> list[AccessEndpoint]:
     return ApplicationFactory.get_application_class(application_id).get_accessible_endpoints()

@@ -1,22 +1,23 @@
 from abc import ABC, abstractmethod
+from types import TracebackType
 from typing import Generic, TypeVar
 
 from src.demo.utils import setup_logger
 
-T = TypeVar("T")
+T = TypeVar('T')
 
 
 class BaseStorage(ABC, Generic[T]):
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         self.name = name
         self._logger = setup_logger(name)
 
     @abstractmethod
-    def upload_data(self, data: T, path: str, **kwargs) -> str:
+    def upload_data(self, data: T, path: str) -> str:
         pass
 
     @abstractmethod
-    def download_data(self, path: str, **kwargs) -> T:
+    def download_data(self, path: str) -> T:
         pass
 
     @abstractmethod
@@ -24,9 +25,11 @@ class BaseStorage(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def __enter__(self):
+    def __enter__(self) -> 'BaseStorage':
         pass
 
     @abstractmethod
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None
+    ) -> None:
         pass

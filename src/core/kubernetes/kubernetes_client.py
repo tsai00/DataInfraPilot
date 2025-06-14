@@ -2,6 +2,7 @@ import base64
 import json
 import time
 from pathlib import Path
+from typing import Any
 
 import urllib3
 import yaml
@@ -17,7 +18,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class KubernetesClients:
-    def __init__(self):
+    def __init__(self) -> None:
         self.api = client.ApiClient()
         self.core = client.CoreV1Api()  # Pods, Services, ConfigMaps
         self.apps = client.AppsV1Api()  # Deployments, StatefulSets, DaemonSets
@@ -31,7 +32,7 @@ class KubernetesClients:
 
 
 class KubernetesClient:
-    def __init__(self, kubeconfig_path: Path):
+    def __init__(self, kubeconfig_path: Path) -> None:
         self._logger = setup_logger('KubernetesClient')
         config.load_kube_config(str(kubeconfig_path))
 
@@ -39,7 +40,7 @@ class KubernetesClient:
 
         self._clients = KubernetesClients()
 
-    def install_from_content(self, yaml_content: dict | list[dict]):
+    def install_from_content(self, yaml_content: dict | list[dict]) -> None:
         if isinstance(yaml_content, dict):
             yaml_content = [yaml_content]
 
@@ -49,10 +50,10 @@ class KubernetesClient:
         except Exception as e:
             self._logger.exception(f'Error while installing object: {e}', exc_info=True)
 
-    def cordon_node(self, node_name: str):
+    def cordon_node(self, node_name: str) -> None:
         body = {
-            "spec": {
-                "unschedulable": True,
+            'spec': {
+                'unschedulable': True,
             },
         }
 
@@ -60,7 +61,7 @@ class KubernetesClient:
         self._clients.core.patch_node(node_name, body)
         self._logger.info(f'Node {node_name} cordoned successfully!')
 
-    def install_from_yaml(self, path_to_yaml: Path, with_custom_objects: bool = False):
+    def install_from_yaml(self, path_to_yaml: Path, with_custom_objects: bool = False) -> None:
         if path_to_yaml.is_dir():
             utils.create_from_directory(self._clients.custom_objects, str(path_to_yaml))
         else:
@@ -72,31 +73,32 @@ class KubernetesClient:
                 manifest = list(yaml.safe_load_all(path_to_yaml.read_text()))
                 utils.create_from_yaml(self._clients.api, yaml_objects=manifest)
 
-    def _apply_simple_item(self, manifest: dict, verbose: bool = False):
-        api_version = manifest.get("apiVersion")
-        kind = manifest.get("kind")
-        resource_name = manifest.get("metadata").get("name")
-        namespace = manifest.get("metadata").get("namespace")
+    def _apply_simple_item(self, manifest: dict, verbose: bool = False) -> None:
+        api_version = manifest.get('apiVersion')
+        kind = manifest.get('kind')
+        resource_name = manifest.get('metadata').get('name')
+        namespace = manifest.get('metadata').get('namespace')
         crd_api = self._clients.dynamic.resources.get(api_version=api_version, kind=kind)
 
         try:
             crd_api.get(namespace=namespace, name=resource_name)
-            crd_api.patch(body=manifest, content_type="application/merge-patch+json")
+            crd_api.patch(body=manifest, content_type='application/merge-patch+json')
             if verbose:
-                self._logger.info(f"{namespace}/{resource_name} patched")
+                self._logger.info(f'{namespace}/{resource_name} patched')
         except NotFoundError:
             crd_api.create(body=manifest, namespace=namespace)
             if verbose:
-                self._logger.info(f"{namespace}/{resource_name} created")
+                self._logger.info(f'{namespace}/{resource_name} created')
 
-    def execute_command(self, pod: str, namespace: str, command: list[str], interactive: bool = False,
-                        command_input: str = None):
-        self._logger.info(f"Executing command: {pod=}, {namespace=}, {command=}, {interactive=}, {command_input=}")
+    def execute_command(
+        self, pod: str, namespace: str, command: list[str], interactive: bool = False, command_input: str = None
+    ) -> None:
+        self._logger.info(f'Executing command: {pod=}, {namespace=}, {command=}, {interactive=}, {command_input=}')
         try:
             resp = self._clients.core.read_namespaced_pod(name=pod, namespace=namespace)
         except ApiException as e:
             if e.status != 404:
-                raise ValueError(f"Unknown error during command execution: {e}") from e
+                raise ValueError(f'Unknown error during command execution: {e}') from e
             self._logger.exception(f"Pod '{pod}' in namespace '{namespace}' not found.", exc_info=False)
             return None, f"Pod '{pod}' not found."
 
@@ -114,7 +116,7 @@ class KubernetesClient:
             stdin=interactive,
             stdout=True,
             tty=interactive,
-            _preload_content=False
+            _preload_content=False,
         )
 
         output = ''
@@ -127,62 +129,65 @@ class KubernetesClient:
             if resp.peek_stderr():
                 errors += resp.read_stderr()
             if command_input:
-                resp.write_stdin(command_input + "\n")
+                resp.write_stdin(command_input + '\n')
 
         return output, errors
 
-    def create_namespace(self, namespace: str):
+    def create_namespace(self, namespace: str) -> None:
         self._clients.core.create_namespace(client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace)))
 
-    def delete_namespace(self, namespace: str):
+    def delete_namespace(self, namespace: str) -> None:
         try:
             self._clients.core.delete_namespace(namespace)
         except Exception as e:
             self._logger.exception(f'Error while deleting namespace {namespace}: {e}', exc_info=False)
 
-    def create_docker_registry_secret(self, secret_name: str, registry_url: str, registry_username: str, registry_password: str, namespace: str = "default"):
+    def create_docker_registry_secret(
+        self,
+        secret_name: str,
+        registry_url: str,
+        registry_username: str,
+        registry_password: str,
+        namespace: str = 'default',
+    ) -> None:
         self._logger.info(f'Creating secret {secret_name} of type "docker-registry"')
 
         cred_payload = {
-            "auths": {
+            'auths': {
                 registry_url: {
-                    "username": registry_username,
-                    "password": registry_password,
+                    'username': registry_username,
+                    'password': registry_password,
                 }
             }
         }
 
-        data = {
-            ".dockerconfigjson": base64.b64encode(
-                json.dumps(cred_payload).encode()
-            ).decode()
-        }
+        data = {'.dockerconfigjson': base64.b64encode(json.dumps(cred_payload).encode()).decode()}
 
         secret = client.V1Secret(
-            api_version="v1",
+            api_version='v1',
             data=data,
-            kind="Secret",
+            kind='Secret',
             metadata={'name': 'secret_name', 'namespace': 'namespace'},
-            type="kubernetes.io/dockerconfigjson",
+            type='kubernetes.io/dockerconfigjson',
         )
 
         self._clients.core.create_namespaced_secret(namespace, body=secret)
 
         self._logger.info(f'Secret {secret_name} of type "docker-registry" created successfully!')
 
-    def create_secret(self, secret_name: str, namespace: str, data: dict[str, str]):
+    def create_secret(self, secret_name: str, namespace: str, data: dict[str, str]) -> None:
         self._logger.info(f'Creating secret {secret_name}')
 
         secret = client.V1Secret(
-            api_version="v1",
-            kind="Secret",
+            api_version='v1',
+            kind='Secret',
             metadata=client.V1ObjectMeta(name=secret_name, namespace=namespace),
             string_data=data,
         )
         self._clients.core.create_namespaced_secret(namespace=namespace, body=secret)
         self._logger.info(f'Secret {secret_name} created successfully!')
 
-    def get_secret(self, secret_name: str, namespace: str):
+    def get_secret(self, secret_name: str, namespace: str) -> dict[str, Any]:
         try:
             secret = self._clients.core.read_namespaced_secret(secret_name, namespace)
             return {k: base64.b64decode(v) for k, v in secret.data.items()} if secret.data is not None else None

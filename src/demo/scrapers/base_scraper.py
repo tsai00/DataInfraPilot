@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import StrEnum
+from types import TracebackType
 from typing import Any
 from uuid import uuid4
 
@@ -25,10 +26,10 @@ class ScraperError(Exception):
 
 
 class RequestMethod(StrEnum):
-    GET = "GET"
-    POST = "POST"
-    PUT = "PUT"
-    DELETE = "DELETE"
+    GET = 'GET'
+    POST = 'POST'
+    PUT = 'PUT'
+    DELETE = 'DELETE'
 
 
 @dataclass(frozen=True)
@@ -62,10 +63,10 @@ class ScraperRunMetadata:
     get_requests_sent: int = 0
     post_requests_sent: int = 0
 
-    def capture_scraping_end_time(self):
+    def capture_scraping_end_time(self) -> None:
         self.end_time = datetime.now()
 
-    def __str__(self):
+    def __str__(self) -> str:
         duration_str = 'N/A'
         if self.end_time:
             duration = self.end_time - self.start_time
@@ -79,49 +80,53 @@ class ScraperRunMetadata:
             parts = []
 
             if hours > 0:
-                parts.append(f"{hours} hr")
+                parts.append(f'{hours} hr')
             if minutes > 0:
-                parts.append(f"{minutes} min")
+                parts.append(f'{minutes} min')
             if seconds > 0 or not parts:
-                parts.append(f"{seconds} sec")
+                parts.append(f'{seconds} sec')
 
-            duration_str = ", ".join(parts)
+            duration_str = ', '.join(parts)
             if not duration_str:
-                duration_str = "0 sec"
+                duration_str = '0 sec'
 
         details = {
-            "Project": self.project,
-            "Run ID": self.run_id,
-            "Start Time": self.start_time.strftime('%Y-%m-%d %H:%M:%S'),
-            "End Time": self.end_time.strftime('%Y-%m-%d %H:%M:%S') if self.end_time else 'N/A',
-            "Duration": duration_str,
-            "Items Scraped": f'{self.items_scraped}/{self.items_total}',
-            "Total pages": self.pages_total,
-            "Successful": self.is_successful,
-            "GET Requests Sent": self.get_requests_sent,
-            "POST Requests Sent": self.post_requests_sent,
+            'Project': self.project,
+            'Run ID': self.run_id,
+            'Start Time': self.start_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'End Time': self.end_time.strftime('%Y-%m-%d %H:%M:%S') if self.end_time else 'N/A',
+            'Duration': duration_str,
+            'Items Scraped': f'{self.items_scraped}/{self.items_total}',
+            'Total pages': self.pages_total,
+            'Successful': self.is_successful,
+            'GET Requests Sent': self.get_requests_sent,
+            'POST Requests Sent': self.post_requests_sent,
         }
 
         max_label_len = max(len(label) for label in details)
 
-        formatted_output = ["\n--- Scraper Run Details ---"]
+        formatted_output = ['\n--- Scraper Run Details ---']
         for label, value in details.items():
-            formatted_output.append(f"{label.ljust(max_label_len)}: {value}")
-        formatted_output.append("---------------------------")
+            formatted_output.append(f'{label.ljust(max_label_len)}: {value}')
+        formatted_output.append('---------------------------')
 
-        return "\n".join(formatted_output)
+        return '\n'.join(formatted_output)
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         instance_copy = copy.copy(self)
         instance_copy.run_id = str(instance_copy.run_id)
         instance_copy.start_time = instance_copy.start_time.strftime('%Y-%m-%d %H:%M:%S')
-        instance_copy.end_time = instance_copy.end_time.strftime('%Y-%m-%d %H:%M:%S') if instance_copy.end_time else 'N/A'
+        instance_copy.end_time = (
+            instance_copy.end_time.strftime('%Y-%m-%d %H:%M:%S') if instance_copy.end_time else 'N/A'
+        )
 
         return asdict(instance_copy)
 
 
 class BaseScraper(ABC):
-    def __init__(self, scraper_name: str, page_size: int, dynamic_params_options: list[dict] | None = None, start_page: int = 1):
+    def __init__(
+        self, scraper_name: str, page_size: int, dynamic_params_options: list[dict] | None = None, start_page: int = 1
+    ) -> None:
         self._logger = setup_logger(scraper_name)
         self.page_size = page_size
         self.start_page = start_page
@@ -130,7 +135,7 @@ class BaseScraper(ABC):
         api_key = os.environ.get('SCRAPERAPI_KEY')
 
         if api_key is None:
-            raise ValueError("SCRAPERAPI_KEY environment variable is not set")
+            raise ValueError('SCRAPERAPI_KEY environment variable is not set')
 
         self._proxy = f'http://scraperapi.keep_headers=true:{api_key}@proxy-server.scraperapi.com:8001'
 
@@ -143,8 +148,8 @@ class BaseScraper(ABC):
 
         self._logger.info(f'Starting {scraper_name} scraper run with ID {self.scraper_run_metadata.run_id}')
 
-    def __enter__(self):
-        self._logger.debug("Entering synchronous context. Initializing httpx.Client.")
+    def __enter__(self) -> 'BaseScraper':
+        self._logger.debug('Entering synchronous context. Initializing httpx.Client.')
 
         if self._sync_client is None:
             self._sync_client = httpx.Client(proxy=self._proxy, verify=False, timeout=120)
@@ -153,9 +158,11 @@ class BaseScraper(ABC):
 
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None
+    ) -> None:
         if self._sync_client:
-            self._logger.debug("Exiting synchronous context. Closing httpx.Client.")
+            self._logger.debug('Exiting synchronous context. Closing httpx.Client.')
             self._sync_client.close()
             self._sync_client = None
 
@@ -164,8 +171,8 @@ class BaseScraper(ABC):
         self._logger.debug(f'Finished {self.scraper_name} scraper run (sync exit)')
         self._logger.info(self.scraper_run_metadata)
 
-    async def __aenter__(self):
-        self._logger.debug("Entering asynchronous context. Initializing httpx.AsyncClient.")
+    async def __aenter__(self) -> 'BaseScraper':
+        self._logger.debug('Entering asynchronous context. Initializing httpx.AsyncClient.')
 
         if self._async_client is None:
             self._async_client = httpx.AsyncClient(proxy=self._proxy, verify=False, timeout=120)
@@ -174,9 +181,11 @@ class BaseScraper(ABC):
 
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None
+    ) -> None:
         if self._async_client:
-            self._logger.debug("Exiting asynchronous context. Closing httpx.AsyncClient.")
+            self._logger.debug('Exiting asynchronous context. Closing httpx.AsyncClient.')
             await self._async_client.aclose()
             self._async_client = None
 
@@ -186,26 +195,29 @@ class BaseScraper(ABC):
         self._logger.info(self.scraper_run_metadata)
 
     def scrape(self) -> list[Any]:
-        self._logger.debug(f"Starting synchronous scrape for {self.scraper_name}")
+        self._logger.debug(f'Starting synchronous scrape for {self.scraper_name}')
         all_scraped_items = []
 
         if self.dynamic_params_options and len(self.dynamic_params_options) > 1:
-            self._logger.debug(f"Processing dynamic synchronous scrape with {len(self.dynamic_params_options)} combinations.")
+            self._logger.debug(
+                f'Processing dynamic synchronous scrape with {len(self.dynamic_params_options)} combinations.'
+            )
             for params_combo in self.dynamic_params_options:
-                self._logger.info(f"Initiating sub-scrape with parameters: {params_combo}")
+                self._logger.info(f'Initiating sub-scrape with parameters: {params_combo}')
                 try:
-                    sub_scrape_items, sub_scrape_total_items, sub_scrape_total_pages = \
-                        self._process_pagination_sync(
-                            start_page=self.start_page,
-                            dynamic_params=params_combo,
-                        )
+                    sub_scrape_items, sub_scrape_total_items, sub_scrape_total_pages = self._process_pagination_sync(
+                        start_page=self.start_page,
+                        dynamic_params=params_combo,
+                    )
                     all_scraped_items.extend(sub_scrape_items)
                     self.scraper_run_metadata.items_total += sub_scrape_total_items
                     self.scraper_run_metadata.pages_total += sub_scrape_total_pages
                 except Exception as e:
-                    self._logger.exception(f"Error during synchronous sub-scrape with parameters {params_combo}: {e}", exc_info=True)
+                    self._logger.exception(
+                        f'Error during synchronous sub-scrape with parameters {params_combo}: {e}', exc_info=True
+                    )
         else:
-            self._logger.debug(f"Processing standard (non-dynamic) synchronous scrape for {self.scraper_name}")
+            self._logger.debug(f'Processing standard (non-dynamic) synchronous scrape for {self.scraper_name}')
             items, total_items, total_pages = self._process_pagination_sync(
                 start_page=self.start_page,
                 dynamic_params=self.dynamic_params_options[0] if self.dynamic_params_options else {},
@@ -218,34 +230,39 @@ class BaseScraper(ABC):
         return all_scraped_items
 
     async def scrape_async(self, concurrency: int = 10) -> list[Any]:
-        self._logger.debug(f"Starting asynchronous scrape for {self.scraper_name}")
+        self._logger.debug(f'Starting asynchronous scrape for {self.scraper_name}')
         all_scraped_items = []
 
         if self.dynamic_params_options and len(self.dynamic_params_options) > 1:
-            self._logger.debug(f"Processing dynamic asynchronous scrape with {len(self.dynamic_params_options)} combinations.")
+            self._logger.debug(
+                f'Processing dynamic asynchronous scrape with {len(self.dynamic_params_options)} combinations.'
+            )
             # For simplicity, iterate sub-scrapes sequentially, but each sub-scrape will be async.
             # If true parallel sub-scrapes are desired, you'd collect tasks here.
             for params_combo in self.dynamic_params_options:
-                self._logger.info(f"Initiating async sub-scrape with parameters: {params_combo}")
+                self._logger.info(f'Initiating async sub-scrape with parameters: {params_combo}')
                 try:
-                    sub_scrape_items, sub_scrape_total_items, sub_scrape_total_pages = \
-                        await self._process_pagination_async(
-                            start_page=self.start_page,
-                            dynamic_params=params_combo,
-                            concurrency=concurrency
-                        )
+                    (
+                        sub_scrape_items,
+                        sub_scrape_total_items,
+                        sub_scrape_total_pages,
+                    ) = await self._process_pagination_async(
+                        start_page=self.start_page, dynamic_params=params_combo, concurrency=concurrency
+                    )
                     all_scraped_items.extend(sub_scrape_items)
                     self.scraper_run_metadata.items_total += sub_scrape_total_items
                     self.scraper_run_metadata.pages_total += sub_scrape_total_pages
                 except Exception as e:
-                    self._logger.exception(f"Error during asynchronous sub-scrape with parameters {params_combo}: {e}", exc_info=True)
-                    raise ValueError(f"Error during asynchronous sub-scrape with parameters {params_combo}: {e}") from e
+                    self._logger.exception(
+                        f'Error during asynchronous sub-scrape with parameters {params_combo}: {e}', exc_info=True
+                    )
+                    raise ValueError(f'Error during asynchronous sub-scrape with parameters {params_combo}: {e}') from e
         else:
-            self._logger.debug(f"Processing standard (non-dynamic) asynchronous scrape for {self.scraper_name}")
+            self._logger.debug(f'Processing standard (non-dynamic) asynchronous scrape for {self.scraper_name}')
             items, total_items, total_pages = await self._process_pagination_async(
                 start_page=self.start_page,
                 dynamic_params=self.dynamic_params_options[0] if self.dynamic_params_options else {},
-                concurrency=concurrency
+                concurrency=concurrency,
             )
             all_scraped_items.extend(items)
             self.scraper_run_metadata.items_total += total_items
@@ -270,7 +287,7 @@ class BaseScraper(ABC):
         reraise=True,
     )
     def _scrape_and_parse_page_sync(self, page: int, dynamic_params: dict | None = None) -> ScraperPageResponse:
-        self._logger.debug(f"Attempting to scrape and parse page {page} with dynamic params {dynamic_params} (sync)")
+        self._logger.debug(f'Attempting to scrape and parse page {page} with dynamic params {dynamic_params} (sync)')
         request_details = self._build_request_details(page, dynamic_params)
 
         response = self._send_request(
@@ -279,11 +296,11 @@ class BaseScraper(ABC):
             json=request_details.json,
             params=request_details.params,
             headers=request_details.headers,
-            cookies=request_details.cookies
+            cookies=request_details.cookies,
         )
 
         parsed_response = self._parse_response(response, page)
-        self._logger.debug(f"Successfully scraped and parsed page {page} (sync)")
+        self._logger.debug(f'Successfully scraped and parsed page {page} (sync)')
         return parsed_response
 
     @retry(
@@ -291,10 +308,10 @@ class BaseScraper(ABC):
         stop=stop_after_attempt(10),
         wait=wait_exponential(multiplier=1, min=2, max=30),
         after=after_log(logging.getLogger(__name__), logging.WARNING),
-        reraise=True
+        reraise=True,
     )
     async def _scrape_and_parse_page_async(self, page: int, dynamic_params: dict | None = None) -> ScraperPageResponse:
-        self._logger.debug(f"Attempting to scrape and parse page {page} with dynamic params {dynamic_params} (async)")
+        self._logger.debug(f'Attempting to scrape and parse page {page} with dynamic params {dynamic_params} (async)')
         request_details = self._build_request_details(page, dynamic_params)
 
         response = await self._send_request_async(
@@ -303,11 +320,11 @@ class BaseScraper(ABC):
             json=request_details.json,
             params=request_details.params,
             headers=request_details.headers,
-            cookies=request_details.cookies
+            cookies=request_details.cookies,
         )
 
         parsed_response = self._parse_response(response, page)
-        self._logger.debug(f"Successfully scraped and parsed page {page} (async)")
+        self._logger.debug(f'Successfully scraped and parsed page {page} (async)')
         return parsed_response
 
     def calculate_number_of_pages(self, num_of_items: int, page_size: int = None) -> int:
@@ -319,67 +336,29 @@ class BaseScraper(ABC):
         return num_of_items // page_size if num_of_items % page_size == 0 else num_of_items // page_size + 1
 
     def send_get_request(
-        self,
-        url: str,
-        params: dict | None = None,
-        headers: dict | None = None,
-        cookies: dict | None = None
+        self, url: str, params: dict | None = None, headers: dict | None = None, cookies: dict | None = None
     ) -> httpx.Response:
-        return self._send_request(
-            method=RequestMethod.GET,
-            url=url,
-            params=params,
-            headers=headers,
-            cookies=cookies
-        )
+        return self._send_request(method=RequestMethod.GET, url=url, params=params, headers=headers, cookies=cookies)
 
     async def send_get_request_async(
-        self,
-        url: str,
-        params: dict | None = None,
-        headers: dict | None = None,
-        cookies: dict | None = None
+        self, url: str, params: dict | None = None, headers: dict | None = None, cookies: dict | None = None
     ) -> httpx.Response:
         return await self._send_request_async(
-            method=RequestMethod.GET,
-            url=url,
-            params=params,
-            headers=headers,
-            cookies=cookies
+            method=RequestMethod.GET, url=url, params=params, headers=headers, cookies=cookies
         )
 
     def send_post_request(
-        self,
-        url: str,
-        json: dict = None,
-        params: dict = None,
-        headers: dict = None,
-        cookies: dict = None
+        self, url: str, json: dict = None, params: dict = None, headers: dict = None, cookies: dict = None
     ) -> httpx.Response:
         return self._send_request(
-            method=RequestMethod.POST,
-            url=url,
-            json=json,
-            params=params,
-            headers=headers,
-            cookies=cookies
+            method=RequestMethod.POST, url=url, json=json, params=params, headers=headers, cookies=cookies
         )
 
     async def send_post_request_async(
-        self,
-        url: str,
-        json: dict = None,
-        params: dict = None,
-        headers: dict = None,
-        cookies: dict = None
+        self, url: str, json: dict = None, params: dict = None, headers: dict = None, cookies: dict = None
     ) -> httpx.Response:
         return await self._send_request_async(
-            method=RequestMethod.POST,
-            url=url,
-            json=json,
-            params=params,
-            headers=headers,
-            cookies=cookies
+            method=RequestMethod.POST, url=url, json=json, params=params, headers=headers, cookies=cookies
         )
 
     @retry(
@@ -387,33 +366,30 @@ class BaseScraper(ABC):
         stop=stop_after_attempt(3),
         wait=wait_fixed(2),
         after=after_log(logging.getLogger(__name__), logging.WARNING),
-        reraise=True
+        reraise=True,
     )
     def _send_request(
-            self,
-            method: RequestMethod,
-            url: str,
-            json: dict = None,
-            params: dict = None,
-            headers: dict = None,
-            cookies: dict = None
+        self,
+        method: RequestMethod,
+        url: str,
+        json: dict = None,
+        params: dict = None,
+        headers: dict = None,
+        cookies: dict = None,
     ) -> httpx.Response:
         # If scraper is running as a context manager, self._sync_client will be set.
         # Otherwise, create a temporary client for this single request.
-        client_to_use = self._sync_client if self._sync_client else httpx.Client(proxy=self._proxy, verify=False,
-                                                                                 timeout=120)
+        client_to_use = (
+            self._sync_client if self._sync_client else httpx.Client(proxy=self._proxy, verify=False, timeout=120)
+        )
 
-        self._logger.debug(f'Sending {method} sync request to {url} with params: {params}, headers: {headers}, cookies: {cookies}, json: {json}')
+        self._logger.debug(
+            f'Sending {method} sync request to {url} with params: {params}, headers: {headers}, cookies: {cookies}, json: {json}'
+        )
 
         try:
             response = client_to_use.request(
-                method=method,
-                url=url,
-                json=json,
-                params=params,
-                headers=headers,
-                cookies=cookies,
-                timeout=120
+                method=method, url=url, json=json, params=params, headers=headers, cookies=cookies, timeout=120
             )
 
             return self._handle_response(response)
@@ -427,7 +403,7 @@ class BaseScraper(ABC):
         stop=stop_after_attempt(3),
         wait=wait_fixed(2),
         after=after_log(logging.getLogger(__name__), logging.WARNING),
-        reraise=True
+        reraise=True,
     )
     async def _send_request_async(
         self,
@@ -436,24 +412,23 @@ class BaseScraper(ABC):
         json: dict = None,
         params: dict = None,
         headers: dict = None,
-        cookies: dict = None
+        cookies: dict = None,
     ) -> httpx.Response:
         # If scraper is running as an async context manager, self._async_client will be set.
         # Otherwise, create a temporary async client for this single request.
-        client_to_use = self._async_client if self._async_client else httpx.AsyncClient(proxy=self._proxy, verify=False,
-                                                                                        timeout=120)
+        client_to_use = (
+            self._async_client
+            if self._async_client
+            else httpx.AsyncClient(proxy=self._proxy, verify=False, timeout=120)
+        )
 
-        self._logger.debug(f'Sending {method} async request to {url} with params: {params}, headers: {headers}, cookies: {cookies}, json: {json}')
+        self._logger.debug(
+            f'Sending {method} async request to {url} with params: {params}, headers: {headers}, cookies: {cookies}, json: {json}'
+        )
 
         try:
             response = await client_to_use.request(
-                method=method,
-                url=url,
-                json=json,
-                params=params,
-                headers=headers,
-                cookies=cookies,
-                timeout=120
+                method=method, url=url, json=json, params=params, headers=headers, cookies=cookies, timeout=120
             )
 
             return self._handle_response(response)
@@ -462,9 +437,7 @@ class BaseScraper(ABC):
             if client_to_use is not self._async_client:
                 await client_to_use.aclose()
 
-    def _handle_response(
-        self, response: httpx.Response
-    ) -> httpx.Response:
+    def _handle_response(self, response: httpx.Response) -> httpx.Response:
         if response.request.method == RequestMethod.GET:
             self.scraper_run_metadata.get_requests_sent += 1
         elif response.request.method == RequestMethod.POST:
@@ -487,11 +460,11 @@ class BaseScraper(ABC):
             return response
 
     def _process_pagination_sync(
-            self,
-            start_page: int = 1,
-            dynamic_params: dict | None = None,
+        self,
+        start_page: int = 1,
+        dynamic_params: dict | None = None,
     ) -> tuple[list[Any], int, int]:
-        self._logger.debug(f"Processing pagination (sync), starting at page {start_page}")
+        self._logger.debug(f'Processing pagination (sync), starting at page {start_page}')
 
         first_page_r_parsed = self._scrape_and_parse_page_sync(page=start_page, dynamic_params=dynamic_params)
 
@@ -519,13 +492,9 @@ class BaseScraper(ABC):
         return all_items, num_of_items, num_of_pages
 
     async def _process_pagination_async(
-            self,
-            start_page: int = 1,
-            dynamic_params: dict | None = None,
-            concurrency: int = 10
+        self, start_page: int = 1, dynamic_params: dict | None = None, concurrency: int = 10
     ) -> tuple[list[Any], int, int]:
-
-        self._logger.debug(f"Processing pagination (async, concurrency {concurrency}), starting at page {start_page}")
+        self._logger.debug(f'Processing pagination (async, concurrency {concurrency}), starting at page {start_page}')
 
         first_page_r_parsed = await self._scrape_and_parse_page_async(page=start_page, dynamic_params=dynamic_params)
 
@@ -534,7 +503,9 @@ class BaseScraper(ABC):
 
         self._logger.info(f'Found {num_of_items} items on {num_of_pages} pages (asynchronously)')
 
-        first_page_items = [{**x, '_scraped_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')} for x in first_page_r_parsed.items]
+        first_page_items = [
+            {**x, '_scraped_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')} for x in first_page_r_parsed.items
+        ]
         all_items = []
         all_items.extend(first_page_items)
 
@@ -545,13 +516,17 @@ class BaseScraper(ABC):
         pages_to_scrape = list(range(start_page + 1, num_of_pages + 1 if start_page != 0 else num_of_pages))
         semaphore = asyncio.Semaphore(concurrency)
 
-        async def fetch_and_parse_page_task(page_num: int, current_dynamic_params: dict):
+        async def fetch_and_parse_page_task(page_num: int, current_dynamic_params: dict) -> ScraperPageResponse:
             async with semaphore:
                 try:
-                    parsed_response = await self._scrape_and_parse_page_async(page=page_num, dynamic_params=current_dynamic_params)
+                    parsed_response = await self._scrape_and_parse_page_async(
+                        page=page_num, dynamic_params=current_dynamic_params
+                    )
                     return parsed_response
                 except Exception as e:
-                    self._logger.exception(f"Failed to scrape or parse page {page_num} after all retries: {e}", exc_info=True)
+                    self._logger.exception(
+                        f'Failed to scrape or parse page {page_num} after all retries: {e}', exc_info=True
+                    )
                     # If all retries fail, return an empty ScraperPageResponse for this page
                     # The main loop will continue but this page's items will be empty.
                     return ScraperPageResponse(total_items=0, total_pages=0, items=[], page=page_num)

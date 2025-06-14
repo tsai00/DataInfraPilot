@@ -13,27 +13,23 @@ from src.core.utils import setup_logger
 class TemplateLoader:
     _TEMPLATE_SUBFOLDERS = ('kubernetes', 'traefik')
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._logger = setup_logger('TemplateLoader')
 
         templates_dir = Path(__file__).parent.resolve() / 'templates'
 
         if not templates_dir.is_dir():
             raise FileNotFoundError(
-                f"Templates directory not found at: {templates_dir}. "
+                f'Templates directory not found at: {templates_dir}. '
                 "Please ensure a 'templates' folder exists next to your script."
             )
 
-        self._environment = Environment(
-            loader=FileSystemLoader(templates_dir),
-            autoescape=True
-        )
+        self._environment = Environment(loader=FileSystemLoader(templates_dir), autoescape=True)
 
     def _validate_template_module(self, template_module: str | None) -> str:
         if template_module is not None and template_module not in self._TEMPLATE_SUBFOLDERS:
             raise ValueError(
-                f"Invalid template module: '{template_module}'. "
-                f"Must be one of {self._TEMPLATE_SUBFOLDERS} or None."
+                f"Invalid template module: '{template_module}'. Must be one of {self._TEMPLATE_SUBFOLDERS} or None."
             )
 
         return './' if template_module is None else template_module
@@ -55,7 +51,9 @@ class TemplateLoader:
 
         return Path(self._search_template(template_full_path).filename)
 
-    def render_template(self, template_name: str, template_module: str | None = None, values: dict[str, Any] | None = None) -> str:
+    def render_template(
+        self, template_name: str, template_module: str | None = None, values: dict[str, Any] | None = None
+    ) -> str:
         values = values or {}
 
         if not isinstance(values, dict):
@@ -85,17 +83,15 @@ class TemplateLoader:
         return template.render(**values)
 
     @contextmanager
-    def render_to_temp_file(self, template_name: str, values: dict[str, Any], template_module: str | None = None) -> Generator[Path, None, None]:
+    def render_to_temp_file(
+        self, template_name: str, values: dict[str, Any], template_module: str | None = None
+    ) -> Generator[Path, None, None]:
         rendered_content = self.render_template(template_name, template_module, values)
 
         temp_file_path = None
         try:
             with tempfile.NamedTemporaryFile(
-                mode='w',
-                delete=False,
-                suffix='.tmp',
-                prefix='rendered_template_',
-                encoding='utf-8'
+                mode='w', delete=False, suffix='.tmp', prefix='rendered_template_', encoding='utf-8'
             ) as temp_file_object:
                 temp_file_path = temp_file_object.name
 

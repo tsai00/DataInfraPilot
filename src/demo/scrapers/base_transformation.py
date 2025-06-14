@@ -13,7 +13,7 @@ class TransformationError(Exception):
 
 
 class BaseTransformation(ABC):
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         self.name = name
 
         self._logger = setup_logger(name)
@@ -37,7 +37,7 @@ class BaseTransformation(ABC):
         return df.copy().drop(columns=cols_to_drop)
 
     @staticmethod
-    def get_dict_element(dict_element: dict | str, dict_key: str | None = None) -> dict | Any:
+    def get_dict_element(dict_element: dict | str, dict_key: str | None = None) -> dict | Any:  # noqa: ANN401 (dict value type is arbitrary)
         loaded_dict = ast.literal_eval(dict_element) if isinstance(dict_element, str) else dict_element
         return loaded_dict.get(dict_key) if dict_key is not None else loaded_dict
 
@@ -52,7 +52,7 @@ class BaseTransformation(ABC):
         return df_new if keep_original_column else df_new.drop(columns=columns)
 
     @staticmethod
-    def normalize_string(string):
+    def normalize_string(string: str) -> str:
         return ''.join(c for c in unicodedata.normalize('NFKD', string) if not unicodedata.combining(c))
 
     @staticmethod

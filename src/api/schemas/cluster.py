@@ -14,7 +14,7 @@ class TraefikDashboardConfig(BaseModel):
 class ClusterAdditionalComponents(BaseModel):
     traefik_dashboard: TraefikDashboardConfig
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'traefik_dashboard': self.traefik_dashboard.model_dump(),
         }
@@ -29,12 +29,8 @@ class NodePoolAutoscalingConfig(BaseModel):
     def is_valid(self) -> bool:
         return self.max_nodes >= self.min_nodes if self.enabled else True
 
-    def to_dict(self):
-        return {
-            'enabled': self.enabled,
-            'min_nodes': self.min_nodes,
-            'max_nodes': self.max_nodes
-        }
+    def to_dict(self) -> dict:
+        return {'enabled': self.enabled, 'min_nodes': self.min_nodes, 'max_nodes': self.max_nodes}
 
 
 class ClusterPool(BaseModel):
@@ -44,13 +40,13 @@ class ClusterPool(BaseModel):
     number_of_nodes: int
     autoscaling: NodePoolAutoscalingConfig | None = Field(default=None)
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'name': self.name,
             'node_type': self.node_type,
             'region': self.region,
             'number_of_nodes': self.number_of_nodes,
-            'autoscaling': self.autoscaling.to_dict() if self.autoscaling else None
+            'autoscaling': self.autoscaling.to_dict() if self.autoscaling else None,
         }
 
 
