@@ -103,6 +103,7 @@ select = [
     "RUF", # Ruff-specific
     "S",  # bandit
     "SIM",  # flake8-simplify
+    "TCH",  # Type-checking
     "TRY",  # tryceratops
     "UP",  # pyupgrade
     "W",  # Warning

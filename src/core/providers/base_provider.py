@@ -3,10 +3,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
-from src.core.kubernetes.configuration import ClusterConfiguration
 from src.core.utils import setup_logger
 
 if TYPE_CHECKING:
+    from src.core.kubernetes.configuration import ClusterConfiguration
     from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 
 
@@ -17,11 +17,11 @@ class BaseProvider(ABC):
         self._logger = setup_logger(self.name.capitalize())
 
     @abstractmethod
-    def create_cluster(self, cluster_config: ClusterConfiguration) -> KubernetesCluster:
+    async def create_cluster(self, cluster_config: ClusterConfiguration) -> KubernetesCluster:
         pass
 
     @abstractmethod
-    def create_volume(self, name: str, size: int, region: str | None = None) -> Any:  # noqa: ANN401 (volume type is provider-specific for now)
+    async def create_volume(self, name: str, size: int, region: str | None = None) -> Any:  # noqa: ANN401 (volume type is provider-specific for now)
         pass
 
     @abstractmethod

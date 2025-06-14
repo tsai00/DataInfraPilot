@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-import logging
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
-from src.core.apps.actions.base_post_install_action import BasePrePostInstallAction
-from src.core.kubernetes.chart_config import HelmChart
 from src.core.utils import setup_logger
 
 if TYPE_CHECKING:
+    import logging
+
+    from src.core.apps.actions.base_post_install_action import BasePrePostInstallAction
+    from src.core.kubernetes.chart_config import HelmChart
     from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 
 
