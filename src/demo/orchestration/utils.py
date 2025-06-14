@@ -53,7 +53,7 @@ def load_component_class(project_name: str, component_type: str) -> Type[Any]:
         module = importlib.import_module(module_path)
         logger.debug(f"Successfully imported module: {module_path}")
     except ImportError as e:
-        logger.error(f"Could not import module {module_path}: {e}")
+        logger.exception(f"Could not import module {module_path}: {e}")
         raise ValueError(f"Project '{project_name}' {component_type} not found at '{module_path}'.") from e
 
     # Find the class within the module that inherits from the expected base class

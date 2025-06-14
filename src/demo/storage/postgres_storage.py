@@ -32,7 +32,7 @@ class PostgresStorage(BaseStorage[pd.DataFrame]):
             self._logger.debug(f"PostgreSQL engine created for {self.user}@{self.host}:{self.port}/{self.db_name}")
             return self
         except Exception as e:
-            self._logger.error(f"Failed to create PostgreSQL engine: {e}")
+            self._logger.exception(f"Failed to create PostgreSQL engine: {e}")
             raise
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -42,7 +42,7 @@ class PostgresStorage(BaseStorage[pd.DataFrame]):
 
     def health_check(self) -> bool:
         if self.engine is None:
-            self._logger.error("PostgreSQL engine not initialized.")
+            self._logger.exception("PostgreSQL engine not initialized.")
             return False
         try:
             with self.engine.connect() as connection:
@@ -50,13 +50,13 @@ class PostgresStorage(BaseStorage[pd.DataFrame]):
             self._logger.debug("PostgreSQL health check successful.")
             return True
         except OperationalError as e:
-            self._logger.error(f"PostgreSQL health check failed: Operational error. Check host, port, credentials. {e}")
+            self._logger.exception(f"PostgreSQL health check failed: Operational error. Check host, port, credentials. {e}")
             return False
         except ProgrammingError as e:
-            self._logger.error(f"PostgreSQL health check failed: Programming error. Check database name, user permissions. {e}")
+            self._logger.exception(f"PostgreSQL health check failed: Programming error. Check database name, user permissions. {e}")
             return False
         except Exception as e:
-            self._logger.error(f"PostgreSQL health check failed: Unexpected error. {e}")
+            self._logger.exception(f"PostgreSQL health check failed: Unexpected error. {e}")
             return False
 
     def upload_data(self, data: pd.DataFrame, path: str, if_exists: Literal["fail", "replace", "append"] = 'append') -> int:
@@ -94,13 +94,13 @@ class PostgresStorage(BaseStorage[pd.DataFrame]):
             self._logger.info(f"Successfully uploaded {rows_saved}/{len(data)} rows to PostgreSQL table '{path}'.")
             return rows_saved
         except ProgrammingError as e:
-            self._logger.error(f"PostgreSQL upload failed: Programming error. Check table '{path}' existence/schema, user permissions. {e}")
+            self._logger.exception(f"PostgreSQL upload failed: Programming error. Check table '{path}' existence/schema, user permissions. {e}")
             raise
         except OperationalError as e:
-            self._logger.error(f"PostgreSQL upload failed: Operational error. Check database connection/credentials. {e}")
+            self._logger.exception(f"PostgreSQL upload failed: Operational error. Check database connection/credentials. {e}")
             raise
         except Exception as e:
-            self._logger.error(f"An unexpected error occurred during PostgreSQL upload: {e}")
+            self._logger.exception(f"An unexpected error occurred during PostgreSQL upload: {e}")
             raise
 
     def download_data(self, path: str, **kwargs) -> pd.DataFrame:
@@ -117,11 +117,11 @@ class PostgresStorage(BaseStorage[pd.DataFrame]):
             self._logger.info(f"Successfully downloaded {len(dataframe)} rows from PostgreSQL using path/query: {query_or_table}")
             return dataframe
         except OperationalError as e:
-            self._logger.error(f"PostgreSQL download failed: Operational error. Check host, port, credentials. {e}")
+            self._logger.exception(f"PostgreSQL download failed: Operational error. Check host, port, credentials. {e}")
             raise
         except ProgrammingError as e:
-            self._logger.error(f"PostgreSQL download failed: Programming error. Check table '{query_or_table}' existence/permissions or query syntax. {e}")
+            self._logger.exception(f"PostgreSQL download failed: Programming error. Check table '{query_or_table}' existence/permissions or query syntax. {e}")
             raise
         except Exception as e:
-            self._logger.error(f"An unexpected error occurred during PostgreSQL download from {query_or_table}: {e}")
+            self._logger.exception(f"An unexpected error occurred during PostgreSQL download from {query_or_table}: {e}")
             raise

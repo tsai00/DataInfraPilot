@@ -5,6 +5,9 @@ from src.api.schemas.volume import VolumeSchema, VolumeCreateSchema, VolumeCreat
 from fastapi.background import BackgroundTasks
 
 from src.core.kubernetes.deployment_status import DeploymentStatus
+from src.core.utils import setup_logger
+
+logger = setup_logger('APIVolumeRouter')
 
 router = APIRouter()
 
@@ -42,7 +45,7 @@ async def create_volume(
     background_tasks: BackgroundTasks,
     cluster_manager: ClusterManager = Depends(get_cluster_manager)
 ) -> VolumeCreateResponseSchema:
-    print(f'Received request to create volume: {volume}')
+    logger.debug(f'Received request to create volume: {volume}')
 
     background_tasks.add_task(cluster_manager.create_volume, volume.provider, volume)
 

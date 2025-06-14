@@ -188,7 +188,6 @@ class BaseScraper(ABC):
         self._logger.debug(f"Starting synchronous scrape for {self.scraper_name}")
         all_scraped_items = []
 
-        # Check if dynamic_params_combinations has more than one entry
         if self.dynamic_params_options and len(self.dynamic_params_options) > 1:
             self._logger.debug(f"Processing dynamic synchronous scrape with {len(self.dynamic_params_options)} combinations.")
             for params_combo in self.dynamic_params_options:
@@ -203,10 +202,8 @@ class BaseScraper(ABC):
                     self.scraper_run_metadata.items_total += sub_scrape_total_items
                     self.scraper_run_metadata.pages_total += sub_scrape_total_pages
                 except Exception as e:
-                    self._logger.error(f"Error during synchronous sub-scrape with parameters {params_combo}: {e}", exc_info=True)
-                    # Decide if you want to re-raise or continue. Continuing for robustness here.
+                    self._logger.exception(f"Error during synchronous sub-scrape with parameters {params_combo}: {e}", exc_info=True)
         else:
-            # If not using dynamic params or only one combination, run standard pagination
             self._logger.debug(f"Processing standard (non-dynamic) synchronous scrape for {self.scraper_name}")
             items, total_items, total_pages = self._process_pagination_sync(
                 start_page=self.start_page,
@@ -223,7 +220,6 @@ class BaseScraper(ABC):
         self._logger.debug(f"Starting asynchronous scrape for {self.scraper_name}")
         all_scraped_items = []
 
-        # Check if dynamic_params_combinations has more than one entry
         if self.dynamic_params_options and len(self.dynamic_params_options) > 1:
             self._logger.debug(f"Processing dynamic asynchronous scrape with {len(self.dynamic_params_options)} combinations.")
             # For simplicity, iterate sub-scrapes sequentially, but each sub-scrape will be async.
@@ -241,10 +237,9 @@ class BaseScraper(ABC):
                     self.scraper_run_metadata.items_total += sub_scrape_total_items
                     self.scraper_run_metadata.pages_total += sub_scrape_total_pages
                 except Exception as e:
-                    self._logger.error(f"Error during asynchronous sub-scrape with parameters {params_combo}: {e}", exc_info=True)
+                    self._logger.exception(f"Error during asynchronous sub-scrape with parameters {params_combo}: {e}", exc_info=True)
                     raise ValueError(f"Error during asynchronous sub-scrape with parameters {params_combo}: {e}")
         else:
-            # If not using dynamic params or only one combination, run standard pagination
             self._logger.debug(f"Processing standard (non-dynamic) asynchronous scrape for {self.scraper_name}")
             items, total_items, total_pages = await self._process_pagination_async(
                 start_page=self.start_page,
@@ -481,7 +476,7 @@ class BaseScraper(ABC):
         if 200 <= status_code < 300:
             return response
         elif status_code == 404:
-            self._logger.error(f'Page not found (404) for {response_url}.')
+            self._logger.exception(f'Page not found (404) for {response_url}.', exc_info=False)
             return response
         else:
             self._logger.warning(
@@ -555,7 +550,7 @@ class BaseScraper(ABC):
                     parsed_response = await self._scrape_and_parse_page_async(page=page_num, dynamic_params=current_dynamic_params)
                     return parsed_response
                 except Exception as e:
-                    self._logger.error(f"Failed to scrape or parse page {page_num} after all retries: {e}", exc_info=True)
+                    self._logger.exception(f"Failed to scrape or parse page {page_num} after all retries: {e}", exc_info=True)
                     # If all retries fail, return an empty ScraperPageResponse for this page
                     # The main loop will continue but this page's items will be empty.
                     return ScraperPageResponse(total_items=0, total_pages=0, items=[], page=page_num)
