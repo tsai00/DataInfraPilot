@@ -2,8 +2,14 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.background import BackgroundTasks
 
-from src.api.schemas.cluster import ClusterCreateResponseSchema, ClusterCreateSchema, ClusterSchema
-from src.api.schemas.deployment import DeploymentCreateSchema, DeploymentSchema, DeploymentUpdateSchema
+from src.api.schemas import (
+    ClusterCreateResponseSchema,
+    ClusterCreateSchema,
+    ClusterSchema,
+    DeploymentCreateSchema,
+    DeploymentSchema,
+    DeploymentUpdateSchema,
+)
 from src.core.apps.base_application import AccessEndpointConfig
 from src.core.kubernetes.cluster_manager import ClusterManager
 from src.core.kubernetes.configuration import ClusterConfiguration

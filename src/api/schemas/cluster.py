@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from src.api.schemas.deployment import DeploymentSchema
+from src.api.schemas import DeploymentSchema
 
 
 class TraefikDashboardConfig(BaseModel):

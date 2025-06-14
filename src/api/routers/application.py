@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 
-from src.api.schemas.application import ApplicationSchema
+from src.api.schemas import ApplicationSchema
 from src.core.apps.airflow_application import AccessEndpoint
 from src.core.apps.application_factory import ApplicationFactory
 from src.core.kubernetes.cluster_manager import ClusterManager

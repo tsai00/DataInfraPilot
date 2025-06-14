@@ -3,10 +3,9 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from src.api.schemas.deployment import AccessEndpointConfig
 from src.core.apps.actions.apply_template_action import ApplyTemplateAction
 from src.core.apps.actions.base_post_install_action import BasePrePostInstallAction
-from src.core.apps.base_application import AccessEndpoint, AccessEndpointType, BaseApplication
+from src.core.apps.base_application import AccessEndpoint, AccessEndpointConfig, AccessEndpointType, BaseApplication
 from src.core.kubernetes.chart_config import HelmChart
 
 

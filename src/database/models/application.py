@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.database.models import BaseModel
+from src.database.models.base_model import BaseModel
 
 
 class Application(BaseModel):

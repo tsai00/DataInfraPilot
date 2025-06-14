@@ -6,8 +6,7 @@ from pathlib import Path
 
 from pydantic_core._pydantic_core import ValidationError
 
-from src.api.schemas.deployment import DeploymentCreateSchema
-from src.api.schemas.volume import VolumeCreateSchema
+from src.api.schemas import DeploymentCreateSchema, VolumeCreateSchema
 from src.core.apps.application_factory import ApplicationFactory
 from src.core.apps.base_application import AccessEndpointType
 from src.core.exceptions import ResourceUnavailableError

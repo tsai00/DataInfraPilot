@@ -6,7 +6,7 @@ from typing import Any
 from kubernetes.client.exceptions import ApiException
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
-from src.api.schemas.cluster import ClusterPool
+from src.api.schemas import ClusterPool
 from src.core.apps.other import certmanager_chart, cluster_autoscaler_chart, longhorn_chart
 from src.core.exceptions import NamespaceTerminatedError
 from src.core.kubernetes.chart_config import HelmChart
