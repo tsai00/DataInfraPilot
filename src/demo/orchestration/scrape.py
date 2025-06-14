@@ -3,7 +3,7 @@ import os
 
 import pandas as pd
 
-from src.demo.scrapers.base_scraper import ScraperError
+from src.demo.scrapers.base_scraper import ScraperError, ScraperRunMetadata
 from src.demo.orchestration.utils import load_scraper_component, parse_args, construct_raw_parquet_data_adls_path
 from src.demo.storage.adls_storage import ADLSStorage
 from src.demo.storage.postgres_storage import PostgresStorage
@@ -17,7 +17,7 @@ async def main() -> None:
     pg_db_name = os.environ.get('POSTGRES_DB_NAME')
     pg_user = os.environ.get('POSTGRES_USER')
     pg_password = os.environ.get('POSTGRES_PASSWORD')
-    concurrency = os.environ.get('SCRAPING_CONCURRENCY', 10)
+    concurrency = int(os.environ.get('SCRAPING_CONCURRENCY', 10))
 
     project, listing_type, batch_id = parse_args()
 
@@ -27,7 +27,7 @@ async def main() -> None:
         async with ScraperClass(listing_type=listing_type) as async_scraper:
             listings = await async_scraper.scrape_async(concurrency)
             df = pd.DataFrame(listings)
-            run_metadata = async_scraper.scraper_run_metadata
+            run_metadata: ScraperRunMetadata = async_scraper.scraper_run_metadata
 
     except ScraperError as e:
         raise ValueError(f'Scraper for {project} ({listing_type}) failed: {e}')
