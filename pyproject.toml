@@ -89,16 +89,18 @@ exclude = [
 [tool.ruff.lint]
 select = [
     "A", # flake8-builtins
-    #"ANN", # type annotations - TODO: enable
+    "ANN", # type annotations
     "B",  # flake8-bugbear
     "C4", # flake8-comprehensions
     #"D",  # pydocstyle - TODO: enable
     "E",  # Error
     "F",  # pyflakes
+    "FAST", # FastAPI
     "I",  # isort
     "N",  # pep8-naming
     "PGH",  # pygrep-hooks
     "PTH", # flake8-use-pathlib
+    "RUF", # Ruff-specific
     "S",  # bandit
     "SIM",  # flake8-simplify
     "TRY",  # tryceratops
@@ -108,12 +110,14 @@ select = [
 ]
 
 ignore = [
-    "TRY003", # Avoid specifying long messages outside the exception class
-    "TRY401", # Redundant exception object included in `logging.exception` call TODO: remove
-    "TRY301", # Abstract `raise` to an inner function
-    "S501", # Probable use of `httpx` call with `verify=False` disabling SSL certificate checks
-    "TRY300", # Questionable rule
+    "ANN002", # Missing type annotation for `*args`
+    "ANN003", # Missing type annotation for `**kwargs`
     "E501", # Line too long - TODO: remove
+    "S501", # Probable use of `httpx` call with `verify=False` disabling SSL certificate checks
+    "TRY003", # Avoid specifying long messages outside the exception class
+    "TRY300", # Questionable rule
+    "TRY301", # Abstract `raise` to an inner function
+    "TRY401", # Redundant exception object included in `logging.exception` call TODO: remove
 ]
 
 [tool.ruff.flake8-bugbear]
