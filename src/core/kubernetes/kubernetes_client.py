@@ -11,22 +11,22 @@ import yaml
 from kubernetes.stream import stream
 import urllib3
 import base64
+from dataclasses import dataclass
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
+@dataclass(frozen=True)
 class KubernetesClients:
-    def __init__(self):
-        self.Api = client.ApiClient()
-        self.Core = client.CoreV1Api()  # Pods, Services, ConfigMaps
-        self.Apps = client.AppsV1Api()  # Deployments, StatefulSets, DaemonSets
-        self.Batch = client.BatchV1Api()  # Jobs, CronJobs
-        self.Networking = client.NetworkingV1Api()  # Ingress, NetworkPolicies
-        self.RBAC = client.RbacAuthorizationV1Api()  # Role-Based Access Control
-        self.CustomObjects = client.CustomObjectsApi()  # Custom Resources (CRDs)
-        self.Namespaces = client.V1Namespace()
-
-        self.Dynamic = DynamicClient(client.ApiClient())
+    api = client.ApiClient()
+    core = client.CoreV1Api()  # Pods, Services, ConfigMaps
+    apps = client.AppsV1Api()  # Deployments, StatefulSets, DaemonSets
+    batch = client.BatchV1Api()  # Jobs, CronJobs
+    networking = client.NetworkingV1Api()  # Ingress, NetworkPolicies
+    rbac = client.RbacAuthorizationV1Api()  # Role-Based Access Control
+    custom_objects = client.CustomObjectsApi()  # Custom Resources (CRDs)
+    namespaces = client.V1Namespace()
+    dynamic = DynamicClient(client.ApiClient())
 
 
 class KubernetesClient:
@@ -42,7 +42,7 @@ class KubernetesClient:
             yaml_content = [yaml_content]
 
         try:
-            utils.create_from_yaml(self._clients.Api, yaml_objects=yaml_content)
+            utils.create_from_yaml(self._clients.api, yaml_objects=yaml_content)
             print(f'Custom object installed successfully!')
         except Exception as e:
             print(f'Error while installing object: {e}')
@@ -56,12 +56,12 @@ class KubernetesClient:
         }
 
         print(f'Cordoning node: {node_name}')
-        self._clients.Core.patch_node(node_name, body)
+        self._clients.core.patch_node(node_name, body)
         print(f'Node {node_name} cordoned successfully!')
 
     def install_from_yaml(self, path_to_yaml: Path, with_custom_objects: bool = False):
         if path_to_yaml.is_dir():
-            utils.create_from_directory(self._clients.CustomObjects, str(path_to_yaml))
+            utils.create_from_directory(self._clients.custom_objects, str(path_to_yaml))
         else:
             if with_custom_objects:
                 print('Applying custom objects')
@@ -69,14 +69,14 @@ class KubernetesClient:
                 self._apply_simple_item(manifest)
             else:
                 manifest = [x for x in yaml.safe_load_all(path_to_yaml.read_text())]
-                utils.create_from_yaml(self._clients.Api, yaml_objects=manifest)
+                utils.create_from_yaml(self._clients.api, yaml_objects=manifest)
 
     def _apply_simple_item(self, manifest: dict, verbose: bool = False):
         api_version = manifest.get("apiVersion")
         kind = manifest.get("kind")
         resource_name = manifest.get("metadata").get("name")
         namespace = manifest.get("metadata").get("namespace")
-        crd_api = self._clients.Dynamic.resources.get(api_version=api_version, kind=kind)
+        crd_api = self._clients.dynamic.resources.get(api_version=api_version, kind=kind)
 
         try:
             crd_api.get(namespace=namespace, name=resource_name)
@@ -92,7 +92,7 @@ class KubernetesClient:
                         command_input: str = None):
         print(f"Executing command: {pod=}, {namespace=}, {command=}, {interactive=}, {command_input=}")
         try:
-            resp = self._clients.Core.read_namespaced_pod(name=pod, namespace=namespace)
+            resp = self._clients.core.read_namespaced_pod(name=pod, namespace=namespace)
         except ApiException as e:
             if e.status != 404:
                 raise ValueError(f"Unknown error: {e}")
@@ -101,11 +101,11 @@ class KubernetesClient:
 
         while resp.status.phase != 'Running':
             print(f'Pod not ready yet: {resp.status.phase}...')
-            resp = self._clients.Core.read_namespaced_pod(name=pod, namespace=namespace)
+            resp = self._clients.core.read_namespaced_pod(name=pod, namespace=namespace)
             time.sleep(3)
 
         resp = stream(
-            self._clients.Core.connect_get_namespaced_pod_exec,
+            self._clients.core.connect_get_namespaced_pod_exec,
             name=pod,
             namespace=namespace,
             command=command,
@@ -131,11 +131,11 @@ class KubernetesClient:
         return output, errors
 
     def create_namespace(self, namespace: str):
-        self._clients.Core.create_namespace(client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace)))
+        self._clients.core.create_namespace(client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace)))
 
     def delete_namespace(self, namespace: str):
         try:
-            self._clients.Core.delete_namespace(namespace)
+            self._clients.core.delete_namespace(namespace)
         except Exception as e:
             print(f'Error while deleting namespace {namespace}: {e}')
 
@@ -165,7 +165,7 @@ class KubernetesClient:
             type="kubernetes.io/dockerconfigjson",
         )
 
-        self._clients.Core.create_namespaced_secret(namespace, body=secret)
+        self._clients.core.create_namespaced_secret(namespace, body=secret)
 
         print(f'Secret {secret_name} of type "docker-registry" created successfully!')
 
@@ -178,12 +178,12 @@ class KubernetesClient:
             metadata=client.V1ObjectMeta(name=secret_name, namespace=namespace),
             string_data=data,
         )
-        self._clients.Core.create_namespaced_secret(namespace=namespace, body=secret)
+        self._clients.core.create_namespaced_secret(namespace=namespace, body=secret)
         print(f'Secret {secret_name} created successfully!')
 
     def get_secret(self, secret_name: str, namespace: str):
         try:
-            secret = self._clients.Core.read_namespaced_secret(secret_name, namespace)
+            secret = self._clients.core.read_namespaced_secret(secret_name, namespace)
             return {k: base64.b64decode(v) for k, v in secret.data.items()} if secret.data is not None else None
         except ApiException as e:
             if e.status == 404:
