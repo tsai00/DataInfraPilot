@@ -112,7 +112,6 @@ select = [
 ignore = [
     "ANN002", # Missing type annotation for `*args`
     "ANN003", # Missing type annotation for `**kwargs`
-    "E501", # Line too long - TODO: remove
     "S501", # Probable use of `httpx` call with `verify=False` disabling SSL certificate checks
     "TRY003", # Avoid specifying long messages outside the exception class
     "TRY300", # Questionable rule
