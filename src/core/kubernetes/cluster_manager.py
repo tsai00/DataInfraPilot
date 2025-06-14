@@ -235,6 +235,8 @@ class ClusterManager(object):
         helm_chart_values = {**helm_chart_values, **access_endpoints_values}
 
         try:
+            application_instance.run_pre_install_actions(cluster, namespace, deployment_config)
+
             chart_installed = await cluster.install_or_upgrade_chart(helm_chart, helm_chart_values, namespace)
 
             if chart_installed:
