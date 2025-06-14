@@ -1,28 +1,25 @@
-import yaml
-from hcloud.networks import NetworkSubnet, Network
-from hcloud.placement_groups import PlacementGroup, CreatePlacementGroupResponse
-from hcloud.servers import ServerCreatePublicNetwork
-
-from src.core.providers.base_provider import BaseProvider
-import asyncssh
 import asyncio
-
-from hcloud import Client, APIException
-from hcloud.images import Image
-from hcloud.server_types import ServerType
-from hcloud.locations import Location
-from hcloud.ssh_keys import SSHKey
-from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
-from src.core.kubernetes.configuration import ClusterConfiguration
-from src.core.config import PATH_TO_K3S_YAML_CONFIGS
-from src.core.exceptions import ResourceUnavailableException, ProjectNotEmptyException
 from dataclasses import dataclass
-
-from src.core.template_loader import template_loader
+from enum import StrEnum
 from pathlib import Path
 
-from enum import StrEnum
+import asyncssh
+import yaml
+from hcloud import APIException, Client
+from hcloud.images import Image
+from hcloud.locations import Location
+from hcloud.networks import Network, NetworkSubnet
+from hcloud.placement_groups import CreatePlacementGroupResponse, PlacementGroup
+from hcloud.server_types import ServerType
+from hcloud.servers import ServerCreatePublicNetwork
+from hcloud.ssh_keys import SSHKey
 
+from src.core.config import PATH_TO_K3S_YAML_CONFIGS
+from src.core.exceptions import ProjectNotEmptyException, ResourceUnavailableException
+from src.core.kubernetes.configuration import ClusterConfiguration
+from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
+from src.core.providers.base_provider import BaseProvider
+from src.core.template_loader import template_loader
 from src.core.utils import generate_password
 
 
@@ -281,7 +278,7 @@ class HetznerProvider(BaseProvider):
         for s in [master_plane_node] + worker_nodes:
             self._logger.info(f"{s['name']} ({s['ip']})")
 
-        local_config = Path(PATH_TO_K3S_YAML_CONFIGS, f'k3s-config-cluster-id.yaml')
+        local_config = Path(PATH_TO_K3S_YAML_CONFIGS, 'k3s-config-cluster-id.yaml')
 
         await self._download_kubeconfig(
             ip=master_plane_node['ip'],

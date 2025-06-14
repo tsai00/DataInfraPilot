@@ -1,16 +1,22 @@
+import base64
+import re
+from enum import StrEnum
+from functools import lru_cache
 from typing import Any
+
+import requests
+from pydantic import BaseModel, Field
 
 from src.core.apps.actions.base_post_install_action import BasePrePostInstallAction
 from src.core.apps.actions.create_secret_action import CreateSecretAction
-from src.core.apps.base_application import BaseApplication, VolumeRequirement, AccessEndpoint, AccessEndpointType, AccessEndpointConfig
+from src.core.apps.base_application import (
+    AccessEndpoint,
+    AccessEndpointConfig,
+    AccessEndpointType,
+    BaseApplication,
+    VolumeRequirement,
+)
 from src.core.kubernetes.chart_config import HelmChart
-from pydantic import BaseModel, Field
-from enum import StrEnum
-import requests
-import re
-import base64
-from functools import lru_cache
-
 from src.core.utils import generate_password
 
 
@@ -205,7 +211,7 @@ class AirflowApplication(BaseApplication):
         return {'path': path_value, 'hosts': hosts, 'base_url': base_url}
 
     @classmethod
-    @lru_cache()
+    @lru_cache
     def get_available_versions(cls) -> list[str]:
         try:
             r = requests.get('https://api.github.com/repos/apache/airflow/releases').json()

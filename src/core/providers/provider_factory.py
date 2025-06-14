@@ -1,5 +1,5 @@
 from src.core.providers.base_provider import BaseProvider
-from src.core.providers.hetzner.hetzner_provider import HetznerProvider, HetznerConfig
+from src.core.providers.hetzner.hetzner_provider import HetznerConfig, HetznerProvider
 
 
 class ProviderFactory:

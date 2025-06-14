@@ -1,8 +1,8 @@
 import logging
-
-import bcrypt
 import secrets
 import string
+
+import bcrypt
 
 
 def setup_logger(logger_name: str) -> logging.Logger:

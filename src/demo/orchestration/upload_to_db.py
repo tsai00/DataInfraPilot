@@ -1,6 +1,6 @@
 import os
 
-from src.demo.orchestration.utils import parse_args, construct_transformed_parquet_data_adls_path
+from src.demo.orchestration.utils import construct_transformed_parquet_data_adls_path, parse_args
 from src.demo.storage.adls_storage import ADLSStorage
 from src.demo.storage.postgres_storage import PostgresStorage
 

@@ -1,10 +1,11 @@
-from pathlib import Path
 import os
 import tempfile
-from typing import Any, Generator
+from collections.abc import Generator
 from contextlib import contextmanager
+from pathlib import Path
+from typing import Any
 
-from jinja2 import Environment, FileSystemLoader, meta, Template
+from jinja2 import Environment, FileSystemLoader, Template, meta
 from jinja2.exceptions import TemplateNotFound
 
 from src.core.utils import setup_logger
@@ -59,7 +60,7 @@ class TemplateLoader:
         values = values or {}
 
         if not isinstance(values, dict):
-            msg = f'Template values must be a dictionary'
+            msg = 'Template values must be a dictionary'
             self._logger.exception(msg, exc_info=True)
             raise TypeError(msg)
 

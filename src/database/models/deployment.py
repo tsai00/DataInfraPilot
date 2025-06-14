@@ -1,14 +1,17 @@
 from __future__ import annotations
-from sqlalchemy.orm import mapped_column, Mapped, relationship
-from sqlalchemy import ForeignKey, JSON
-from src.database.models.base_model import BaseModel
+
 from datetime import datetime
 from typing import TYPE_CHECKING
+
+from sqlalchemy import JSON, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from src.core.kubernetes.deployment_status import DeploymentStatus
+from src.database.models.base_model import BaseModel
 
 if TYPE_CHECKING:
-    from src.database.models.cluster import Cluster
     from src.database.models.application import Application
+    from src.database.models.cluster import Cluster
 
 
 class Deployment(BaseModel):

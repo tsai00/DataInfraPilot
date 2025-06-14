@@ -1,12 +1,13 @@
+from functools import lru_cache
 from typing import Any
+
+from pydantic import BaseModel, Field
 
 from src.api.schemas.deployment import AccessEndpointConfig
 from src.core.apps.actions.apply_template_action import ApplyTemplateAction
-from src.core.apps.base_application import BaseApplication, AccessEndpoint, AccessEndpointType
 from src.core.apps.actions.base_post_install_action import BasePrePostInstallAction
+from src.core.apps.base_application import AccessEndpoint, AccessEndpointType, BaseApplication
 from src.core.kubernetes.chart_config import HelmChart
-from pydantic import BaseModel, Field
-from functools import lru_cache
 
 
 class SparkConfig(BaseModel):
@@ -32,7 +33,7 @@ class SparkApplication(BaseApplication):
         super().__init__("Spark")
 
     @classmethod
-    @lru_cache()
+    @lru_cache
     def get_available_versions(cls) -> list[str]:
         # TODO: replace with actual version list + move to base class
         return ['3.5.1']

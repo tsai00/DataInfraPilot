@@ -3,7 +3,7 @@ import importlib
 import inspect
 from datetime import datetime
 from functools import partial
-from typing import Type, Any, Literal
+from typing import Any, Literal
 
 from src.demo.scrapers.base_scraper import BaseScraper
 from src.demo.scrapers.base_transformation import BaseTransformation
@@ -18,7 +18,7 @@ def parse_args():
     projects = ['sreality', 'bezrealitky']
 
     parser.add_argument('-p', '--project', type=str, help=f'Project (from {projects})')
-    parser.add_argument('-lt', '--listing-type', type=str, help=f'Listing type to scrape (from "rent", "sale")')
+    parser.add_argument('-lt', '--listing-type', type=str, help='Listing type to scrape (from "rent", "sale")')
     parser.add_argument('-b', '--batch-id', type=str, help='Batch ID')
 
     args = vars(parser.parse_args())
@@ -39,7 +39,7 @@ def construct_parquet_data_adls_path(project: str, listing_type: str, batch_id: 
     return f'{location}/{filename}.parquet'
 
 
-def load_component_class(project_name: str, component_type: str) -> Type[Any]:
+def load_component_class(project_name: str, component_type: str) -> type[Any]:
     module_path = f'src.demo.scrapers.{project_name}.{component_type}'
 
     if component_type == 'scraper':

@@ -2,8 +2,10 @@ import ast
 import unicodedata
 from abc import ABC, abstractmethod
 from typing import Any
-from src.demo.utils import setup_logger
+
 import pandas as pd
+
+from src.demo.utils import setup_logger
 
 
 class TransformationError(Exception):

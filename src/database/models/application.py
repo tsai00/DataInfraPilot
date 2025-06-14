@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from sqlalchemy.orm import mapped_column, Mapped
-from src.database.models.base_model import BaseModel
-from typing import TYPE_CHECKING
+from sqlalchemy.orm import Mapped, mapped_column
 
-if TYPE_CHECKING:
-    from src.database.models.deployment import Deployment
+from src.database.models.base_model import BaseModel
 
 
 class Application(BaseModel):

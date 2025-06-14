@@ -1,10 +1,9 @@
-from datetime import datetime
-from typing import Type
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import joinedload, sessionmaker
 
 from src.database.handlers.base_database_handler import BaseDatabaseHandler
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, joinedload, selectinload
-from src.database.models import BaseModel, Cluster, Deployment, Application
+from src.database.models import Application, BaseModel, Cluster, Deployment
 from src.database.models.volume import Volume
 
 
@@ -40,13 +39,13 @@ class SQLiteHandler(BaseDatabaseHandler):
 
             return cluster_id
 
-    def get_cluster(self, cluster_id) -> Type[Cluster] | None:
+    def get_cluster(self, cluster_id) -> type[Cluster] | None:
         with self.session() as session:
             cluster = session.query(Cluster).filter_by(id=cluster_id).options(joinedload(Cluster.deployments)).first()
 
             return cluster or None
 
-    def get_clusters(self) -> list[Type[Cluster]]:
+    def get_clusters(self) -> list[type[Cluster]]:
         with self.session() as session:
             clusters = session.query(Cluster).options(joinedload(Cluster.deployments)).all()
 
@@ -64,13 +63,13 @@ class SQLiteHandler(BaseDatabaseHandler):
             session.query(Cluster).filter_by(id=cluster_id).update(updated_data)
             session.commit()
 
-    def get_application(self, application_id) -> Type[Application] | None:
+    def get_application(self, application_id) -> type[Application] | None:
         with self.session() as session:
             application = session.query(Application).filter_by(id=application_id).first()
 
             return application or None
 
-    def get_applications(self) -> list[Type[Application]]:
+    def get_applications(self) -> list[type[Application]]:
         with self.session() as session:
             applications = session.query(Application).all()
 
@@ -90,13 +89,13 @@ class SQLiteHandler(BaseDatabaseHandler):
             session.query(Volume).filter_by(id=volume_id).update(updated_data)
             session.commit()
 
-    def get_volume(self, volume_id) -> Type[Volume] | None:
+    def get_volume(self, volume_id) -> type[Volume] | None:
         with self.session() as session:
             volume = session.query(Volume).filter_by(id=volume_id).first()
 
             return volume or None
 
-    def get_volumes(self) -> list[Type[Volume]]:
+    def get_volumes(self) -> list[type[Volume]]:
         with self.session() as session:
             volumes = session.query(Volume).all()
 
@@ -130,7 +129,7 @@ class SQLiteHandler(BaseDatabaseHandler):
             session.query(Deployment).filter_by(id=deployment_id).update(updated_data)
             session.commit()
 
-    def get_deployments(self, cluster_id: int) -> list[Type[Deployment]]:
+    def get_deployments(self, cluster_id: int) -> list[type[Deployment]]:
         with self.session() as session:
             deployments = (
                 session.query(Deployment)
@@ -143,7 +142,7 @@ class SQLiteHandler(BaseDatabaseHandler):
             )
             return deployments
 
-    def get_deployment(self, deployment_id: int) -> Type[Deployment] | None:
+    def get_deployment(self, deployment_id: int) -> type[Deployment] | None:
         with self.session() as session:
             deployment = session.query(Deployment).filter_by(id=deployment_id).first()
 

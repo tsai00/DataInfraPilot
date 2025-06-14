@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from sqlalchemy.orm import mapped_column, Mapped, relationship
 from datetime import datetime
+
 from sqlalchemy import JSON
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from src.database.models.base_model import BaseModel
 
 

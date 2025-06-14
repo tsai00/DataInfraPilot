@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from abc import abstractmethod, ABC
-from src.core.kubernetes.configuration import ClusterConfiguration
-
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
+from src.core.kubernetes.configuration import ClusterConfiguration
 from src.core.utils import setup_logger
 
 if TYPE_CHECKING:

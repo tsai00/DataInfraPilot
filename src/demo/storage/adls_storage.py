@@ -3,12 +3,11 @@ import json
 from typing import TypeAlias
 
 import pandas as pd
-from azure.storage.blob import BlobServiceClient
+from azure.core.exceptions import AzureError, ClientAuthenticationError, ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
-from azure.core.exceptions import ResourceNotFoundError, ClientAuthenticationError, AzureError
+from azure.storage.blob import BlobServiceClient
 
 from src.demo.storage.base_storage import BaseStorage
-
 
 ADLSIOType: TypeAlias = dict | str | bytes | io.BytesIO
 
@@ -23,7 +22,7 @@ class ADLSStorage(BaseStorage[ADLSIOType]):
         self.account_url = f"https://{account_name}.blob.core.windows.net"
         self.container_name = container_name
         self.blob_service_client: BlobServiceClient | None = None
-        
+
         super().__init__('ADLSStorage')
 
     def __enter__(self):

@@ -1,8 +1,8 @@
 from typing import Literal
 
+import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
-import pandas as pd
 
 from src.demo.storage.base_storage import BaseStorage
 

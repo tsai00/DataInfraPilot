@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
+from typing import Generic, TypeVar
+
 from src.demo.utils import setup_logger
-from typing import TypeVar, Generic
 
 T = TypeVar("T")
 

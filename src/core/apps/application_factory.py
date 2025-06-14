@@ -1,8 +1,8 @@
-from typing import Type
+from dataclasses import dataclass
+
 from pydantic import BaseModel
 
 from src.core.apps.base_application import BaseApplication
-from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -13,14 +13,14 @@ class ApplicationMetadata:
 
 class ApplicationFactory:
     # The internal registry mapping app_id to (AppClass, ConfigClass, ApplicationMetadata).
-    _registry: dict[int, tuple[Type[BaseApplication], Type[BaseModel], ApplicationMetadata]] = {}
+    _registry: dict[int, tuple[type[BaseApplication], type[BaseModel], ApplicationMetadata]] = {}
 
     @classmethod
     def register_application(
         cls,
         app_id: int,
-        app_class: Type[BaseApplication],
-        config_class: Type[BaseModel],
+        app_class: type[BaseApplication],
+        config_class: type[BaseModel],
         metadata: ApplicationMetadata = None
     ):
         if app_id in cls._registry:
@@ -31,14 +31,14 @@ class ApplicationFactory:
         cls._registry[app_id] = (app_class, config_class, metadata)
 
     @classmethod
-    def _get_app_info(cls, app_id: int) -> tuple[Type[BaseApplication], Type[BaseModel], ApplicationMetadata]:
+    def _get_app_info(cls, app_id: int) -> tuple[type[BaseApplication], type[BaseModel], ApplicationMetadata]:
         info = cls._registry.get(app_id)
         if info is None:
             raise ValueError(f"Application with ID '{app_id}' is not registered.")
         return info
 
     @classmethod
-    def get_application_class(cls, app_id: int) -> Type[BaseApplication]:
+    def get_application_class(cls, app_id: int) -> type[BaseApplication]:
         app_class, _, _ = cls._get_app_info(app_id)
         return app_class
 

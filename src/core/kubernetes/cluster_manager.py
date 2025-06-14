@@ -2,27 +2,28 @@ import asyncio
 import logging
 import re
 from datetime import datetime
+from pathlib import Path
+
+from pydantic_core._pydantic_core import ValidationError
 
 from src.api.schemas.deployment import DeploymentCreateSchema
 from src.api.schemas.volume import VolumeCreateSchema
 from src.core.apps.application_factory import ApplicationFactory
 from src.core.apps.base_application import AccessEndpointType
 from src.core.exceptions import ResourceUnavailableException
+from src.core.kubernetes.configuration import ClusterConfiguration
+from src.core.kubernetes.deployment_status import DeploymentStatus
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.providers.base_provider import BaseProvider
-from src.core.kubernetes.configuration import ClusterConfiguration
+from src.core.providers.provider_factory import ProviderFactory
 from src.core.utils import setup_logger
 from src.database.handlers.sqlite_handler import SQLiteHandler
 from src.database.models.cluster import Cluster
 from src.database.models.deployment import Deployment
-from pathlib import Path
-from src.core.providers.provider_factory import ProviderFactory
-from src.core.kubernetes.deployment_status import DeploymentStatus
 from src.database.models.volume import Volume
-from pydantic_core._pydantic_core import ValidationError
 
 
-class ClusterManager(object):
+class ClusterManager:
     _instance: "ClusterManager" = None
     _logger: logging.Logger = None
 
@@ -293,7 +294,7 @@ class ClusterManager(object):
 
     async def remove_deployment(self, deployment_id: int):
         deployment_from_db = self.get_deployment(deployment_id)
-        
+
         if not deployment_from_db:
             raise ValueError(f"Deployment {deployment_id} was not found")
 

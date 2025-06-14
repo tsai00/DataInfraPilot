@@ -3,8 +3,14 @@ from typing import Literal
 
 import httpx
 
-from src.demo.scrapers.base_scraper import BaseScraper, ScraperPageResponse, ScraperRequestDetails, RequestMethod, \
-    ScraperParsingError, ScraperError
+from src.demo.scrapers.base_scraper import (
+    BaseScraper,
+    RequestMethod,
+    ScraperError,
+    ScraperPageResponse,
+    ScraperParsingError,
+    ScraperRequestDetails,
+)
 
 
 class SrealityScraper(BaseScraper):

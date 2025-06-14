@@ -1,7 +1,12 @@
 import os
 
+from src.demo.orchestration.utils import (
+    construct_raw_parquet_data_adls_path,
+    construct_transformed_parquet_data_adls_path,
+    load_transformation_component,
+    parse_args,
+)
 from src.demo.scrapers.base_transformation import TransformationError
-from src.demo.orchestration.utils import load_transformation_component, parse_args, construct_raw_parquet_data_adls_path, construct_transformed_parquet_data_adls_path
 from src.demo.storage.adls_storage import ADLSStorage
 
 

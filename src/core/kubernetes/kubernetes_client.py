@@ -1,15 +1,15 @@
+import base64
 import json
 import time
+from pathlib import Path
 
+import urllib3
+import yaml
 from kubernetes import client, config, utils
 from kubernetes.client import ApiException, Configuration
 from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.exceptions import NotFoundError
-from pathlib import Path
-import yaml
 from kubernetes.stream import stream
-import urllib3
-import base64
 
 from src.core.utils import setup_logger
 
@@ -45,7 +45,7 @@ class KubernetesClient:
 
         try:
             utils.create_from_yaml(self._clients.api, yaml_objects=yaml_content)
-            self._logger.info(f'Custom object installed successfully!')
+            self._logger.info('Custom object installed successfully!')
         except Exception as e:
             self._logger.exception(f'Error while installing object: {e}', exc_info=True)
 

@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 
-from src.api.schemas.cluster import ClusterPool, ClusterAdditionalComponents
-
+from src.api.schemas.cluster import ClusterAdditionalComponents, ClusterPool
 
 # TODO add ClusterInfo dataclass and rename this to ClusterInputConfiguration
 

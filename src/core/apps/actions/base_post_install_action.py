@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
-
-from typing_extensions import override
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, override
 
 if TYPE_CHECKING:
     from src.core.kubernetes.kubernetes_cluster import KubernetesCluster

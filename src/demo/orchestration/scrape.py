@@ -3,8 +3,8 @@ import os
 
 import pandas as pd
 
+from src.demo.orchestration.utils import construct_raw_parquet_data_adls_path, load_scraper_component, parse_args
 from src.demo.scrapers.base_scraper import ScraperError, ScraperRunMetadata
-from src.demo.orchestration.utils import load_scraper_component, parse_args, construct_raw_parquet_data_adls_path
 from src.demo.storage.adls_storage import ADLSStorage
 from src.demo.storage.postgres_storage import PostgresStorage
 

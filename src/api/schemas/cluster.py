@@ -1,7 +1,7 @@
-from pydantic import BaseModel, Field
 from datetime import datetime
 
-from src.api.schemas.application import ApplicationSchema
+from pydantic import BaseModel, Field
+
 from src.api.schemas.deployment import DeploymentSchema
 
 

@@ -1,17 +1,18 @@
+import asyncio
 import copy
 import logging
 import math
 import os
+from abc import ABC, abstractmethod
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
-import asyncio
 import httpx
-from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type, wait_exponential, after_log
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field, asdict
+from tenacity import after_log, retry, retry_if_exception_type, stop_after_attempt, wait_exponential, wait_fixed
+
 from src.demo.utils import setup_logger
 
 
@@ -101,7 +102,7 @@ class ScraperRunMetadata:
             "POST Requests Sent": self.post_requests_sent,
         }
 
-        max_label_len = max(len(label) for label in details.keys())
+        max_label_len = max(len(label) for label in details)
 
         formatted_output = ["\n--- Scraper Run Details ---"]
         for label, value in details.items():

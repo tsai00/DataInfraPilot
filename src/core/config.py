@@ -1,6 +1,6 @@
 from pathlib import Path
+
 from dotenv import load_dotenv
-import os
 
 load_dotenv(Path(Path(__file__).parent.parent.parent.absolute(), '.env'))
 
