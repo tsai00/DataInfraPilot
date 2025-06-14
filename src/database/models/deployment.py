@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.kubernetes.deployment_status import DeploymentStatus
+from src.core.deployment_status import DeploymentStatus
 from src.database.models import BaseModel
 
 if TYPE_CHECKING:

@@ -11,9 +11,9 @@ from src.api.schemas import (
     DeploymentUpdateSchema,
 )
 from src.core.apps.base_application import AccessEndpointConfig
+from src.core.deployment_status import DeploymentStatus
 from src.core.kubernetes.cluster_manager import ClusterManager
 from src.core.kubernetes.configuration import ClusterConfiguration
-from src.core.kubernetes.deployment_status import DeploymentStatus
 from src.core.providers.provider_factory import ProviderFactory
 from src.core.utils import setup_logger
 
