@@ -1,5 +1,7 @@
 from typing import Any
 
+from src.core.apps.actions.base_post_install_action import BasePrePostInstallAction
+from src.core.apps.actions.create_secret_action import CreateSecretAction
 from src.core.apps.base_application import BaseApplication, VolumeRequirement, AccessEndpoint, AccessEndpointType, AccessEndpointConfig
 from src.core.kubernetes.chart_config import HelmChart
 from pydantic import BaseModel, Field
@@ -228,4 +230,19 @@ class AirflowApplication(BaseApplication):
 
         return values
 
+    @property
+    def pre_installation_actions(self) -> list[BasePrePostInstallAction]:
+        return [
+            CreateSecretAction(
+                name="CreatePrivateRegistryCredentialsSecret",
+                secret_name="private-registry-creds",
+                secret_data={
+                    "url": self._config.private_registry_url[:self._config.private_registry_url.index('/', 8)],
+                    "username": self._config.private_registry_username,
+                    "password": self._config.private_registry_password
+                },
+                secret_type='docker-registry',
+                condition=self._config.use_custom_image
+            )
+        ]
 
