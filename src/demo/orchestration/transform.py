@@ -16,7 +16,7 @@ def main() -> None:
 
     project, listing_type, batch_id = parse_args()
 
-    TransformationClass = load_transformation_component(project)    # noqa: N806 (keep upper case for better visibility)
+    TransformationClass = load_transformation_component(project)  # noqa: N806 (keep upper case for better visibility)
 
     raw_data_path = construct_raw_parquet_data_adls_path(project, listing_type, batch_id)
     transformed_data_path = construct_transformed_parquet_data_adls_path(project, listing_type, batch_id)
@@ -31,7 +31,9 @@ def main() -> None:
 
             df_transformed['_data_source'] = project.capitalize()
 
-            df_transformed.to_excel(transformed_data_path[transformed_data_path.rindex('/')+1:].replace('.parquet', '.xlsx'))
+            df_transformed.to_excel(
+                transformed_data_path[transformed_data_path.rindex('/') + 1 :].replace('.parquet', '.xlsx')
+            )
 
         except TransformationError as e:
             raise ValueError(f'Transformation for {project} ({listing_type}) failed: {e}') from e

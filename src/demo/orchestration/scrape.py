@@ -39,13 +39,13 @@ async def main() -> None:
         postgres_storage.upload_data(run_metadata_df, 'scraper_run_metadata')
 
     raw_data_path = construct_raw_parquet_data_adls_path(project, listing_type, batch_id)
-    metadata_path = f'{raw_data_path[:raw_data_path.rindex("/")]}/_metadata.json'
+    metadata_path = f'{raw_data_path[: raw_data_path.rindex("/")]}/_metadata.json'
 
     with ADLSStorage(account_name=adls_account_name, container_name=container_name) as adls_storage:
         adls_storage.upload_df_to_parquet(df, path=raw_data_path)
         adls_storage.upload_data(run_metadata.to_dict(), path=metadata_path)
 
-    df.to_excel(raw_data_path[raw_data_path.rindex('/')+1:].replace('.parquet', '.xlsx'))
+    df.to_excel(raw_data_path[raw_data_path.rindex('/') + 1 :].replace('.parquet', '.xlsx'))
 
 
 if __name__ == '__main__':

@@ -7,7 +7,7 @@ from src.core.apps.base_application import AccessEndpointConfig
 
 
 class DeploymentVolumeSchema(BaseModel):
-    volume_type: Literal["new", "existing"]
+    volume_type: Literal['new', 'existing']
     name: str
     size: int
 
