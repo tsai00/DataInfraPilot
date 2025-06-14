@@ -21,6 +21,11 @@ class AirflowExecutor(StrEnum):
 
 class AirflowConfig(BaseModel):
     version: str = Field(pattern=r"^\d\.\d{1,2}\.\d$")
+    use_custom_image: bool = False
+    private_registry_url: str | None = None
+    private_registry_username: str | None = None
+    private_registry_password: str | None = None
+    private_registry_image_tag: str | None = None
     node_selector: dict | None = Field(default=None)
     dags_repository: str = Field(pattern=r"^https:\/\/.{10,}\.git$")
     dags_repository_ssh_private_key: str = Field(default=None, alias='dagsRepositorySshPrivateKey')
@@ -173,12 +178,18 @@ class AirflowApplication(BaseApplication):
         dags_repository_ssh_key_base64 = base64.b64encode(self._config.dags_repository_ssh_private_key.encode()).decode()
 
         values = {
-            "airflowVersion": self._version,
-            "defaultAirflowTag": self._version,
+            "airflowVersion": self._version if not self._config.use_custom_image else "2.11.0",
+            "defaultAirflowTag": self._version if not self._config.use_custom_image else self._config.private_registry_image_tag,
             "executor": self._config.executor,
             "flower": {
                 "enabled": self._config.flower_enabled
             },
+            "images": {
+                "migrationsWaitTimeout": 300,
+                #"useDefaultImageForMigration": True,
+            },
+            "multiNamespaceMode": True,
+            "useStandardNaming": True,
             "config": {
                 "webserver": {
                     #"expose_config": True,
@@ -219,6 +230,14 @@ class AirflowApplication(BaseApplication):
                     "storageClassName": "longhorn",
                 }
             },
+            # "registry": {
+            #     #"secretName": "private-registry-creds"
+            #     "connection": {
+            #         "user": "",
+            #         "pass": "",
+            #         "host": ""
+            #     }
+            # },
             "nodeSelector": self._config.node_selector
             # "extraSecrets": f"""
             # 'airflow-ssh-secret':
@@ -228,7 +247,14 @@ class AirflowApplication(BaseApplication):
             # """
         }
 
-        return values
+        # if self._config.use_custom_image:
+        #     values['images']['airflow'] = {
+        #         "repository": self._config.private_registry_url,
+        #         "tag": self._config.private_registry_image_tag
+        #     }
+
+        # TODO: replace with proper dict merge
+        return {**values, **self.get_resource_values()}
 
     @property
     def pre_installation_actions(self) -> list[BasePrePostInstallAction]:
