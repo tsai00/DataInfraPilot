@@ -42,6 +42,10 @@ class GrafanaApplication(BaseApplication):
             )
         ]
 
+    @classmethod
+    def get_resource_values(cls) -> dict:
+        return {}
+
     def get_ingress_helm_values(self, access_endpoint_configs: list[AccessEndpointConfig], cluster_base_ip: str, namespace: str) -> dict[str, Any]:
         defined_endpoints = {ep.name: ep for ep in self.get_accessible_endpoints()}
         configured_map = {epc.name: epc for epc in access_endpoint_configs}
