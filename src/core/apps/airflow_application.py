@@ -167,7 +167,7 @@ class AirflowApplication(BaseApplication):
         except Exception as e:
             print(f'Failed to retrieve availble verions for Airflow: {e}')
             raise
-        return [x['tag_name'] for x in r if bool(re.search(r"^\d\.\d{1,2}\.\d$", x['tag_name']))][:5]
+        return [x['tag_name'] for x in r if bool(re.search(r"^2\.\d{1,2}\.\d$", x['tag_name']))][:5]
 
     def __post_init__(self):
         if self._version not in self.get_available_versions():
