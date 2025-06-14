@@ -14,7 +14,7 @@ class CreateSecretAction(BasePrePostInstallAction):
 
     @override
     def run(self, cluster: KubernetesCluster, namespace: str, *args, **kwargs):
-        cluster.create_secret(self.secret_name, "default", self.secret_data, self.secret_type)
+        cluster.create_secret(self.secret_name, namespace, self.secret_data, self.secret_type)
 
     def _validate(self):
         if self.secret_type not in ('docker-registry', 'regular'):
