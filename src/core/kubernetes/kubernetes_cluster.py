@@ -1,4 +1,5 @@
 import base64
+import json
 import traceback
 from typing import Any
 
@@ -9,6 +10,7 @@ from src.core.utils import encrypt_password
 from src.api.schemas.cluster import ClusterPool
 from src.core.apps.other import longhorn_chart, certmanager_chart, cluster_autoscaler_chart
 from src.core.exceptions import NamespaceTerminatedException
+from kubernetes.client.exceptions import ApiException
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.core.kubernetes.kubernetes_client import KubernetesClient
 from src.core.kubernetes.helm_client import HelmClient
@@ -26,12 +28,37 @@ class KubernetesCluster:
         self._client = KubernetesClient(kubeconfig_path)
         self._helm_client = HelmClient(kubeconfig=kubeconfig_path)
 
-    def create_namespace(self, namespace: str):
+    def _parse_kubernetes_api_exception(self, exception: ApiException):
+        original_reason = exception.reason
+        body = json.loads(exception.body)
+
+        print(f'Original reason: {original_reason}')
+
+        return body['reason'], body['message']
+
+    @retry(retry=retry_if_exception_type(NamespaceTerminatedException), wait=wait_fixed(10), stop=stop_after_attempt(10), reraise=True)
+    def create_namespace(self, namespace: str, skip_if_exists: bool = True):
         try:
             self._client.create_namespace(namespace)
             print(f'Namespace {namespace} created')
+        except ApiException as e:
+            print(f'Failed to create namespace {namespace}')
+            reason, message = self._parse_kubernetes_api_exception(e)
+            print(f"Reason: {reason}")
+            print(f"Body: {message}")
+            if reason in ('AlreadyExists', 'NamespaceTerminating'):
+                if "object is being deleted" in message or "is being terminated" in message:
+                    print('Namespace is being deleted, retrying...')
+                    raise NamespaceTerminatedException
+                else:
+                    if skip_if_exists:
+                        print(f'Namespace {namespace} already exists, skipping creation')
+                        return
+                    else:
+                        raise e
         except Exception as e:
             # TODO: better error handling, e.g. for duplicated namespace name
+            print(traceback.format_exc())
             print(f'Failed to create namespace {namespace}: {e}')
 
     @retry(retry=retry_if_exception_type(NamespaceTerminatedException), stop=stop_after_attempt(5), wait=wait_fixed(5), reraise=True)
