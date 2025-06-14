@@ -8,6 +8,11 @@ import logging
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from src.core.apps.airflow_application import AirflowApplication, AirflowConfig
+from src.core.apps.application_factory import ApplicationFactory, ApplicationMetadata
+from src.core.apps.grafana_application import GrafanaApplication, GrafanaConfig
+from src.core.apps.spark_application import SparkApplication, SparkConfig
+
 app = FastAPI()
 
 
@@ -26,6 +31,30 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     logging.error(f"{request}: {exc_str}")
     content = {'status_code': 10422, 'message': exc_str, 'data': None}
     return JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+
+@app.on_event("startup")
+async def register_applications():
+    print("Registering applications with ApplicationFactory...")
+
+    ApplicationFactory.register_application(
+        app_id=1,
+        app_class=AirflowApplication,
+        config_class=AirflowConfig
+    )
+    ApplicationFactory.register_application(
+        app_id=2,
+        app_class=GrafanaApplication,
+        config_class=GrafanaConfig,
+        metadata=ApplicationMetadata(username_key='admin-user', password_key='admin-password')
+    )
+    ApplicationFactory.register_application(
+        app_id=3,
+        app_class=SparkApplication,
+        config_class=SparkConfig,
+    )
+
+    print("Applications registration complete.")
 
 
 @app.on_event("startup")

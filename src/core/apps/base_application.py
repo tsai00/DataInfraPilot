@@ -114,7 +114,8 @@ class BaseApplication(ABC):
 
     def get_initial_credentials(self) -> dict[str, str]: ...
 
-    def get_initial_credentials_secret_name(self) -> str: ...
+    @classmethod
+    def get_initial_credentials_secret_name(cls) -> str: ...
 
     @classmethod
     @abstractmethod

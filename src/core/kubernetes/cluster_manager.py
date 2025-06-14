@@ -5,11 +5,8 @@ from datetime import datetime
 
 from src.api.schemas.deployment import DeploymentCreateSchema
 from src.api.schemas.volume import VolumeCreateSchema
-from src.core.apps.airflow_application import AirflowApplication, AirflowConfig
 from src.core.apps.application_factory import ApplicationFactory
 from src.core.apps.base_application import AccessEndpointType
-from src.core.apps.grafana_application import GrafanaApplication, GrafanaConfig
-from src.core.apps.spark_application import SparkApplication, SparkConfig
 from src.core.exceptions import ResourceUnavailableException
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.providers.base_provider import BaseProvider
@@ -27,11 +24,6 @@ from pydantic_core._pydantic_core import ValidationError
 
 class ClusterManager(object):
     _instance = None
-    _application_registry = {
-        1: (AirflowApplication, AirflowConfig),
-        2: (GrafanaApplication, GrafanaConfig),
-        3: (SparkApplication, SparkConfig),
-    }
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -311,8 +303,7 @@ class ClusterManager(object):
 
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
 
-        # TODO: handle missing application
-        helm_chart = self._application_registry.get(deployment_from_db.application_id)[0].get_helm_chart()
+        helm_chart = ApplicationFactory.get_application_class(deployment_from_db.application_id).get_helm_chart()
 
         await cluster.uninstall_chart(helm_chart, deployment_from_db.namespace)
 
@@ -335,21 +326,12 @@ class ClusterManager(object):
         cluster = KubernetesCluster.from_db_model(cluster_from_db)
         application_id = deployment.application_id
 
-        # TODO: remove hardcoded branching
-        if application_id == 1:
-            app_class = AirflowApplication
-            username_key, password_key = 'username', 'password'
-        elif application_id == 2:
-            app_class = GrafanaApplication
-            username_key, password_key = 'admin-user', 'admin-password'
-        elif application_id == 3:
-            app_class = SparkApplication
-            username_key, password_key = 'username', 'password'
+        application = ApplicationFactory.get_application_class(application_id)
+        application_metadata = ApplicationFactory.get_application_metadata(application_id)
 
-        # TODO: remove hardcoded name of secret
-        secret = cluster.get_secret(app_class.get_initial_credentials_secret_name(), deployment.namespace)
+        secret = cluster.get_secret(application.get_initial_credentials_secret_name(), deployment.namespace)
 
-        return {'username': secret[username_key], 'password': secret[password_key]}
+        return {'username': secret[application_metadata.username_key], 'password': secret[application_metadata.password_key]}
 
     def get_existing_endpoints(self, cluster_id: int) -> dict:
         deployments = self.storage.get_deployments(cluster_id)

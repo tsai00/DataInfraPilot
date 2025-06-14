@@ -1,11 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 
+from src.core.apps.application_factory import ApplicationFactory
 from src.core.kubernetes.cluster_manager import ClusterManager
 from src.api.schemas.application import ApplicationSchema
 from src.core.apps.airflow_application import AccessEndpoint
-from src.core.apps.airflow_application import AirflowApplication
-from src.core.apps.grafana_application import GrafanaApplication
-from src.core.apps.spark_application import SparkApplication
 
 router = APIRouter()
 
@@ -40,27 +38,13 @@ def get_application(
 
 @router.get("/applications/{application_id}/versions", response_model=list[str])
 def get_application_available_versions(
-    application_id: int,
-    cluster_manager: ClusterManager = Depends(get_cluster_manager)
+    application_id: int
 ) -> list[str]:
-    # TODO: remove hardcoded branching
-    if application_id == 1:
-        return AirflowApplication.get_available_versions()
-    elif application_id == 2:
-        return GrafanaApplication.get_available_versions()
-    elif application_id == 3:
-        return SparkApplication.get_available_versions()
+    return ApplicationFactory.get_application_class(application_id).get_available_versions()
 
 
 @router.get("/applications/{application_id}/access_endpoints", response_model=list[AccessEndpoint])
 async def get_application_accessible_endpoints(
     application_id: int,
-    cluster_manager: ClusterManager = Depends(get_cluster_manager)
 ):
-    # TODO: remove hardcoded branching
-    if application_id == 1:
-        return AirflowApplication.get_accessible_endpoints()
-    elif application_id == 2:
-        return GrafanaApplication.get_accessible_endpoints()
-    elif application_id == 3:
-        return SparkApplication.get_accessible_endpoints()
+    return ApplicationFactory.get_application_class(application_id).get_accessible_endpoints()
