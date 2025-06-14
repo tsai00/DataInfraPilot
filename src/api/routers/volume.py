@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.background import BackgroundTasks
 
@@ -17,14 +19,16 @@ def get_cluster_manager() -> ClusterManager:
     return cluster_manager
 
 
-@router.get('/volumes', response_model=list[VolumeSchema])
-def get_volumes(cluster_manager: ClusterManager = Depends(get_cluster_manager)) -> list[VolumeSchema]:
+@router.get('/volumes')
+def get_volumes(cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)]) -> list[VolumeSchema]:
     volumes = cluster_manager.get_volumes()
     return volumes
 
 
-@router.get('/volumes/{volume_id}', response_model=VolumeSchema)
-def get_volume(volume_id: int, cluster_manager: ClusterManager = Depends(get_cluster_manager)) -> VolumeSchema:
+@router.get('/volumes/{volume_id}')
+def get_volume(
+    volume_id: int, cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)]
+) -> VolumeSchema:
     volume = cluster_manager.get_volume(volume_id)
 
     if not volume:
@@ -33,11 +37,11 @@ def get_volume(volume_id: int, cluster_manager: ClusterManager = Depends(get_clu
     return volume
 
 
-@router.post('/volumes', response_model=VolumeCreateResponseSchema, status_code=status.HTTP_202_ACCEPTED)
+@router.post('/volumes', status_code=status.HTTP_202_ACCEPTED)
 async def create_volume(
     volume: VolumeCreateSchema,
     background_tasks: BackgroundTasks,
-    cluster_manager: ClusterManager = Depends(get_cluster_manager),
+    cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)],
 ) -> VolumeCreateResponseSchema:
     logger.debug(f'Received request to create volume: {volume}')
 
@@ -47,5 +51,5 @@ async def create_volume(
 
 
 @router.delete('/volumes/{volume_id}', status_code=status.HTTP_200_OK)
-def delete_volume(volume_id: int, cluster_manager: ClusterManager = Depends(get_cluster_manager)) -> None:
+def delete_volume(volume_id: int, cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)]) -> None:
     cluster_manager.delete_volume(volume_id)

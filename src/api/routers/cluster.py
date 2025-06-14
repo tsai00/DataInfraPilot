@@ -1,3 +1,5 @@
+from typing import Annotated
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.background import BackgroundTasks
@@ -28,11 +30,11 @@ def get_cluster_manager() -> ClusterManager:
     return cluster_manager
 
 
-@router.post('/clusters/', response_model=ClusterCreateResponseSchema, status_code=status.HTTP_202_ACCEPTED)
+@router.post('/clusters/', status_code=status.HTTP_202_ACCEPTED)
 async def create_cluster(
     cluster: ClusterCreateSchema,
     background_tasks: BackgroundTasks,
-    cluster_manager: ClusterManager = Depends(get_cluster_manager),
+    cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)],
 ) -> ClusterCreateResponseSchema:
     logger.info(f'Received request to create cluster: {cluster}')
     provider = ProviderFactory.get_provider(cluster.provider, cluster.provider_config)
@@ -50,16 +52,20 @@ async def create_cluster(
     return {'name': cluster_config.name, 'status': DeploymentStatus.CREATING}
 
 
-@router.get('/clusters/{cluster_id}', response_model=ClusterSchema)
-def get_cluster(cluster_id: int, cluster_manager: ClusterManager = Depends(get_cluster_manager)) -> ClusterSchema:
+@router.get('/clusters/{cluster_id}')
+def get_cluster(
+    cluster_id: int, cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)]
+) -> ClusterSchema:
     cluster = cluster_manager.get_cluster(cluster_id)
     if not cluster:
         raise HTTPException(status_code=404, detail='Cluster not found')
     return cluster
 
 
-@router.get('/clusters/{cluster_id}/kubeconfig', response_model=str)
-def get_cluster_kubeconfig(cluster_id: int, cluster_manager: ClusterManager = Depends(get_cluster_manager)) -> str:
+@router.get('/clusters/{cluster_id}/kubeconfig')
+def get_cluster_kubeconfig(
+    cluster_id: int, cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)]
+) -> str:
     cluster_kubeconfig = cluster_manager.get_cluster_kubeconfig(cluster_id)
 
     if not cluster_kubeconfig:
@@ -68,22 +74,22 @@ def get_cluster_kubeconfig(cluster_id: int, cluster_manager: ClusterManager = De
     return cluster_kubeconfig
 
 
-@router.get('/clusters/', response_model=list[ClusterSchema])
-def get_clusters(cluster_manager: ClusterManager = Depends(get_cluster_manager)) -> list[ClusterSchema]:
+@router.get('/clusters/')
+def get_clusters(cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)]) -> list[ClusterSchema]:
     return cluster_manager.get_clusters()
 
 
 @router.delete('/clusters/{cluster_id}', status_code=status.HTTP_200_OK)
-def delete_cluster(cluster_id: int, cluster_manager: ClusterManager = Depends(get_cluster_manager)) -> None:
+def delete_cluster(cluster_id: int, cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)]) -> None:
     cluster_manager.delete_cluster(cluster_id)
 
 
-@router.post('/clusters/{cluster_id}/deployments', response_model=dict, status_code=status.HTTP_202_ACCEPTED)
+@router.post('/clusters/{cluster_id}/deployments', status_code=status.HTTP_202_ACCEPTED)
 async def create_deployment(
     cluster_id: int,
     deployment: DeploymentCreateSchema,
     background_tasks: BackgroundTasks,
-    cluster_manager: ClusterManager = Depends(get_cluster_manager),
+    cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)],
 ) -> dict:
     logger.debug(f'Received request to deploy app: {deployment}')
 
@@ -95,22 +101,22 @@ async def create_deployment(
 # NOTE: this endpoint must be before update_deployment to avoid issue with overlapping path
 @router.post('/clusters/{cluster_id}/deployments/check-endpoint-existence')
 async def check_endpoint_existence(
-    cluster_id: int, endpoint: AccessEndpointConfig, cluster_manager: ClusterManager = Depends(get_cluster_manager)
+    cluster_id: int,
+    endpoint: AccessEndpointConfig,
+    cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)],
 ) -> bool:
     existing_endpoints = cluster_manager.get_existing_endpoints(cluster_id)
 
     return endpoint.value in existing_endpoints[endpoint.access_type]
 
 
-@router.post(
-    '/clusters/{cluster_id}/deployments/{deployment_id}', response_model=dict, status_code=status.HTTP_202_ACCEPTED
-)
+@router.post('/clusters/{cluster_id}/deployments/{deployment_id}', status_code=status.HTTP_202_ACCEPTED)
 async def update_deployment(
     cluster_id: int | str,
     deployment_id: int | str,
     deployment: DeploymentUpdateSchema,
     background_tasks: BackgroundTasks,
-    cluster_manager: ClusterManager = Depends(get_cluster_manager),
+    cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)],
 ) -> dict:
     logger.debug(f'Received request to update deployment: {deployment}')
 
@@ -121,14 +127,16 @@ async def update_deployment(
 
 @router.delete('/clusters/{cluster_id}/deployments/{deployment_id}', status_code=status.HTTP_200_OK)
 async def delete_cluster_deployment(
-    cluster_id: int | str, deployment_id: int | str, cluster_manager: ClusterManager = Depends(get_cluster_manager)
+    cluster_id: int | str,
+    deployment_id: int | str,
+    cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)],
 ) -> None:
     await cluster_manager.remove_deployment(deployment_id)
 
 
-@router.get('/clusters/{cluster_id}/deployments', response_model=list[DeploymentSchema])
+@router.get('/clusters/{cluster_id}/deployments')
 async def get_cluster_deployments(
-    cluster_id: int, cluster_manager: ClusterManager = Depends(get_cluster_manager)
+    cluster_id: int, cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)]
 ) -> list[DeploymentSchema]:
     logger.debug('Request to get cluster deployments')
     deployments = cluster_manager.get_deployments(cluster_id)
@@ -136,18 +144,18 @@ async def get_cluster_deployments(
     return deployments
 
 
-@router.get('/clusters/{cluster_id}/deployments/{deployment_id}', response_model=DeploymentSchema)
+@router.get('/clusters/{cluster_id}/deployments/{deployment_id}')
 async def get_cluster_deployment(
-    cluster_id: int, deployment_id: int, cluster_manager: ClusterManager = Depends(get_cluster_manager)
+    cluster_id: int, deployment_id: int, cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)]
 ) -> DeploymentSchema:
     cluster_deployment = cluster_manager.get_deployment(deployment_id)
 
     return cluster_deployment
 
 
-@router.get('/clusters/{cluster_id}/deployments/{deployment_id}/credentials', response_model=dict)
+@router.get('/clusters/{cluster_id}/deployments/{deployment_id}/credentials')
 async def get_cluster_deployment_credentials(
-    cluster_id: int, deployment_id: int, cluster_manager: ClusterManager = Depends(get_cluster_manager)
+    cluster_id: int, deployment_id: int, cluster_manager: Annotated[ClusterManager, Depends(get_cluster_manager)]
 ) -> dict:
     credentials = cluster_manager.get_deployment_initial_credentials(deployment_id)
 
