@@ -70,7 +70,7 @@ class KubernetesCluster:
                     reuse_values=True,
                     namespace=namespace.lower(),
                     #wait=True,     # wait=True sometime caused errors with Airflow deployment
-                    timeout='300s'
+                    timeout='600s'
                 )
             else:
                 result = await self._helm_client.install_or_upgrade_release(
@@ -81,7 +81,7 @@ class KubernetesCluster:
                     reuse_values=True,
                     namespace=namespace.lower(),
                     #wait=True,
-                    timeout='300s'
+                    timeout='600s'
                 )
         except Exception as e:
             if f"namespace {namespace} because it is being terminated" in str(e):
