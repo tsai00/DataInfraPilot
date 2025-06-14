@@ -112,6 +112,9 @@ class GrafanaApplication(BaseApplication):
                 "size": "10Gi",
                 "storageClassName": "hcloud-volumes"
             },
+            "rbac": {
+                "namespaced": True      # allows deploying multiple instances on one cluster
+            }
         }
 
         return values
