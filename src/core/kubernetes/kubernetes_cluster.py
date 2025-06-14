@@ -8,7 +8,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fi
 
 from src.api.schemas.cluster import ClusterPool
 from src.core.apps.other import certmanager_chart, cluster_autoscaler_chart, longhorn_chart
-from src.core.exceptions import NamespaceTerminatedException
+from src.core.exceptions import NamespaceTerminatedError
 from src.core.kubernetes.chart_config import HelmChart
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.core.kubernetes.helm_client import HelmClient
@@ -36,7 +36,7 @@ class KubernetesCluster:
 
         return body['reason'], body['message']
 
-    @retry(retry=retry_if_exception_type(NamespaceTerminatedException), wait=wait_fixed(10), stop=stop_after_attempt(10), reraise=True)
+    @retry(retry=retry_if_exception_type(NamespaceTerminatedError), wait=wait_fixed(10), stop=stop_after_attempt(10), reraise=True)
     def create_namespace(self, namespace: str, skip_if_exists: bool = True):
         try:
             self._client.create_namespace(namespace)
@@ -49,13 +49,13 @@ class KubernetesCluster:
             if reason in ('AlreadyExists', 'NamespaceTerminating'):
                 if "object is being deleted" in message or "is being terminated" in message:
                     self._logger.warning('Namespace is being deleted, retrying...')
-                    raise NamespaceTerminatedException
+                    raise NamespaceTerminatedError from e
                 else:
                     if skip_if_exists:
                         self._logger.warning(f'Namespace {namespace} already exists, skipping creation')
                         return
                     else:
-                        raise e
+                        raise
 
     async def install_or_upgrade_chart(self, helm_chart: HelmChart, values: dict[str, Any] = None, namespace: str = None):
         values = values or {}
@@ -80,7 +80,7 @@ class KubernetesCluster:
         except Exception as e:
             msg = f"Failed to get chart: {e}"
             self._logger.exception(msg, exc_info=False)
-            raise ValueError(msg)
+            raise ValueError(msg) from e
 
         try:
             if helm_chart.is_oci:
@@ -108,7 +108,7 @@ class KubernetesCluster:
         except Exception as e:
             msg = f"Failed to install chart: {e}"
             self._logger.exception(msg, exc_info=False)
-            raise ValueError(msg)
+            raise ValueError(msg) from e
 
         self._logger.info(f"{helm_chart.name} installation complete: {result.status}")
 
@@ -151,7 +151,7 @@ class KubernetesCluster:
 
         self._add_acme_certificate_issuer()
         self.create_certificate(certificate_name='main-certificate', domain_name=domain_name,
-                                   secret_name="main-certificate-tls", namespace='kube-system')
+                                   secret_name="main-certificate-tls", namespace='kube-system')     # noqa: S106 (not a secret)
 
     async def install_clusterautoscaler(self, provider_token: str, cluster_config: ClusterConfiguration, cloud_init: str):
         self._logger.info("Installing ClusterAutoscaler")
@@ -191,8 +191,8 @@ class KubernetesCluster:
             self._logger.exception(f"Failed to apply Traefik custom config: {e}", exc_info=False)
 
         encrypted_password = encrypt_password(username, password)
-        dashboard_creds_secret_name = 'traefik-dashboard-creds-secret'
-        dashboard_creds_secret_namespace = 'kube-system'
+        dashboard_creds_secret_name = 'traefik-dashboard-creds-secret'  # noqa: S105 (not a secret)
+        dashboard_creds_secret_namespace = 'kube-system'    # noqa: S105 (not a secret)
         middleware_name = 'traefik-dashboard-auth-middleware'
 
         self.create_secret(dashboard_creds_secret_name, dashboard_creds_secret_namespace, {'users': encrypted_password})
@@ -285,7 +285,7 @@ class KubernetesCluster:
     def create_secret(self, secret_name: str, namespace: str, data: dict[str, str], secret_type: str | None = None):
         self.create_namespace(namespace)
 
-        if secret_type == 'docker-registry':
+        if secret_type == 'docker-registry':    # noqa: S105 (not a secret)
             self._client.create_docker_registry_secret(secret_name, data['url'], data['username'], data['password'], namespace)
         else:
             self._client.create_secret(secret_name, namespace, data)

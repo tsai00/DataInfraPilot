@@ -106,10 +106,7 @@ async def check_endpoint_existence(
 ):
     existing_endpoints = cluster_manager.get_existing_endpoints(cluster_id)
 
-    if endpoint.value in existing_endpoints[endpoint.access_type]:
-        return True
-
-    return False
+    return endpoint.value in existing_endpoints[endpoint.access_type]
 
 
 @router.post("/clusters/{cluster_id}/deployments/{deployment_id}", response_model=dict, status_code=status.HTTP_202_ACCEPTED)
@@ -188,17 +185,17 @@ async def proxy_health_check(
         raise HTTPException(
             status_code=e.response.status_code,
             detail=f"Target service returned error: {e.response.text}"
-        )
+        ) from e
     except httpx.RequestError as e:
         logger.exception(f"Network error when connecting to {target_url}: {e}", exc_info=False)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Could not connect to target service: {e}"
-        )
+        ) from e
     except Exception as e:
         logger.exception(f"An unexpected error occurred while proxying {target_url}: {e}", exc_info=False)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred: {e}"
-        )
+        ) from e
 

@@ -1,4 +1,3 @@
-import os
 import tempfile
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -42,12 +41,12 @@ class TemplateLoader:
     def _search_template(self, template_full_path: str) -> Template:
         try:
             return self._environment.get_template(template_full_path)
-        except TemplateNotFound:
+        except TemplateNotFound as e:
             self._logger.exception(f"Template '{template_full_path}' not found.", exc_info=False)
             raise TemplateNotFound(
                 f"Template '{template_full_path}' not found. "
                 "Please ensure the template file exists in the correct path relative to the 'templates' directory."
-            )
+            ) from e
 
     def get_template(self, template_name: str, template_module: str | None = None) -> Path:
         resolved_template_module = self._validate_template_module(template_module)
@@ -91,23 +90,22 @@ class TemplateLoader:
 
         temp_file_path = None
         try:
-            temp_file_object = tempfile.NamedTemporaryFile(
+            with tempfile.NamedTemporaryFile(
                 mode='w',
                 delete=False,
                 suffix='.tmp',
                 prefix='rendered_template_',
                 encoding='utf-8'
-            )
-            temp_file_path = temp_file_object.name
+            ) as temp_file_object:
+                temp_file_path = temp_file_object.name
 
-            temp_file_object.write(rendered_content)
-            temp_file_object.close()
+                temp_file_object.write(rendered_content)
 
             yield Path(temp_file_object.name)
 
         finally:
-            if temp_file_path and os.path.exists(temp_file_path):
-                os.remove(temp_file_path)
+            if temp_file_path:
+                Path(temp_file_path).unlink(missing_ok=True)
 
 
 template_loader = TemplateLoader()

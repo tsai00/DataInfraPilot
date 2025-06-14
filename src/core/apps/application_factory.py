@@ -8,7 +8,7 @@ from src.core.apps.base_application import BaseApplication
 @dataclass(frozen=True)
 class ApplicationMetadata:
     username_key: str = 'username'
-    password_key: str = 'password'
+    password_key: str = 'password'      # noqa: S105 (not a secret)
 
 
 class ApplicationFactory:

@@ -10,7 +10,7 @@ from src.api.schemas.deployment import DeploymentCreateSchema
 from src.api.schemas.volume import VolumeCreateSchema
 from src.core.apps.application_factory import ApplicationFactory
 from src.core.apps.base_application import AccessEndpointType
-from src.core.exceptions import ResourceUnavailableException
+from src.core.exceptions import ResourceUnavailableError
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.core.kubernetes.deployment_status import DeploymentStatus
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
@@ -74,7 +74,7 @@ class ClusterManager:
                     password=cluster_config.additional_components.traefik_dashboard.password,
                     enable_https=True,
                     domain_name=cluster_config.domain_name,
-                    secret_name='main-certificate-tls'
+                    secret_name='main-certificate-tls'  # noqa: S106 (not a secret)
                 )
             elif cluster_config.additional_components.traefik_dashboard.enabled:
                 cluster.expose_traefik_dashboard(
@@ -87,7 +87,7 @@ class ClusterManager:
             cluster.cordon_node(f"{cluster_config.name}-control-plane-node-1")
 
             self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.RUNNING, "kubeconfig_path": str(cluster.kubeconfig_path), 'access_ip': cluster.access_ip})
-        except ResourceUnavailableException as e:
+        except ResourceUnavailableError as e:
             error_message = f'{str(e)}. Right now Hetzner does not have available machines for selected type/region. Please try removing the cluster and creating it again later or choose VM of different type / location.'
             self.storage.update_cluster(cluster_id, {"status": DeploymentStatus.FAILED, "error_message": error_message})
         except Exception as e:
@@ -161,7 +161,7 @@ class ClusterManager:
         self.storage.delete_volume(volume_id)
 
     async def create_deployment(self, cluster_id: int, deployment_create: DeploymentCreateSchema):
-        volume_requirements = deployment_create.volumes or []
+        #volume_requirements = deployment_create.volumes or []
         node_pool = deployment_create.node_pool if deployment_create.node_pool != "noselection" else None
 
         deployment_config = deployment_create.config.copy()

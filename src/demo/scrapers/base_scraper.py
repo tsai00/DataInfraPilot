@@ -239,7 +239,7 @@ class BaseScraper(ABC):
                     self.scraper_run_metadata.pages_total += sub_scrape_total_pages
                 except Exception as e:
                     self._logger.exception(f"Error during asynchronous sub-scrape with parameters {params_combo}: {e}", exc_info=True)
-                    raise ValueError(f"Error during asynchronous sub-scrape with parameters {params_combo}: {e}")
+                    raise ValueError(f"Error during asynchronous sub-scrape with parameters {params_combo}: {e}") from e
         else:
             self._logger.debug(f"Processing standard (non-dynamic) asynchronous scrape for {self.scraper_name}")
             items, total_items, total_pages = await self._process_pagination_async(

@@ -16,7 +16,7 @@ def main() -> None:
 
     project, listing_type, batch_id = parse_args()
 
-    TransformationClass = load_transformation_component(project)
+    TransformationClass = load_transformation_component(project)    # noqa: N806 (keep upper case for better visibility)
 
     raw_data_path = construct_raw_parquet_data_adls_path(project, listing_type, batch_id)
     transformed_data_path = construct_transformed_parquet_data_adls_path(project, listing_type, batch_id)
@@ -34,9 +34,9 @@ def main() -> None:
             df_transformed.to_excel(transformed_data_path[transformed_data_path.rindex('/')+1:].replace('.parquet', '.xlsx'))
 
         except TransformationError as e:
-            raise ValueError(f'Transformation for {project} ({listing_type}) failed: {e}')
+            raise ValueError(f'Transformation for {project} ({listing_type}) failed: {e}') from e
         except Exception as e:
-            raise ValueError(f'Unknown exception while transforming data for {project} ({listing_type}): {e}')
+            raise ValueError(f'Unknown exception while transforming data for {project} ({listing_type}): {e}') from e
 
         adls_storage.upload_df_to_parquet(df_transformed, path=transformed_data_path)
 

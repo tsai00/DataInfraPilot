@@ -18,7 +18,7 @@ class GrafanaApplication(BaseApplication):
         version="8.12.1",
     )
 
-    credentials_secret_name = "grafana"
+    credentials_secret_name = "grafana"     # noqa: S105 (not a secret)
 
     def __init__(self, config: GrafanaConfig):
         self._config = config

@@ -1,6 +1,6 @@
 import io
 import json
-from typing import TypeAlias
+from types import UnionType
 
 import pandas as pd
 from azure.core.exceptions import AzureError, ClientAuthenticationError, ResourceNotFoundError
@@ -9,7 +9,7 @@ from azure.storage.blob import BlobServiceClient
 
 from src.demo.storage.base_storage import BaseStorage
 
-ADLSIOType: TypeAlias = dict | str | bytes | io.BytesIO
+ADLSIOType: UnionType = dict | str | bytes | io.BytesIO
 
 
 class ADLSStorage(BaseStorage[ADLSIOType]):

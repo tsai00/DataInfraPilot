@@ -69,7 +69,7 @@ class KubernetesClient:
                 manifest = yaml.safe_load(path_to_yaml.read_text())
                 self._apply_simple_item(manifest)
             else:
-                manifest = [x for x in yaml.safe_load_all(path_to_yaml.read_text())]
+                manifest = list(yaml.safe_load_all(path_to_yaml.read_text()))
                 utils.create_from_yaml(self._clients.api, yaml_objects=manifest)
 
     def _apply_simple_item(self, manifest: dict, verbose: bool = False):
@@ -96,7 +96,7 @@ class KubernetesClient:
             resp = self._clients.core.read_namespaced_pod(name=pod, namespace=namespace)
         except ApiException as e:
             if e.status != 404:
-                raise ValueError(f"Unknown error during command execution: {e}")
+                raise ValueError(f"Unknown error during command execution: {e}") from e
             self._logger.exception(f"Pod '{pod}' in namespace '{namespace}' not found.", exc_info=False)
             return None, f"Pod '{pod}' not found."
 
@@ -162,7 +162,7 @@ class KubernetesClient:
             api_version="v1",
             data=data,
             kind="Secret",
-            metadata=dict(name=secret_name, namespace=namespace),
+            metadata={'name': 'secret_name', 'namespace': 'namespace'},
             type="kubernetes.io/dockerconfigjson",
         )
 
@@ -193,4 +193,4 @@ class KubernetesClient:
                 msg = f"Error retrieving secret '{secret_name}': {e}"
 
             self._logger.exception(msg, exc_info=False)
-            raise ValueError(msg)
+            raise ValueError(msg) from e

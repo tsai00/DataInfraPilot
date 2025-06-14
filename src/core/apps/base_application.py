@@ -80,20 +80,19 @@ class BaseApplication(ABC):
     @abstractmethod
     def get_available_versions(cls) -> list[str]: ...
 
-    def get_volume_requirements(self) -> list: ...
+    @classmethod
+    @abstractmethod
+    def get_volume_requirements(cls) -> list: ...
 
     @classmethod
     @abstractmethod
-    def get_accessible_endpoints(cls) -> list[AccessEndpoint]:
-        pass
+    def get_accessible_endpoints(cls) -> list[AccessEndpoint]: ...
 
     @abstractmethod
-    def _generate_endpoint_helm_values(self, endpoint_config: AccessEndpointConfig, cluster_base_ip: str, namespace: str) -> dict[str, Any]:
-        pass
+    def _generate_endpoint_helm_values(self, endpoint_config: AccessEndpointConfig, cluster_base_ip: str, namespace: str) -> dict[str, Any]: ...
 
     @abstractmethod
-    def get_ingress_helm_values(self, access_endpoint_configs: list[AccessEndpointConfig], cluster_base_ip: str, namespace: str) -> dict[str, Any]:
-        pass
+    def get_ingress_helm_values(self, access_endpoint_configs: list[AccessEndpointConfig], cluster_base_ip: str, namespace: str) -> dict[str, Any]: ...
 
     def _deep_merge_dicts(self, dict1: dict, dict2: dict):
         for k, v in dict2.items():
@@ -112,11 +111,8 @@ class BaseApplication(ABC):
             if '/' not in endpoint_config.value:
                 raise ValueError(
                     f"Domain path for {endpoint_config.name} must include a domain (e.g., mydomain.com/path).")
-        elif endpoint_config.access_type == AccessEndpointType.CLUSTER_IP_PATH:
-            if not endpoint_config.value.startswith('/'):
-                raise ValueError(f"Cluster IP path for {endpoint_config.name} must start with '/'.")
-
-    def validate_volume_requirements(self, volume_requirements: list) -> None: ...
+        elif endpoint_config.access_type == AccessEndpointType.CLUSTER_IP_PATH and not endpoint_config.value.startswith('/'):
+            raise ValueError(f"Cluster IP path for {endpoint_config.name} must start with '/'.")
 
     @classmethod
     @abstractmethod

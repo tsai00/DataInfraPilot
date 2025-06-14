@@ -15,7 +15,7 @@ from hcloud.servers import ServerCreatePublicNetwork
 from hcloud.ssh_keys import SSHKey
 
 from src.core.config import PATH_TO_K3S_YAML_CONFIGS
-from src.core.exceptions import ProjectNotEmptyException, ResourceUnavailableException
+from src.core.exceptions import ProjectNotEmptyError, ResourceUnavailableError
 from src.core.kubernetes.configuration import ClusterConfiguration
 from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.providers.base_provider import BaseProvider
@@ -92,7 +92,7 @@ class HetznerProvider(BaseProvider):
     async def _install_k3s(self, ip, username, content):
         try:
             async with asyncssh.connect(ip, username=username, client_keys=[self._ssh_private_key_path], known_hosts=None) as ssh:
-                result = await ssh.run(content, check=True)
+                await ssh.run(content, check=True)
 
                 self._logger.info("K3s installed successfully.")
         except Exception as e:
@@ -160,7 +160,7 @@ class HetznerProvider(BaseProvider):
                 self._logger.warning(f'Server with name "{name}" already exists')
             elif e.code == 'resource_unavailable':
                 self._logger.exception(f'Failed to get server with name "{name}"', exc_info=False)
-                raise ResourceUnavailableException(f"Resource {name} unavailable")
+                raise ResourceUnavailableError(f"Resource {name} unavailable") from e
 
             raise
 
@@ -192,9 +192,9 @@ class HetznerProvider(BaseProvider):
             servers = self.client.servers.get_all()
         except APIException as e:
             if e.code == 'unauthorized':
-                raise ValueError('Wrong Hetzner token provided')
+                raise ValueError('Wrong Hetzner token provided') from e
             else:
-                raise e
+                raise
 
         if servers:
             self._logger.warning(f'Project is not empty, found {len(servers)} servers')
@@ -204,7 +204,7 @@ class HetznerProvider(BaseProvider):
 
     async def create_cluster(self, cluster_config: ClusterConfiguration) -> KubernetesCluster:
         if not self._can_create_cluster():
-            raise ProjectNotEmptyException('Project is not empty, please delete existing resources first')
+            raise ProjectNotEmptyError('Project is not empty, please delete existing resources first')
 
         k3s_token = generate_password(20)
         ssh_public_key_path = self._ssh_public_key_path
@@ -326,7 +326,7 @@ class HetznerProvider(BaseProvider):
 
     async def create_volume(self, name: str, size: int, region: str | None = None):
         try:
-            volume = self.client.volumes.create(
+            self.client.volumes.create(
                 name=name,
                 size=size,
                 location=Location(name=region or "fsn1"),
@@ -334,7 +334,7 @@ class HetznerProvider(BaseProvider):
         except APIException as e:
             # TODO: add general exception handler, mapping Hetzner error (uniqueness_error, protected, ...)
             if e.code == 'uniqueness_error':
-                raise ValueError(f'Volume with name "{name}" already exists')
+                raise ValueError(f'Volume with name "{name}" already exists') from e
 
             raise
 
@@ -357,7 +357,7 @@ class HetznerProvider(BaseProvider):
                 self._logger.warning('Could not delete resources, please remove them manually from Hetzner console')
                 return
             else:
-                raise e
+                raise
 
         for x in servers + placement_groups + networks + ssh_keys:
             try:
@@ -367,14 +367,14 @@ class HetznerProvider(BaseProvider):
                 if e.code == 'not_found':
                     self._logger.warning(f'Cannot find resource {x} (might have been already deleted)')
                 else:
-                    raise e
+                    raise
 
     def delete_volume(self, volume_name: str):
         try:
             volume = self.client.volumes.get_by_name(volume_name)
         except Exception as e:
             # TODO: handle non existing volume
-            raise ValueError(f'Error while deleting volume: {e}')
+            raise ValueError(f'Error while deleting volume: {e}') from e
 
         if volume:
             volume.delete()
@@ -383,6 +383,6 @@ class HetznerProvider(BaseProvider):
         try:
             volumes = self.client.volumes.get_all()
         except Exception as e:
-            raise ValueError(f'Error while fetching volumes: {e}')
+            raise ValueError(f'Error while fetching volumes: {e}') from e
 
         return volumes

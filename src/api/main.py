@@ -50,7 +50,7 @@ async def register_applications():
         app_id=2,
         app_class=GrafanaApplication,
         config_class=GrafanaConfig,
-        metadata=ApplicationMetadata(username_key='admin-user', password_key='admin-password')
+        metadata=ApplicationMetadata(username_key='admin-user', password_key='admin-password')  # noqa: S106 (not a secret)
     )
     ApplicationFactory.register_application(
         app_id=3,

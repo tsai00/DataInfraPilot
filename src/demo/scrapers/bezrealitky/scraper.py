@@ -68,8 +68,8 @@ class BezrealitkyScraper(BaseScraper):
         except (KeyError, json.JSONDecodeError) as e:
             self._logger.exception(
                 f"Failed to parse response for page {response.url}: {e}. Response text: {response.text} -> Retrying...")
-            raise ScraperParsingError('Failed to parse response')
+            raise ScraperParsingError('Failed to parse response') from e
         except Exception as e:
             self._logger.exception(
                 f"An unexpected error occurred while parsing page {response.url}: {e}. Response text: {response.text[:500]}... -> Retrying...")
-            raise ScraperParsingError('An unexpected error occurred while parsing response')
+            raise ScraperParsingError('An unexpected error occurred while parsing response') from e

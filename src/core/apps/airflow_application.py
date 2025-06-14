@@ -1,4 +1,3 @@
-import base64
 import re
 from enum import StrEnum
 from functools import lru_cache
@@ -52,7 +51,7 @@ class AirflowApplication(BaseApplication):
         version="1.15.0",
     )
 
-    credentials_secret_name = "airflow-creds"
+    credentials_secret_name = "airflow-creds"   # noqa: S105 (not a secret)
 
     def __init__(self, config: AirflowConfig):
         self._config = config
@@ -172,7 +171,7 @@ class AirflowApplication(BaseApplication):
                     "hosts": web_ui_config['hosts']
                 },
                 "flower": {
-                    "enabled": True if flower_ui_access_endpoint else False,
+                    "enabled": bool(flower_ui_access_endpoint),
                     "ingressClassName": 'traefik',
                     "pathType": 'Prefix',
                     "annotations": common_annotations,
@@ -214,7 +213,7 @@ class AirflowApplication(BaseApplication):
     @lru_cache
     def get_available_versions(cls) -> list[str]:
         try:
-            r = requests.get('https://api.github.com/repos/apache/airflow/releases').json()
+            r = requests.get('https://api.github.com/repos/apache/airflow/releases', timeout=15).json()
         except Exception as e:
             cls._logger.exception(f'Failed to retrieve available versions for Airflow: {e}')
             return ['2.11.0']
@@ -222,7 +221,7 @@ class AirflowApplication(BaseApplication):
 
     @property
     def chart_values(self) -> dict[str, Any]:
-        dags_repository_ssh_key_base64 = base64.b64encode(self._config.dags_repository_ssh_private_key.encode()).decode()
+        #dags_repository_ssh_key_base64 = base64.b64encode(self._config.dags_repository_ssh_private_key.encode()).decode()
 
         values = {
             "airflowVersion": self._config.version if not self._config.use_custom_image else "2.11.0",
@@ -344,17 +343,17 @@ class AirflowApplication(BaseApplication):
                     "username": "admin",
                     "password": generate_password(10)
                 },
-                secret_type='regular',
+                secret_type='regular',  # noqa: S106 (not a secret)
             ),
             CreateSecretAction(
                 name="CreatePrivateRegistryCredentialsSecret",
-                secret_name="private-registry-creds",
+                secret_name="private-registry-creds",   # noqa: S106 (not a secret)
                 secret_data={
                     "url": self._config.private_registry_url[:self._config.private_registry_url.index('/', 8)] if self._config.private_registry_url else None,
                     "username": self._config.private_registry_username,
                     "password": self._config.private_registry_password
                 },
-                secret_type='docker-registry',
+                secret_type='docker-registry',  # noqa: S106 (not a secret)
                 condition=self._config.use_custom_image
             )
         ]

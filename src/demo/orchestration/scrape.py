@@ -21,7 +21,7 @@ async def main() -> None:
 
     project, listing_type, batch_id = parse_args()
 
-    ScraperClass = load_scraper_component(project)
+    ScraperClass = load_scraper_component(project)  # noqa: N806 (keep upper case for better visibility)
 
     try:
         async with ScraperClass(listing_type=listing_type) as async_scraper:
@@ -30,9 +30,9 @@ async def main() -> None:
             run_metadata: ScraperRunMetadata = async_scraper.scraper_run_metadata
 
     except ScraperError as e:
-        raise ValueError(f'Scraper for {project} ({listing_type}) failed: {e}')
+        raise ValueError(f'Scraper for {project} ({listing_type}) failed: {e}') from e
     except Exception as e:
-        raise ValueError(f'Unknown exception while scraping {project} ({listing_type}): {e}')
+        raise ValueError(f'Unknown exception while scraping {project} ({listing_type}): {e}') from e
 
     with PostgresStorage(db_name=pg_db_name, user=pg_user, password=pg_password, host=pg_host) as postgres_storage:
         run_metadata_df = pd.DataFrame([run_metadata.to_dict()])

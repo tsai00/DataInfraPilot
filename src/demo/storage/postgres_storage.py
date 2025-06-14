@@ -66,7 +66,7 @@ class PostgresStorage(BaseStorage[pd.DataFrame]):
         if not isinstance(data, pd.DataFrame):
             # The BaseStorage generic type T already handles this at a type-hinting level,
             # but keeping this for runtime check
-            raise ValueError('PostgresStorage currently only supports uploading DataFrame data')
+            raise TypeError('PostgresStorage currently only supports uploading DataFrame data')
 
         if data.empty:
             self._logger.warning(f"Attempted to upload an empty DataFrame to PostgreSQL table '{path}'. Skipping.")
@@ -76,17 +76,17 @@ class PostgresStorage(BaseStorage[pd.DataFrame]):
             rows_before = 0
             if if_exists == 'append':
                 with self.engine.connect() as connection:
-                    table_exists_query = text(f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '{path}');")
+                    table_exists_query = text(f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '{path}');")  # noqa: S608 (no user input)
                     table_exists = connection.execute(table_exists_query).scalar()
                     if table_exists:
-                        result = connection.execute(text(f"SELECT COUNT(*) FROM {path}")).scalar()
+                        result = connection.execute(text(f"SELECT COUNT(*) FROM {path}")).scalar()    # noqa: S608 (no user input)
                         if result is not None:
                             rows_before = result
 
             data.to_sql(path, self.engine, if_exists=if_exists, index=False)
             rows_after = 0
             with self.engine.connect() as connection:
-                result = connection.execute(text(f"SELECT COUNT(*) FROM {path}")).scalar()
+                result = connection.execute(text(f"SELECT COUNT(*) FROM {path}")).scalar()  # noqa: S608 (no user input)
                 if result is not None:
                     rows_after = result
 
