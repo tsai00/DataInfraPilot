@@ -96,13 +96,16 @@ class AirflowApplication(BaseApplication):
         }
 
         web_ui_access_endpoint = [x for x in access_endpoint_configs if x.name == "web-ui"][0]
+        web_ui_config = self._generate_endpoint_helm_values(web_ui_access_endpoint, cluster_base_ip, namespace)
+
         flower_ui_access_endpoint = [x for x in access_endpoint_configs if x.name == "flower-ui"]
 
-        if flower_ui_access_endpoint:
+        if flower_ui_access_endpoint and self._config.executor == AirflowExecutor.CeleryExecutor:
             flower_ui_access_endpoint = flower_ui_access_endpoint[0]
 
-        web_ui_config = self._generate_endpoint_helm_values(web_ui_access_endpoint, cluster_base_ip, namespace)
-        flower_ui_config = self._generate_endpoint_helm_values(flower_ui_access_endpoint, cluster_base_ip, namespace)
+            flower_ui_config = self._generate_endpoint_helm_values(flower_ui_access_endpoint, cluster_base_ip, namespace)
+        else:
+            flower_ui_config = None
 
         return {
             "config": {
@@ -124,8 +127,8 @@ class AirflowApplication(BaseApplication):
                     "ingressClassName": 'traefik',
                     "pathType": 'Prefix',
                     "annotations": common_annotations,
-                    "path": flower_ui_config['path'],
-                    "hosts": flower_ui_config['hosts']
+                    "path": flower_ui_config['path'] if flower_ui_access_endpoint and flower_ui_config else None,
+                    "hosts": flower_ui_config['hosts'] if flower_ui_access_endpoint and flower_ui_config else None
                 }
             }
         }
@@ -156,8 +159,7 @@ class AirflowApplication(BaseApplication):
         else:
             raise ValueError(f"Unsupported access type: {endpoint_config.access_type}")
 
-        return value_copy
-
+        return {'path': path_value, 'hosts': hosts, 'base_url': base_url}
 
     @classmethod
     @lru_cache()
