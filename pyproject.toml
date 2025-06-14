@@ -118,9 +118,6 @@ ignore = [
     "TRY301", # Abstract `raise` to an inner function
 ]
 
-[tool.ruff.flake8-bugbear]
-extend-immutable-calls = ["fastapi.Depends"]
-
 [tool.ruff.format]
 quote-style = "single"
 line-ending = "auto"
