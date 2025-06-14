@@ -290,7 +290,7 @@ class AirflowApplication(BaseApplication):
                 'args': [
                     'bash',
                     '-c',
-                    'exec \\\nairflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "users create" "create_user" }} "$@"',
+                    'exec \\\nairflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "users create" "create_user" }} "$@"',  # noqa: E501 # fmt: skip
                     '--',
                     '-r',
                     '{{ .Values.webserver.defaultUser.role }}',
