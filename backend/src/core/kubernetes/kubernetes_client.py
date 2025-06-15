@@ -11,7 +11,6 @@ from kubernetes.client import ApiException, Configuration
 from kubernetes.dynamic.client import DynamicClient
 from kubernetes.dynamic.exceptions import NotFoundError
 from kubernetes.stream import stream
-
 from src.core.utils import setup_logger
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -66,7 +65,7 @@ class KubernetesClient:
             utils.create_from_directory(self._clients.custom_objects, str(path_to_yaml))
         else:
             if with_custom_objects:
-                self._logger.info('Applying custom objects...')
+                self._logger.debug('Applying custom objects...')
                 manifest = yaml.safe_load(path_to_yaml.read_text())
                 self._apply_simple_item(manifest)
             else:

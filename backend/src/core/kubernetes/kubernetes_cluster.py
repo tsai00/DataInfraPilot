@@ -4,8 +4,6 @@ from pathlib import Path
 from typing import Any
 
 from kubernetes.client.exceptions import ApiException
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
-
 from src.api.schemas import ClusterPool
 from src.core.apps.other import certmanager_chart, cluster_autoscaler_chart, longhorn_chart
 from src.core.exceptions import NamespaceTerminatedError
@@ -16,6 +14,7 @@ from src.core.kubernetes.kubernetes_client import KubernetesClient
 from src.core.template_loader import template_loader
 from src.core.utils import encrypt_password, setup_logger
 from src.database.models import Cluster
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 
 class KubernetesCluster:
@@ -219,7 +218,7 @@ class KubernetesCluster:
                 self._client.install_from_yaml(rendered_template_file, with_custom_objects=True)
                 self._logger.info('Traefik basic auth middleware applied successfully!')
             except Exception:
-                self._logger.exception('Failed to apply Traefik basic auth middleware', exc_info=False)
+                self._logger.exception('Failed to apply Traefik basic auth middleware', exc_info=True)
 
         values = {
             'enable_https': enable_https,
@@ -279,7 +278,7 @@ class KubernetesCluster:
 
         try:
             self._client.install_from_yaml(path_to_template)
-            self._logger.info(f'{provider.capitalize()} Clod Controller installed successfully!')
+            self._logger.info(f'{provider.capitalize()} Cluod Controller installed successfully!')
         except Exception:
             self._logger.exception(f'Failed to install {provider.capitalize()} Cloud Controller', exc_info=False)
 
