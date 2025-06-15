@@ -24,7 +24,7 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin/uvicorn /usr/local/bin/uvicorn
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 
-COPY src/ /app/src
+COPY src /app/src
 
 EXPOSE 8000
 

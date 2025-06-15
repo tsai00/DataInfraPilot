@@ -64,7 +64,8 @@ class SparkApplication(BaseApplication):
     def get_resource_values(cls) -> dict:
         pass
 
-    def get_volume_requirements(self) -> list:
+    @classmethod
+    def get_volume_requirements(cls) -> list:
         return []
 
     @property

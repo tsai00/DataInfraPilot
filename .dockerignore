@@ -1,10 +1,10 @@
 .venv/
-.ruff_cache/
+backend/.ruff_cache/
 .idea/
 
 __pycache__
 
-output/
+backend/output/
 
 .git/
 .gitignore
@@ -17,13 +17,13 @@ output/
 .env
 .env.sample
 
-src/demo/.env
-src/demo/.env.sample
+backend/src/demo/.env
+backend/src/demo/.env.sample
 src/demo/orchestration/*.xlsx
 
 *.xlsx
 *.csv
 
-Dockerfile
+backend/Dockerfile
 
 .dockerignore

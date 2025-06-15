@@ -32,6 +32,10 @@ class GrafanaApplication(BaseApplication):
         return ['2.10.3']
 
     @classmethod
+    def get_volume_requirements(cls) -> list:
+        return []
+
+    @classmethod
     def get_accessible_endpoints(cls) -> list[AccessEndpoint]:
         return [
             AccessEndpoint(

@@ -390,7 +390,7 @@ requires-dist = [
     { name = "kubernetes", specifier = "==32.0.1" },
     { name = "openpyxl", marker = "extra == 'demo'", specifier = "==3.1.5" },
     { name = "pandas", specifier = "==2.2.3" },
-    { name = "pre-commit", specifier = ">=4.2.0" },
+    { name = "pre-commit", specifier = "==4.2.0" },
     { name = "psycopg2", marker = "extra == 'demo'", specifier = "==2.9.10" },
     { name = "pyarrow", marker = "extra == 'demo'", specifier = "==20.0.0" },
     { name = "pyhelm3", specifier = "==0.4.0" },
