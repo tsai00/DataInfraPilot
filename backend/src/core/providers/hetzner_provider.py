@@ -14,7 +14,6 @@ from hcloud.server_types import ServerType
 from hcloud.servers import ServerCreatePublicNetwork
 from hcloud.ssh_keys import SSHKey
 from hcloud.volumes import Volume
-
 from src.core.config import PATH_TO_K3S_YAML_CONFIGS
 from src.core.exceptions import ProjectNotEmptyError, ResourceUnavailableError
 from src.core.kubernetes.configuration import ClusterConfiguration
@@ -289,7 +288,7 @@ class HetznerProvider(BaseProvider):
         for s in [master_plane_node, *worker_nodes]:
             self._logger.info(f'Created server: {s["name"]} ({s["ip"]})')
 
-        local_config = Path(PATH_TO_K3S_YAML_CONFIGS, 'k3s-config-cluster-id.yaml')
+        local_config = Path(PATH_TO_K3S_YAML_CONFIGS, f'k3s-config-cluster-{cluster_config.name}.yaml')
 
         await self._download_kubeconfig(
             ip=master_plane_node['ip'],
