@@ -1,39 +1,63 @@
 
-
-import React, {  } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Application, ConfigOption } from "@/types";
 import ConfigOptionField from './ConfigOptionField';
 import { Separator } from '@/components/ui/separator';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { useClusterStore } from "@/store";
 
 interface AppConfigStepProps {
   selectedApp: Application;
   appModule: any;
   config: Record<string, any>;
   updateConfig: (optionId: string, value: any) => void;
+  clusterId: string;
 }
 
 const AppConfigStep: React.FC<AppConfigStepProps> = ({
     selectedApp,
     appModule,
     config,
-    updateConfig
+    updateConfig,
+    clusterId
 }) => {
+  const { clusters } = useClusterStore();
+  const [deploymentNameError, setDeploymentNameError] = useState<string>("");
+
+  // Find the current cluster
+  const currentCluster = clusters.find(c => c.id === clusterId);
+
+  // Check for duplicate deployment names
+  useEffect(() => {
+    if (config.deployment_name && currentCluster) {
+      const existingDeployment = currentCluster.deployments.find(
+        deployment => deployment.name.toLowerCase() === config.deployment_name.toLowerCase()
+      );
+
+      if (existingDeployment) {
+        setDeploymentNameError("A deployment with this name already exists in this cluster");
+      } else {
+        setDeploymentNameError("");
+      }
+    } else {
+      setDeploymentNameError("");
+    }
+  }, [config.deployment_name, currentCluster]);
 
   // Function to determine if conditional field should be shown
   const shouldShowField = (option: ConfigOption) => {
     if (option.conditional) {
       return config[option.conditional.field] === option.conditional.value;
     }
-    
+
     // Special case for Airflow Flower enabled field - only show if CeleryExecutor is selected
     if (option.id === 'flower_enabled' && selectedApp.short_name === 'airflow') {
       const isCeleryExecutor = config.executor === 'CeleryExecutor';
       console.log(`Checking field ${option.id}: isCeleryExecutor=${isCeleryExecutor}, executor=${config.executor}`);
       return isCeleryExecutor;
     }
-    
+
     return true;
   };
 
@@ -66,10 +90,15 @@ const AppConfigStep: React.FC<AppConfigStepProps> = ({
               value={config.deployment_name || ""}
               onChange={e => updateConfig("deployment_name", e.target.value)}
               placeholder={`e.g. ${selectedApp.name} (Staging)`}
+              className={deploymentNameError ? "border-red-500" : ""}
             />
-          <p className="text-xs text-muted-foreground">
-           Required: Name of deployment
-          </p>
+          {deploymentNameError ? (
+            <p className="text-xs text-red-500">{deploymentNameError}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+             Required: Name of deployment
+            </p>
+          )}
         </div>
         <div className="space-y-4">
         <h3 className="font-medium">Configuration Options</h3>
@@ -79,9 +108,9 @@ const AppConfigStep: React.FC<AppConfigStepProps> = ({
             .map((opt: ConfigOption) => {
                 console.log(`Rendering field: ${opt.id}, shouldShow: ${shouldShowField(opt)}`);
                 return (
-                    <ConfigOptionField 
-                        key={opt.id} 
-                        option={opt} 
+                    <ConfigOptionField
+                        key={opt.id}
+                        option={opt}
                         value={config[opt.id]}
                         updateConfig={updateConfig}
                         config={config}
@@ -96,4 +125,3 @@ const AppConfigStep: React.FC<AppConfigStepProps> = ({
 };
 
 export default AppConfigStep;
-

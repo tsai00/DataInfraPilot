@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -53,16 +53,20 @@ const UpdateConfigDialog: React.FC<UpdateConfigDialogProps> = ({
     [application.short_name]
   );
 
+  // Find the current cluster and deployment
+  const currentCluster = clusters.find(c => c.id === clusterId);
+  const currentDeployment = currentCluster?.deployments.find(d => d.id === appId);
+
   // Prepopulate config form values from currentConfig (deployed app)
   const [config, setConfig] = useState<Record<string, any>>(() => {
     // If configOptions have default values, fill them in on top of currentConfig
     const opts: ConfigOption[] =
       appModule?.configOptions || application.configOptions || [];
     let initial: Record<string, any> = {};
-    
+
     // Add deployment name
     initial.deployment_name = currentConfig?.name || "";
-    
+
     opts.forEach((option) => {
       if (currentConfig && currentConfig[option.id] !== undefined) {
         initial[option.id] = currentConfig[option.id];
@@ -70,7 +74,7 @@ const UpdateConfigDialog: React.FC<UpdateConfigDialogProps> = ({
         initial[option.id] = option.default;
       }
     });
-    
+
     // Airflow-specific legacy fields
     if (application.short_name === "airflow" || application.id === 1) {
       initial.airflowDagRepoUrl = currentConfig?.airflowDagRepoUrl || currentConfig?.dags_repository || "";
@@ -83,8 +87,29 @@ const UpdateConfigDialog: React.FC<UpdateConfigDialogProps> = ({
     return { ...initial };
   });
 
+  const [deploymentNameError, setDeploymentNameError] = useState<string>("");
+
   const clusterName =
     clusters.find((c) => c.id === clusterId)?.name || "this cluster";
+
+  // Check for duplicate deployment names (excluding current deployment)
+  useEffect(() => {
+    if (config.deployment_name && currentCluster && currentDeployment) {
+      const existingDeployment = currentCluster.deployments.find(
+        deployment =>
+          deployment.name.toLowerCase() === config.deployment_name.toLowerCase() &&
+          deployment.id !== currentDeployment.id // Exclude current deployment
+      );
+
+      if (existingDeployment) {
+        setDeploymentNameError("A deployment with this name already exists in this cluster");
+      } else {
+        setDeploymentNameError("");
+      }
+    } else {
+      setDeploymentNameError("");
+    }
+  }, [config.deployment_name, currentCluster, currentDeployment]);
 
   const updateConfig = (optionId: string, value: any) => {
     setConfig((prev) => {
@@ -105,6 +130,16 @@ const UpdateConfigDialog: React.FC<UpdateConfigDialogProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check for deployment name error
+    if (deploymentNameError) {
+      toast({
+        title: "Invalid deployment name",
+        description: deploymentNameError,
+        variant: "destructive",
+      });
+      return;
+    }
 
     const result = appModule.validateConfig(config);
 
@@ -163,10 +198,15 @@ const UpdateConfigDialog: React.FC<UpdateConfigDialogProps> = ({
                   value={config.deployment_name || ""}
                   onChange={e => updateConfig("deployment_name", e.target.value)}
                   placeholder="e.g. Airflow (Staging)"
+                  className={deploymentNameError ? "border-red-500" : ""}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Required: Name of deployment
-                </p>
+                {deploymentNameError ? (
+                  <p className="text-xs text-red-500">{deploymentNameError}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Required: Name of deployment
+                  </p>
+                )}
               </div>
             </Card>
             {configOptions
@@ -189,7 +229,7 @@ const UpdateConfigDialog: React.FC<UpdateConfigDialogProps> = ({
             >
               Cancel
             </Button>
-            <Button type="submit">Save changes</Button>
+            <Button type="submit" disabled={Boolean(deploymentNameError)}>Save changes</Button>
           </div>
         </form>
       </DialogContent>

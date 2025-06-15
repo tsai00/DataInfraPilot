@@ -74,6 +74,17 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
 
   const appModule = selectedApp ? appDeployModules[selectedApp.short_name] : undefined;
 
+  // Check for deployment name duplicates
+  const deploymentNameError = React.useMemo(() => {
+    if (config.deployment_name && cluster) {
+      const existingDeployment = cluster.deployments.find(
+        deployment => deployment.name.toLowerCase() === config.deployment_name.toLowerCase()
+      );
+      return existingDeployment ? "A deployment with this name already exists in this cluster" : "";
+    }
+    return "";
+  }, [config.deployment_name, cluster]);
+
   useEffect(() => {
     if (open) {
       setSelectedApp(null);
@@ -90,13 +101,13 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
   useEffect(() => {
     const fetchAccessEndpoints = async () => {
       if (!selectedApp) return;
-      
+
       try {
         setIsLoadingEndpoints(true);
         const endpoints = await getApplicationAccessEndpoints(selectedApp.id.toString());
         console.log("Fetched access endpoints:", endpoints);
         setAccessEndpoints(endpoints);
-        
+
         // Initialize endpoint configurations with defaults
         const initialConfigs: AccessEndpointConfig[] = endpoints.map(endpoint => ({
           name: endpoint.name,
@@ -160,10 +171,10 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
   };
 
   const updateVolumeSelection = (volumeType?: string, size?: number, name?: string) => {
-    setVolumeSelections(prev => prev.map(vol => 
-      vol.name === name 
-        ? { 
-            ...vol, 
+    setVolumeSelections(prev => prev.map(vol =>
+      vol.name === name
+        ? {
+            ...vol,
             size: size || vol.size,
             name: name || vol.name,
             volumeType: volumeType || vol.volume_type
@@ -178,11 +189,11 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
   const validateEndpoints = async (formattedEndpoints: AccessEndpointConfig[]): Promise<boolean> => {
     try {
       setIsValidatingEndpoints(true);
-      
+
       // Check each endpoint individually
       for (const endpoint of formattedEndpoints) {
         const exists = await checkEndpointExistence(clusterId, endpoint);
-        
+
         if (exists) {
           toast({
             title: "Endpoint conflict detected",
@@ -192,7 +203,7 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
           return false;
         }
       }
-      
+
       return true;
     } catch (error) {
       console.error("Failed to validate endpoints:", error);
@@ -218,6 +229,16 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
     }
 
     if (step === "configuration") {
+      // Check for deployment name error
+      if (deploymentNameError) {
+        toast({
+          title: "Invalid deployment name",
+          description: deploymentNameError,
+          variant: "destructive",
+        });
+        return;
+      }
+
       const result = appDeployModules[selectedApp.short_name].validateConfig(config);
 
       if (result !== true) {
@@ -287,7 +308,7 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
         if ((config.access_type === AccessEndpointType.DOMAIN_PATH || AccessEndpointType.CLUSTER_IP_PATH) && !formattedValue.startsWith('/')) {
           formattedValue = `/${formattedValue}`;
         }
-        
+
         // For subdomains, include the full domain name if it's not already included
         if (config.access_type === AccessEndpointType.SUBDOMAIN && cluster?.domainName) {
           if (!formattedValue.includes('.')) {
@@ -296,8 +317,8 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
         } else if (config.access_type === AccessEndpointType.DOMAIN_PATH && cluster?.domainName) {
           formattedValue = `${cluster.domainName}${formattedValue}`;
         }
-        
-        
+
+
         return {
           ...config,
           value: formattedValue
@@ -311,7 +332,7 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
       }
 
       setIsSubmitting(true);
-      
+
       let finalConfig = { ...config };
       if (isAirflow) {
         finalConfig = {
@@ -324,9 +345,9 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
       }
 
       createDeployment(
-        clusterId, 
-        selectedApp, 
-        finalConfig, 
+        clusterId,
+        selectedApp,
+        finalConfig,
         selectedNodePool,
         volumeSelections,
         formattedEndpoints
@@ -360,11 +381,11 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
         </DialogHeader>
 
         <div className="relative">
-          <StepProgress 
-            steps={steps} 
-            currentStep={steps.findIndex((s) => s.id === step) + 1} 
+          <StepProgress
+            steps={steps}
+            currentStep={steps.findIndex((s) => s.id === step) + 1}
           />
-          
+
           {step === "selection" ? (
             <AppSelectionStep
               applications={applications}
@@ -377,6 +398,7 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
               appModule={appModule}
               config={config}
               updateConfig={updateConfig}
+              clusterId={clusterId}
             />
           ) : step === "volumes" ? (
             <StorageConfigStep
@@ -419,7 +441,16 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
                 Cancel
               </Button>
             ) : (
-              <Button onClick={handleSubmit} disabled={!selectedApp || isSubmitting || isLoadingEndpoints || isValidatingEndpoints}>
+              <Button
+                onClick={handleSubmit}
+                disabled={
+                  !selectedApp ||
+                  isSubmitting ||
+                  isLoadingEndpoints ||
+                  isValidatingEndpoints ||
+                  Boolean(deploymentNameError && step === "configuration")
+                }
+              >
                 {isLoadingEndpoints ? "Loading..." : 
                  isValidatingEndpoints ? "Validating access endpoints..." :
                  step === "access" ? "Deploy Application" : "Next"}

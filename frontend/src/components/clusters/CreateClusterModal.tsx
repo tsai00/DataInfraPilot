@@ -54,23 +54,24 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
   open,
   onClose,
 }) => {
-  const { providers, createCluster } = useClusterStore();
+  const { providers, createCluster, clusters } = useClusterStore();
   const { toast: uiToast } = useToast();
-  
+
   const [currentStep, setCurrentStep] = useState(1);
   const [name, setName] = useState("");
+  const [nameError, setNameError] = useState("");
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const [version, setVersion] = useState(k3sVersions[0].value);
-  
+
   const [sshPrivateKeyPath, setSshPrivateKeyPath] = useState("~/.ssh/id_rsa");
   const [sshPublicKeyPath, setSshPublicKeyPath] = useState("~/.ssh/id_rsa.pub");
   const [providerApiToken, setProviderApiToken] = useState("");
-  
+
   const [controlPlane, setControlPlane] = useState<NodePool | null>(null);
-  
+
   const [nodePools, setNodePools] = useState<NodePool[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const [totalNodeCount, setTotalNodeCount] = useState(0);
   const [showNodeCountWarning, setShowNodeCountWarning] = useState(false);
   const [useDomainName, setUseDomainName] = useState(false);
@@ -91,10 +92,38 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
   // Reference for dialog content to scroll to top
   const dialogContentRef = useRef<HTMLDivElement>(null);
 
+  // Check if cluster name already exists
+  const checkClusterNameExists = (clusterName: string) => {
+    if (!clusterName.trim()) {
+      setNameError("");
+      return false;
+    }
+
+    const exists = clusters.some(cluster =>
+      cluster.name.toLowerCase() === clusterName.toLowerCase()
+    );
+
+    if (exists) {
+      setNameError("A cluster with this name already exists");
+      return true;
+    } else {
+      setNameError("");
+      return false;
+    }
+  };
+
+  // Handle name change with validation
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newName = e.target.value;
+    setName(newName);
+    checkClusterNameExists(newName);
+  };
+
   useEffect(() => {
     if (open) {
       setCurrentStep(1);
       setName("");
+      setNameError("");
       setSelectedProvider(null);
       setVersion(k3sVersions[0].value);
       setSshPrivateKeyPath("~/.ssh/id_rsa");
@@ -388,10 +417,10 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
 
   const nextStep = () => {
     if (currentStep === 1) {
-      if (!name.trim() || !selectedProvider) {
+      if (!name.trim() || !selectedProvider || nameError) {
         uiToast({
           title: "Missing information",
-          description: "Please fill in all required fields to continue.",
+          description: nameError || "Please fill in all required fields to continue.",
           variant: "destructive",
         });
         return;
@@ -687,13 +716,20 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                 <Input
                   id="name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={handleNameChange}
                   placeholder="e.g., production-data-cluster"
-                  className="mb-1"
+                  className={`mb-1 ${nameError ? 'border-red-500 focus:border-red-500' : ''}`}
                 />
-                <p className="text-xs text-muted-foreground">
-                  A unique name to identify your cluster
-                </p>
+                {nameError ? (
+                  <p className="text-xs text-red-500 mt-1 flex items-center">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    {nameError}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    A unique name to identify your cluster
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1474,7 +1510,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
               {renderNoWorkerPoolWarning()}
             </div>
           )}
-          
+
           <DialogFooter className="mt-6">
             {currentStep > 1 && (
               <Button variant="outline" onClick={prevStep} disabled={isSubmitting}>
@@ -1482,9 +1518,11 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
               </Button>
             )}
             {currentStep < 5 ? (
-              <Button onClick={nextStep}>Next</Button>
+              <Button onClick={nextStep} disabled={nameError && currentStep === 1}>
+                Next
+              </Button>
             ) : (
-              <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-green-600 hover:bg-green-700">
+              <Button onClick={handleSubmit} disabled={isSubmitting || nameError} className="bg-green-600 hover:bg-green-700">
                 Create Cluster
               </Button>
             )}
