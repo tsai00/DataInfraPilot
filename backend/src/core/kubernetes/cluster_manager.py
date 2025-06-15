@@ -92,6 +92,8 @@ class ClusterManager:
                     'access_ip': cluster.access_ip,
                 },
             )
+
+            self._logger.info(f'Cluster {cluster_db.name} created')
         except ResourceUnavailableError as e:
             error_message = (
                 f'{e!s}. Right now Hetzner does not have available machines for selected type/region. '
@@ -112,8 +114,6 @@ class ClusterManager:
             self.storage.update_cluster(
                 cluster_id, {'status': DeploymentStatus.FAILED, 'error_message': error_msg_formatted}
             )
-
-        self._logger.info(f'Cluster {cluster_db.name} created')
 
     async def create_volume(self, provider: str, volume_config: VolumeCreateSchema) -> None:
         provider = ProviderFactory.get_provider(provider)
