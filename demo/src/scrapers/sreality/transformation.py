@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from src.demo.scrapers.base_transformation import BaseTransformation
+from src.scrapers.base_transformation import BaseTransformation
 
 
 class SrealityTransformation(BaseTransformation):

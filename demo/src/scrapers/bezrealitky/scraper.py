@@ -3,7 +3,7 @@ from typing import Literal
 
 import httpx
 
-from src.demo.scrapers.base_scraper import (
+from src.scrapers.base_scraper import (
     BaseScraper,
     RequestMethod,
     ScraperPageResponse,

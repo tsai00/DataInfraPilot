@@ -5,9 +5,9 @@ from datetime import datetime
 from functools import partial
 from typing import Any, Literal
 
-from src.demo.scrapers.base_scraper import BaseScraper
-from src.demo.scrapers.base_transformation import BaseTransformation
-from src.demo.utils import setup_logger
+from src.scrapers.base_scraper import BaseScraper
+from src.scrapers.base_transformation import BaseTransformation
+from src.utils import setup_logger
 
 logger = setup_logger('OrchestrationUtils')
 
@@ -42,7 +42,7 @@ def construct_parquet_data_adls_path(
 
 
 def load_component_class(project_name: str, component_type: str) -> type[Any]:
-    module_path = f'src.demo.scrapers.{project_name}.{component_type}'
+    module_path = f'src.scrapers.{project_name}.{component_type}'
 
     if component_type == 'scraper':
         expected_base_class = BaseScraper

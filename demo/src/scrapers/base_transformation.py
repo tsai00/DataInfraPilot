@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 
-from src.demo.utils import setup_logger
+from src.utils import setup_logger
 
 
 class TransformationError(Exception):

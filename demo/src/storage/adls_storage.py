@@ -7,7 +7,7 @@ from azure.core.exceptions import AzureError, ClientAuthenticationError, Resourc
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 
-from src.demo.storage.base_storage import BaseStorage
+from src.storage.base_storage import BaseStorage
 
 ADLSIOType: UnionType = dict | str | bytes | io.BytesIO
 

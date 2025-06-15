@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from types import TracebackType
 from typing import Generic, TypeVar
 
-from src.demo.utils import setup_logger
+from src.utils import setup_logger
 
 T = TypeVar('T')
 

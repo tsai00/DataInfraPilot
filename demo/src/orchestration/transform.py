@@ -1,13 +1,13 @@
 import os
 
-from src.demo.orchestration.utils import (
+from src.orchestration.utils import (
     construct_raw_parquet_data_adls_path,
     construct_transformed_parquet_data_adls_path,
     load_transformation_component,
     parse_args,
 )
-from src.demo.scrapers.base_transformation import TransformationError
-from src.demo.storage.adls_storage import ADLSStorage
+from src.scrapers.base_transformation import TransformationError
+from src.storage.adls_storage import ADLSStorage
 
 
 def main() -> None:

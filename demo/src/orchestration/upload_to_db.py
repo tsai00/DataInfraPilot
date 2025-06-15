@@ -1,8 +1,8 @@
 import os
 
-from src.demo.orchestration.utils import construct_transformed_parquet_data_adls_path, parse_args
-from src.demo.storage.adls_storage import ADLSStorage
-from src.demo.storage.postgres_storage import PostgresStorage
+from src.orchestration.utils import construct_transformed_parquet_data_adls_path, parse_args
+from src.storage.adls_storage import ADLSStorage
+from src.storage.postgres_storage import PostgresStorage
 
 
 def main() -> None:

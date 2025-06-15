@@ -5,7 +5,7 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
-from src.demo.storage.base_storage import BaseStorage
+from src.storage.base_storage import BaseStorage
 
 
 class PostgresStorage(BaseStorage[pd.DataFrame]):

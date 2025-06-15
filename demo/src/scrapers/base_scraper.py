@@ -14,7 +14,7 @@ from uuid import uuid4
 import httpx
 from tenacity import after_log, retry, retry_if_exception_type, stop_after_attempt, wait_exponential, wait_fixed
 
-from src.demo.utils import setup_logger
+from src.utils import setup_logger
 
 
 class ScraperParsingError(Exception):
