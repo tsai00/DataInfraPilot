@@ -5,7 +5,6 @@ from datetime import datetime
 from pathlib import Path
 
 from pydantic_core._pydantic_core import ValidationError
-
 from src.api.schemas import DeploymentCreateSchema, VolumeCreateSchema
 from src.core.apps.application_factory import ApplicationFactory
 from src.core.apps.base_application import AccessEndpointType
@@ -80,8 +79,10 @@ class ClusterManager:
                     enable_https=False,
                 )
 
-            # TODO: remove hardcoded node name
-            cluster.cordon_node(f'{cluster_config.name}-control-plane-node-1')
+            # Check if only control-plane node was requested
+            if len(cluster_config.pools) > 1:
+                # TODO: remove hardcoded node name
+                cluster.cordon_node(f'{cluster_config.name}-control-plane-node-1')
 
             self.storage.update_cluster(
                 cluster_id,

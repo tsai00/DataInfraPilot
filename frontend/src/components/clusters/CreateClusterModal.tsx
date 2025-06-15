@@ -76,6 +76,9 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
   const [useDomainName, setUseDomainName] = useState(false);
   const [domainName, setDomainName] = useState("");
 
+  // Track if this is the initial setup to know when to add default pool
+  const [isInitialSetup, setIsInitialSetup] = useState(true);
+
   // Updated state for additional components
   const [additionalComponents, setAdditionalComponents] = useState({
     traefik_dashboard: {
@@ -84,7 +87,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       password: ""
     }
   });
-  
+
   // Reference for dialog content to scroll to top
   const dialogContentRef = useRef<HTMLDivElement>(null);
 
@@ -103,6 +106,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       setShowNodeCountWarning(false);
       setUseDomainName(false);
       setDomainName("");
+      setIsInitialSetup(true); // Reset initial setup flag when modal opens
       setAdditionalComponents({
         traefik_dashboard: {
           enabled: true,
@@ -112,19 +116,19 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       });
     }
   }, [open]);
-  
+
   // Effect to scroll to top when step changes
   useEffect(() => {
     if (dialogContentRef.current) {
       dialogContentRef.current.scrollTop = 0;
     }
   }, [currentStep]);
-  
+
   // Handle SSH key path change
   const handlePrivateKeyPathChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPrivateKeyPath = e.target.value;
     setSshPrivateKeyPath(newPrivateKeyPath);
-    
+
     // Automatically update the public key path to match the private key path with .pub suffix
     if (!newPrivateKeyPath.endsWith('.pub')) {
       setSshPublicKeyPath(`${newPrivateKeyPath}.pub`);
@@ -142,29 +146,31 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
           count: 1,
           region: selectedProvider.regions[0]
         });
-        
-        if (nodePools.length === 0) {
+
+        // Only add default node pool during initial setup
+        if (nodePools.length === 0 && isInitialSetup) {
           addDefaultNodePool(availableNodeTypes[0], selectedProvider.regions[0]);
+          setIsInitialSetup(false); // Mark that initial setup is complete
         }
       }
     }
-  }, [nodePools.length, selectedProvider]);
-  
+  }, [selectedProvider, isInitialSetup, nodePools.length]);
+
   useEffect(() => {
     let total = 0;
-    
+
     if (controlPlane) {
       total += controlPlane.count;
     }
-    
+
     nodePools.forEach(pool => {
       total += pool.count;
     });
-    
+
     setTotalNodeCount(total);
     setShowNodeCountWarning(total > MAX_NODES_WARNING);
   }, [controlPlane, nodePools]);
-  
+
   const addDefaultNodePool = (nodeType: NodeType, region: Region) => {
     const defaultPool: NodePool = {
       id: `pool-default`,
@@ -178,22 +184,22 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
         maxNodes: 1
       }
     };
-    
+
     setNodePools([defaultPool]);
   };
-  
+
   const handleProviderSelect = (provider: Provider) => {
     setSelectedProvider(provider);
-    setNodePools([]);
+    // Don't reset nodePools here - let the useEffect handle it
     setControlPlane(null);
   };
 
   const handleAddNodePool = () => {
     if (!selectedProvider) return;
-    
+
     const availableNodeTypes = selectedProvider.nodeTypes;
     if (availableNodeTypes.length === 0 || selectedProvider.regions.length === 0) return;
-    
+
     const newNodePool: NodePool = {
       id: `pool-${Date.now()}`,
       name: `node-pool-${nodePools.length}`,
@@ -206,21 +212,19 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
         maxNodes: 1
       }
     };
-    
+
     setNodePools([...nodePools, newNodePool]);
   };
-  
+
   const handleRemoveNodePool = (poolId: string) => {
-    if (poolId === "pool-default") return;
-    
     setNodePools(nodePools.filter((pool) => pool.id !== poolId));
   };
-  
+
   const handleNodeTypeSelect = (poolId: string, nodeTypeId: string) => {
     if (!selectedProvider) return;
-    
+
     const nodeType = selectedProvider.nodeTypes.find((nt) => nt.id === nodeTypeId);
-    
+
     if (nodeType) {
       setNodePools(
         nodePools.map((pool) =>
@@ -229,12 +233,12 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       );
     }
   };
-  
+
   const handleControlPlaneNodeTypeSelect = (nodeTypeId: string) => {
     if (!selectedProvider || !controlPlane) return;
-    
+
     const nodeType = selectedProvider.nodeTypes.find((nt) => nt.id === nodeTypeId);
-    
+
     if (nodeType) {
       setControlPlane({
         ...controlPlane,
@@ -242,18 +246,18 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       });
     }
   };
-  
+
   const handleNodeCountChange = (poolId: string, count: number) => {
     if (count < 1) count = 1;
     if (count > 20) count = 20;
-    
+
     setNodePools(
       nodePools.map((pool) =>
         pool.id === poolId ? { ...pool, count } : pool
       )
     );
   };
-  
+
   const handleNodePoolNameChange = (poolId: string, name: string) => {
     setNodePools(
       nodePools.map((pool) =>
@@ -264,7 +268,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
 
   const handleNodePoolRegionSelect = (poolId: string, regionId: string) => {
     if (!selectedProvider) return;
-    
+
     const region = selectedProvider.regions.find((r) => r.id === regionId);
     if (region) {
       setNodePools(
@@ -274,10 +278,10 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       );
     }
   };
-  
+
   const handleControlPlaneRegionSelect = (regionId: string) => {
     if (!selectedProvider || !controlPlane) return;
-    
+
     const region = selectedProvider.regions.find((r) => r.id === regionId);
     if (region) {
       setControlPlane({
@@ -286,7 +290,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       });
     }
   };
-  
+
   const handleAutoscalingToggle = (poolId: string, enabled: boolean) => {
     setNodePools(
       nodePools.map((pool) => {
@@ -304,17 +308,17 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       })
     );
   };
-  
+
   const handleMinNodesChange = (poolId: string, minNodes: number) => {
     if (minNodes < 0) minNodes = 0;
     if (minNodes > 10) minNodes = 10;
-    
+
     setNodePools(
       nodePools.map((pool) => {
         if (pool.id === poolId && pool.autoscaling) {
           // Ensure minNodes doesn't exceed maxNodes
           const adjustedMinNodes = Math.min(minNodes, pool.autoscaling.maxNodes);
-          
+
           return {
             ...pool,
             autoscaling: {
@@ -327,17 +331,17 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       })
     );
   };
-  
+
   const handleMaxNodesChange = (poolId: string, maxNodes: number) => {
     if (maxNodes < 1) maxNodes = 1;
     if (maxNodes > 10) maxNodes = 10;
-    
+
     setNodePools(
       nodePools.map((pool) => {
         if (pool.id === poolId && pool.autoscaling) {
           // Ensure maxNodes isn't less than minNodes
           const adjustedMaxNodes = Math.max(maxNodes, pool.autoscaling.minNodes);
-          
+
           return {
             ...pool,
             autoscaling: {
@@ -402,8 +406,8 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
         return;
       }
     }
-    
-    if (currentStep === 2 && (!controlPlane || nodePools.length === 0)) {
+
+    if (currentStep === 2 && !controlPlane) {
       uiToast({
         title: "Missing information",
         description: "Please complete node configuration before continuing.",
@@ -411,7 +415,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       });
       return;
     }
-    
+
     if (currentStep === 3 && useDomainName && !domainName.trim()) {
       uiToast({
         title: "Missing Domain",
@@ -432,7 +436,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
           });
           return;
         }
-        
+
         if (!additionalComponents.traefik_dashboard.password.trim() || additionalComponents.traefik_dashboard.password.length < 4 || additionalComponents.traefik_dashboard.password.length > 20) {
           uiToast({
             title: "Invalid Password",
@@ -443,16 +447,16 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
         }
       }
     }
-    
+
     setCurrentStep(currentStep + 1);
   };
-  
+
   const prevStep = () => {
     setCurrentStep(currentStep - 1);
   };
-  
+
   const handleSubmit = async () => {
-    if (!selectedProvider || !controlPlane || nodePools.length === 0) {
+    if (!selectedProvider || !controlPlane) {
       uiToast({
         title: "Missing information",
         description: "Please complete all required sections before creating the cluster.",
@@ -460,7 +464,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       });
       return;
     }
-    
+
     if (selectedProvider.id === "hetzner" && (!sshPrivateKeyPath || !sshPublicKeyPath || !providerApiToken)) {
       uiToast({
         title: "Missing information",
@@ -480,19 +484,19 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
         });
         return;
       }
-      
+
       if (!additionalComponents.traefik_dashboard.password.trim() || additionalComponents.traefik_dashboard.password.length < 4 || additionalComponents.traefik_dashboard.password.length > 20) {
         uiToast({
-          title: "Invalid Password", 
+          title: "Invalid Password",
           description: "Traefik dashboard password must be between 4 and 20 characters.",
           variant: "destructive",
         });
         return;
       }
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       await createCluster({
         name,
@@ -509,16 +513,16 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
         domainName: useDomainName ? domainName : null,
         additionalComponents: additionalComponents
       });
-      
+
       uiToast({
         title: "Cluster creation started",
         description: `Your cluster "${name}" is being created. This may take a few minutes.`,
       });
-      
+
       toast.success(`Cluster "${name}" creation started`, {
         description: "This may take a few minutes to complete."
       });
-      
+
       onClose();
     } catch (error) {
       console.error("Failed to create cluster:", error);
@@ -534,9 +538,9 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       setIsSubmitting(false);
     }
   };
-  
+
   // Updated cost calculations using the unified utility functions
-  const estimatedCost = selectedProvider && controlPlane && nodePools.length > 0
+  const estimatedCost = selectedProvider && controlPlane
     ? (() => {
         const hasAutoscaling = nodePools.some(pool => pool.autoscaling?.enabled);
         if (hasAutoscaling) {
@@ -549,15 +553,15 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
           };
         }
       })()
-    : { 
-        min: { hourly: 0, monthly: 0 }, 
-        max: { hourly: 0, monthly: 0 } 
+    : {
+        min: { hourly: 0, monthly: 0 },
+        max: { hourly: 0, monthly: 0 }
       };
-  
+
   const availableNodeTypes = selectedProvider
     ? selectedProvider.nodeTypes
     : [];
-  
+
   const renderNodeCountWarning = () => {
     if (showNodeCountWarning) {
       return (
@@ -574,14 +578,30 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
     return null;
   };
 
+  const renderNoWorkerPoolWarning = () => {
+    if (nodePools.length === 0) {
+      return (
+        <Alert variant="warning" className="mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>No Worker Pools Warning</AlertTitle>
+          <AlertDescription>
+            You have no worker node pools configured. This means only the control plane node will be available,
+            which is not recommended for production workloads as it limits where applications can be scheduled.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    return null;
+  };
+
   const getVersionLabel = (value: string) => {
     const version = k3sVersions.find(v => v.value === value);
     return version ? version.label : value;
   };
-  
+
   const renderHetznerConfigFields = () => {
     if (selectedProvider?.id !== "hetzner") return null;
-    
+
     return (
       <>
         <div className="border rounded-lg p-4 space-y-4 mt-4">
@@ -621,7 +641,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
               Path to your SSH private key file on your local machine
             </p>
           </div>
-          
+
           <div>
             <Label htmlFor="ssh-public-key" className="mb-2 block">
               SSH Public Key Path
@@ -641,10 +661,10 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       </>
     );
   };
-  
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent 
+      <DialogContent
         className="sm:max-w-[600px] overflow-y-auto max-h-[85vh]"
         ref={dialogContentRef}
       >
@@ -654,10 +674,10 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
             Configure your new cluster for data engineering workloads.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div>
           <StepProgress steps={steps} currentStep={currentStep} />
-          
+
           {currentStep === 1 && (
             <div className="space-y-4 py-2 animate-fade-in">
               <div>
@@ -675,7 +695,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                   A unique name to identify your cluster
                 </p>
               </div>
-              
+
               <div>
                 <Label className="mb-2 block">Cloud Provider</Label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -703,7 +723,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                   ))}
                 </div>
               </div>
-              
+
               <div>
                 <Label htmlFor="version" className="mb-2 block">
                   k3s Version
@@ -724,22 +744,22 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                   k3s is a lightweight Kubernetes distribution that includes the specific Kubernetes version
                 </p>
               </div>
-              
+
               {renderHetznerConfigFields()}
             </div>
           )}
-          
+
           {currentStep === 2 && selectedProvider && (
             <div className="space-y-6 py-2 animate-fade-in">
               <div className="border rounded-lg p-4">
                 <h3 className="font-medium mb-4">Control Plane Configuration</h3>
-                
+
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="control-plane-region" className="mb-2 block">
                       Region
                     </Label>
-                    <Select 
+                    <Select
                       onValueChange={(value) => handleControlPlaneRegionSelect(value)}
                       value={controlPlane?.region?.id || ""}
                     >
@@ -758,7 +778,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div>
                     <Label className="mb-2 block">Node Type</Label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -791,7 +811,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                       ))}
                     </div>
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="control-plane-count" className="mb-2 block">
                       Node Count
@@ -815,7 +835,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium">Worker Node Pools</h3>
                 <Button
@@ -827,11 +847,13 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                   <Plus className="mr-2 h-4 w-4" /> Add Pool
                 </Button>
               </div>
-              
+
               <p className="text-sm text-muted-foreground mb-2">
                 Configure the worker node pools for your Kubernetes cluster.
               </p>
-              
+
+              {renderNoWorkerPoolWarning()}
+
               <div className="space-y-4">
                 {nodePools.map((pool) => (
                   <div key={pool.id} className="border rounded-lg p-4">
@@ -849,23 +871,21 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                           className="max-w-[200px]"
                         />
                       </div>
-                      {pool.id !== "pool-default" && nodePools.length > 1 && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveNodePool(pool.id)}
-                        >
-                          <Trash className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveNodePool(pool.id)}
+                      >
+                        <Trash className="h-4 w-4 text-muted-foreground" />
+                      </Button>
                     </div>
-                    
+
                     <div className="space-y-4">
                       <div>
                         <Label htmlFor={`pool-region-${pool.id}`} className="mb-2 block">
                           Region
                         </Label>
-                        <Select 
+                        <Select
                           onValueChange={(value) => handleNodePoolRegionSelect(pool.id, value)}
                           value={pool.region?.id || ""}
                         >
@@ -884,7 +904,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                           </SelectContent>
                         </Select>
                       </div>
-                      
+
                       <div>
                         <Label className="mb-2 block">Node Type</Label>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -917,13 +937,13 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                           ))}
                         </div>
                       </div>
-                      
+
                       <div>
                         <div className="flex justify-between items-center mb-2">
                           <Label htmlFor={`node-count-${pool.id}`} className="block">
                             Node Count
                           </Label>
-                          
+
                           <div className="flex items-center space-x-2">
                             <Label htmlFor={`autoscaling-toggle-${pool.id}`} className="text-sm">
                               Enable Autoscaling
@@ -1019,8 +1039,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                                 />
                               </div>
                             </div>
-                            
-                            {/* Warning for 0 minimum nodes */}
+
                             {pool.autoscaling?.minNodes === 0 && (
                               <Alert variant="warning" className="mt-3">
                                 <AlertTriangle className="h-4 w-4" />
@@ -1030,7 +1049,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                                 </AlertDescription>
                               </Alert>
                             )}
-                            
+
                             <div className="text-sm mt-2">
                               <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Cost range:</span>
@@ -1056,7 +1075,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                   </div>
                 ))}
               </div>
-              
+
               <div className="flex items-center justify-between px-4 py-3 bg-muted/50 rounded-lg">
                 <p className="text-sm">
                   Total nodes: <span className="font-medium">{totalNodeCount}</span>
@@ -1064,22 +1083,22 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                 {estimatedCost.max.hourly > 0 && (
                   <p className="text-sm">
                     Estimated cost: <span className="font-medium">
-                      {estimatedCost.min.hourly !== estimatedCost.max.hourly ? 
+                      {estimatedCost.min.hourly !== estimatedCost.max.hourly ?
                         `${estimatedCost.min.hourly.toFixed(4)}-${estimatedCost.max.hourly.toFixed(4)} €/hr` :
                         `${estimatedCost.max.hourly.toFixed(4)} €/hr`}
                     </span>
                   </p>
                 )}
               </div>
-              
+
               {renderNodeCountWarning()}
             </div>
           )}
-          
+
           {currentStep === 3 && selectedProvider && controlPlane && (
             <div className="space-y-4 py-2 animate-fade-in">
               <h3 className="text-lg font-medium mb-4">Cluster Access</h3>
-              
+
               <div className="space-y-6">
                 <div className="flex flex-col gap-2">
                   <Label>Access Method</Label>
@@ -1100,7 +1119,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                         </div>
                       </div>
                     </div>
-                    
+
                     <div
                       className={`modal-selectable-item p-4 border-2 ${
                         useDomainName ? "border-k8s-blue bg-k8s-light/20" : "border-transparent"
@@ -1139,7 +1158,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                       <Info className="h-4 w-4" />
                       <AlertTitle>DNS Configuration Required</AlertTitle>
                       <AlertDescription>
-                        After cluster creation, you'll need to create DNS record of type A pointing to the cluster's IP address. 
+                        After cluster creation, you'll need to create DNS record of type A pointing to the cluster's IP address.
                         The IP address will be available once the cluster is created.
                       </AlertDescription>
                     </Alert>
@@ -1156,7 +1175,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
               <p className="text-sm text-muted-foreground mb-4">
                 Enable additional components that will be installed on your cluster
               </p>
-              
+
               <div className="space-y-4">
                 <Card className="border rounded-lg">
                   <CardContent className="pt-6 pb-4">
@@ -1175,7 +1194,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                         onCheckedChange={handleTraefikToggle}
                       />
                     </div>
-                    
+
                     {additionalComponents.traefik_dashboard.enabled && (
                       <div className="space-y-4 mt-4 pt-4 border-t">
                         <div className="grid grid-cols-2 gap-4">
@@ -1218,7 +1237,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                   </CardContent>
                 </Card>
               </div>
-              
+
               <Alert className="bg-muted/50 border-muted mt-4">
                 <Info className="h-4 w-4" />
                 <AlertDescription>
@@ -1227,11 +1246,11 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
               </Alert>
             </div>
           )}
-          
+
           {currentStep === 5 && selectedProvider && controlPlane && (
             <div className="space-y-4 py-2 animate-fade-in">
               <h3 className="text-lg font-medium mb-4">Cluster Summary</h3>
-              
+
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">Basic Information</CardTitle>
@@ -1256,7 +1275,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                   </div>
                 </CardContent>
               </Card>
-              
+
               {selectedProvider.id === "hetzner" && (
                 <>
                   <Card>
@@ -1270,7 +1289,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                       </div>
                     </CardContent>
                   </Card>
-                  
+
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base">SSH Configuration</CardTitle>
@@ -1290,7 +1309,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                   </Card>
                 </>
               )}
-              
+
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">Control Plane</CardTitle>
@@ -1315,49 +1334,53 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">Worker Node Pools</CardTitle>
                 </CardHeader>
                 <CardContent className="pb-3 space-y-4">
-                  {nodePools.map((pool) => (
-                    <div key={pool.id} className="p-3 border rounded-lg space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm font-medium">{pool.name}</span>
-                      </div>
-                      <Separator className="my-2" />
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Node Type:</span>
-                        <span className="font-medium">{pool.nodeType.name}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Region:</span>
-                        <div className="flex items-center">
-                          <span className="text-lg mr-2">{pool.region?.flag}</span>
-                          <span className="font-medium">{pool.region?.name}, {pool.region?.location}</span>
-                        </div>
-                      </div>
-                      
-                      {pool.autoscaling?.enabled ? (
-                        <div className="space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Autoscaling:</span>
-                            <span className="font-medium text-green-600">Enabled</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Min-Max Nodes:</span>
-                            <span className="font-medium">{pool.autoscaling.minNodes} - {pool.autoscaling.maxNodes}</span>
-                          </div>
-                        </div>
-                      ) : (
+                  {nodePools.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">No worker pools configured</p>
+                  ) : (
+                    nodePools.map((pool) => (
+                      <div key={pool.id} className="p-3 border rounded-lg space-y-2">
                         <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Count:</span>
-                          <span className="font-medium">{pool.count}</span>
+                          <span className="text-sm font-medium">{pool.name}</span>
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        <Separator className="my-2" />
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Node Type:</span>
+                          <span className="font-medium">{pool.nodeType.name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Region:</span>
+                          <div className="flex items-center">
+                            <span className="text-lg mr-2">{pool.region?.flag}</span>
+                            <span className="font-medium">{pool.region?.name}, {pool.region?.location}</span>
+                          </div>
+                        </div>
+
+                        {pool.autoscaling?.enabled ? (
+                          <div className="space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-sm text-muted-foreground">Autoscaling:</span>
+                              <span className="font-medium text-green-600">Enabled</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm text-muted-foreground">Min-Max Nodes:</span>
+                              <span className="font-medium">{pool.autoscaling.minNodes} - {pool.autoscaling.maxNodes}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Count:</span>
+                            <span className="font-medium">{pool.count}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </CardContent>
               </Card>
 
@@ -1389,8 +1412,8 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                   </div>
                 </CardContent>
               </Card>
-              
-              <Card 
+
+              <Card
                 className="bg-gradient-to-br from-soft-purple/40 to-soft-blue/40 border-2 border-primary/20 shadow-md"
               >
                 <CardHeader className="pb-2">
@@ -1407,7 +1430,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                       Total Hourly Cost
                     </span>
                     <span className="text-lg font-bold text-primary">
-                      {estimatedCost.min.hourly !== estimatedCost.max.hourly ? 
+                      {estimatedCost.min.hourly !== estimatedCost.max.hourly ?
                         `${estimatedCost.min.hourly.toFixed(4)}-${estimatedCost.max.hourly.toFixed(4)} €/hr` :
                         `${estimatedCost.max.hourly.toFixed(4)} €/hr`}
                     </span>
@@ -1418,12 +1441,12 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                       Estimated Monthly Cost
                     </span>
                     <span className="text-lg font-bold text-primary">
-                      {estimatedCost.min.monthly !== estimatedCost.max.monthly ? 
+                      {estimatedCost.min.monthly !== estimatedCost.max.monthly ?
                         `${estimatedCost.min.monthly.toFixed(2)}-${estimatedCost.max.monthly.toFixed(2)} €/month` :
                         `${estimatedCost.max.monthly.toFixed(2)} €/month`}
                     </span>
                   </div>
-                  
+
                   <div className="text-xs text-muted-foreground mt-2 space-y-1">
                     <div className="flex justify-between">
                       <span>Control Plane (1 node):</span>
@@ -1431,8 +1454,8 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                     </div>
                     {nodePools.map((pool) => (
                       <div key={pool.id} className="flex justify-between">
-                        <span>{pool.name} {pool.autoscaling?.enabled ? 
-                          `(${pool.autoscaling.minNodes}-${pool.autoscaling.maxNodes} nodes)` : 
+                        <span>{pool.name} {pool.autoscaling?.enabled ?
+                          `(${pool.autoscaling.minNodes}-${pool.autoscaling.maxNodes} nodes)` :
                           `(${pool.count} ${pool.count === 1 ? 'node' : 'nodes'})`}:</span>
                         {pool.autoscaling?.enabled ? (
                           <span>
@@ -1446,8 +1469,9 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                   </div>
                 </CardContent>
               </Card>
-              
+
               {showNodeCountWarning && renderNodeCountWarning()}
+              {renderNoWorkerPoolWarning()}
             </div>
           )}
           
