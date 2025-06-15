@@ -15,10 +15,14 @@ __pycache__
 .env
 .env.sample
 
-orchestration/*.xlsx
+src/orchestration/*.xlsx
 
 *.xlsx
 *.csv
+
+images/
+
+README.md
 
 Dockerfile
 .dockerignore
