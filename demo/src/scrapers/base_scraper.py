@@ -227,6 +227,15 @@ class BaseScraper(ABC):
             self.scraper_run_metadata.pages_total += total_pages
 
         self.scraper_run_metadata.items_scraped = len(all_scraped_items)
+
+        items_difference = abs(self.scraper_run_metadata.items_total - self.scraper_run_metadata.items_scraped)
+
+        if items_difference > int(0.1 * self.scraper_run_metadata.items_total):
+            raise ScraperError(
+                f"Difference between scraped items and total items is more than 10 %. Please check the scraper."
+                f"Items scraped: {self.scraper_run_metadata.items_scraped}/{self.scraper_run_metadata.items_total}"
+            )
+
         return all_scraped_items
 
     async def scrape_async(self, concurrency: int = 10) -> list[Any]:
@@ -237,8 +246,6 @@ class BaseScraper(ABC):
             self._logger.debug(
                 f'Processing dynamic asynchronous scrape with {len(self.dynamic_params_options)} combinations.'
             )
-            # For simplicity, iterate sub-scrapes sequentially, but each sub-scrape will be async.
-            # If true parallel sub-scrapes are desired, you'd collect tasks here.
             for params_combo in self.dynamic_params_options:
                 self._logger.info(f'Initiating async sub-scrape with parameters: {params_combo}')
                 try:
@@ -269,6 +276,15 @@ class BaseScraper(ABC):
             self.scraper_run_metadata.pages_total += total_pages
 
         self.scraper_run_metadata.items_scraped = len(all_scraped_items)
+
+        items_difference = abs(self.scraper_run_metadata.items_total - self.scraper_run_metadata.items_scraped)
+
+        if items_difference > int(0.1 * self.scraper_run_metadata.items_total):
+            raise ScraperError(
+                f"Difference between scraped items and total items is more than 10 %. Please check the scraper."
+                f"Items scraped: {self.scraper_run_metadata.items_scraped}/{self.scraper_run_metadata.items_total}"
+            )
+
         return all_scraped_items
 
     @abstractmethod
