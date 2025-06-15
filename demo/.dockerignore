@@ -21,6 +21,7 @@ src/orchestration/*.xlsx
 *.csv
 
 images/
+storage/schemas/
 
 README.md
 
