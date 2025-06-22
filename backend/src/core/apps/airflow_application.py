@@ -108,7 +108,7 @@ class AirflowApplication(BaseApplication):
                 name='flower-ui',
                 description='Airflow Flower UI',
                 default_access=AccessEndpointType.CLUSTER_IP_PATH,
-                default_value='/flower',
+                default_value='/flower/',  # Keep trailing slash
                 required=False,
             ),
         ]
