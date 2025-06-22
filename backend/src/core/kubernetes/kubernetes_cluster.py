@@ -245,7 +245,14 @@ class KubernetesCluster:
         except Exception:
             self._logger.exception('Failed to add certificate issuer', exc_info=True)
 
-    def create_certificate(self, certificate_name: str, domain_name: str, secret_name: str, namespace: str) -> None:
+    def create_certificate(
+        self,
+        certificate_name: str,
+        domain_name: str,
+        secret_name: str,
+        namespace: str,
+        issuer_type: Literal['staging', 'prod'] = 'prod',
+    ) -> None:
         self._logger.info(f'Creating certificate {certificate_name} for domain {domain_name} as secret {secret_name}')
 
         values = {
@@ -253,7 +260,7 @@ class KubernetesCluster:
             'domain_name': domain_name,
             'secret_name': secret_name,
             'namespace': namespace,
-            'issuer_name': 'acme-staging',
+            'issuer_name': f'acme-{issuer_type}',
         }
 
         with template_loader.render_to_temp_file(
