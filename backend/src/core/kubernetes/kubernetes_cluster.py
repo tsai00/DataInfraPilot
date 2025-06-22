@@ -1,7 +1,7 @@
 import base64
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from kubernetes.client.exceptions import ApiException
 from src.api.schemas import ClusterPool
@@ -236,14 +236,14 @@ class KubernetesCluster:
             except Exception:
                 self._logger.exception('Failed to expose Traefik dashboard', exc_info=True)
 
-    def _add_acme_certificate_issuer(self) -> None:
-        path_to_template = template_loader.get_template('cert-manager-acme-issuer.yaml', 'kubernetes')
+    def _add_acme_certificate_issuer(self, issuer_type: Literal['staging', 'prod'] = 'prod') -> None:
+        path_to_template = template_loader.get_template(f'cert-manager-acme-issuer-{issuer_type}.yaml', 'kubernetes')
 
         try:
             self._client.install_from_yaml(path_to_template, with_custom_objects=True)
             self._logger.info('Certificate issuer successfully added!')
         except Exception:
-            self._logger.exception('Failed to add certificate issuer', exc_info=False)
+            self._logger.exception('Failed to add certificate issuer', exc_info=True)
 
     def create_certificate(self, certificate_name: str, domain_name: str, secret_name: str, namespace: str) -> None:
         self._logger.info(f'Creating certificate {certificate_name} for domain {domain_name} as secret {secret_name}')
@@ -253,6 +253,7 @@ class KubernetesCluster:
             'domain_name': domain_name,
             'secret_name': secret_name,
             'namespace': namespace,
+            'issuer_name': 'acme-staging',
         }
 
         with template_loader.render_to_temp_file(
@@ -262,7 +263,7 @@ class KubernetesCluster:
                 self._client.install_from_yaml(rendered_template_file, with_custom_objects=True)
                 self._logger.info('Certificate successfully created!')
             except Exception:
-                self._logger.exception('Failed to create certificate', exc_info=False)
+                self._logger.exception('Failed to create certificate', exc_info=True)
 
     def install_csi(self, provider: str) -> None:
         path_to_template = template_loader.get_template(f'{provider}-csi.yaml', 'kubernetes')
@@ -271,7 +272,7 @@ class KubernetesCluster:
             self._client.install_from_yaml(path_to_template)
             self._logger.info(f'{provider.capitalize()} CSI installed successfully!')
         except Exception:
-            self._logger.exception(f'Failed to install {provider.capitalize()} CSI', exc_info=False)
+            self._logger.exception(f'Failed to install {provider.capitalize()} CSI', exc_info=True)
 
     def install_cloud_controller(self, provider: str) -> None:
         path_to_template = template_loader.get_template(f'{provider}-cloud-controller.yaml', 'kubernetes')

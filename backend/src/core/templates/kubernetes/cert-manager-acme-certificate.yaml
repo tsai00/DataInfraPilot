@@ -8,5 +8,5 @@ spec:
   dnsNames:
     - {{ domain_name }}
   issuerRef:
-    name: acme
+    name: {{ issuer_name }}
     kind: Issuer

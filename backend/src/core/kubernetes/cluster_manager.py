@@ -254,14 +254,7 @@ class ClusterManager:
         namespace = f'{helm_chart.name.split("/")[-1]}-{deployment_id}'
         self.storage.update_deployment(deployment_id, {'namespace': namespace})
 
-        for x in deployment_create.endpoints:
-            if x.access_type in ('subdomain', 'domain_path'):
-                cluster.create_certificate(
-                    f'{namespace}-{x.name}-tls',
-                    x.value[: x.value.find('/')],
-                    f'{namespace}-{x.name}-tls',
-                    namespace=namespace,
-                )
+        cluster.create_namespace(namespace)
 
         access_endpoints_values = application_instance.get_ingress_helm_values(
             deployment_create.endpoints, cluster.access_ip, namespace
