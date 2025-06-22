@@ -124,11 +124,6 @@ class AirflowApplication(BaseApplication):
             if accessible_ep.required and ep_name not in configured_map:
                 raise ValueError(f"Required endpoint '{ep_name}' is not configured.")
 
-        common_annotations = {
-            'traefik.ingress.kubernetes.io/router.entrypoints': 'web',
-            'traefik.ingress.kubernetes.io/router.priority': '10',
-        }
-
         web_ui_access_endpoint = next(iter([x for x in access_endpoint_configs if x.name == 'web-ui']))
         web_ui_config = self._generate_endpoint_helm_values(web_ui_access_endpoint, cluster_base_ip, namespace)
 
@@ -142,6 +137,14 @@ class AirflowApplication(BaseApplication):
             )
         else:
             flower_ui_config = None
+
+        use_https = web_ui_access_endpoint.access_type in (AccessEndpointType.SUBDOMAIN, AccessEndpointType.DOMAIN_PATH)
+
+        common_annotations = {
+            'traefik.ingress.kubernetes.io/router.entrypoints': 'websecure' if use_https else 'web',
+            'traefik.ingress.kubernetes.io/router.priority': '10',
+            'cert-manager.io/cluster-issuer': 'acme-prod',
+        }
 
         return {
             'config': {'webserver': {'base_url': web_ui_config['base_url']}},
