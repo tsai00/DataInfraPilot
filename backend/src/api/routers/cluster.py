@@ -3,7 +3,6 @@ from typing import Annotated
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.background import BackgroundTasks
-
 from src.api.schemas import (
     ClusterCreateResponseSchema,
     ClusterCreateSchema,
@@ -167,7 +166,8 @@ async def proxy_health_check(target_url: str) -> None:
     logger.debug(f'Received proxy health check request for: {target_url}')
 
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        # verify=False as otherwise will fail when using cert-manager staging issuer
+        async with httpx.AsyncClient(timeout=10, verify=False) as client:
             response = await client.get(target_url, follow_redirects=True)
 
             response.raise_for_status()
