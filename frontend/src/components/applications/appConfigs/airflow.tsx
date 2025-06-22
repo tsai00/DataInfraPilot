@@ -84,6 +84,11 @@ export function validateAirflowConfig(config: Record<string, any>): true | strin
   if (!config.deployment_name) {
     missing.push("Deployment Name");
   }
+
+  // Validate DAG repository URL format
+  if (config.dags_repository && !config.dags_repository.endsWith('.git')) {
+    missing.push("DAG Repository URL must end with .git");
+  }
   
   enhancedConfigOptions.forEach((option) => {
     // Skip conditional fields that aren't required based on their condition
