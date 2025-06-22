@@ -252,7 +252,7 @@ const EndpointAccessForm: React.FC<EndpointAccessFormProps> = ({
                 <Alert variant="warning" className="mt-4">
                   <Info className="h-4 w-4" />
                   <AlertDescription>
-                    You will need to create a DNS record for {inputValue || "your-subdomain"}.{cluster.domainName} pointing to the cluster IP {cluster.access_ip} once the application is deployed.
+                    You will need to create a DNS record of type CNAME for "{inputValue || "your-subdomain"}.{cluster.domainName}" pointing to the cluster domain name "{cluster.domainName}" once the application is deployed.
                   </AlertDescription>
                 </Alert>
               </div>
