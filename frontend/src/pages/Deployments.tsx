@@ -60,11 +60,11 @@ const Deployments: React.FC = () => {
     switch (primaryEndpoint.access_type) {
       case AccessEndpointType.SUBDOMAIN:
         // Format: https://subdomain.domain.com/
-        primaryEndpointFull = `https://${primaryEndpoint.value}.${foundCluster.access_ip}`;
+        primaryEndpointFull = `https://${primaryEndpoint.value}`;
         break;
       case AccessEndpointType.DOMAIN_PATH:
         // Format: https://domain.com/path
-        primaryEndpointFull = `https://${foundCluster.domainName}${primaryEndpoint.value}`;
+        primaryEndpointFull = `https://${primaryEndpoint.value}`;
         break;
       case AccessEndpointType.CLUSTER_IP_PATH:
       default:

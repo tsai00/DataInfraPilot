@@ -87,11 +87,11 @@ const DeploymentDetails: React.FC = () => {
           switch (config.access_type) {
             case AccessEndpointType.SUBDOMAIN:
               // Format: https://subdomain.domain.com/
-              fullUrl = `https://${config.value}.${foundCluster.access_ip}`;
+              fullUrl = `https://${config.value}`;
               break;
             case AccessEndpointType.DOMAIN_PATH:
               // Format: https://domain.com/path
-              fullUrl = `https://${foundCluster.domainName}${config.value}`;
+              fullUrl = `https://${config.value}`;
               break;
             case AccessEndpointType.CLUSTER_IP_PATH:
             default:
