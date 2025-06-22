@@ -46,10 +46,10 @@ const DeploymentDetails: React.FC = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
 
-  const { currentDeployment, cluster, appEndpoints, primaryEndpoint } = useMemo(() => {
+  const { currentDeployment, cluster, appEndpoints, primaryEndpoint, configDisplayData } = useMemo(() => {
     const foundCluster = clusters.find((c) => c.id === clusterId);
     const foundApp = foundCluster?.deployments.find((a) => a.id === appId);
-    
+
     let builtEndpoints: Array<{
       id: string;
       name: string;
@@ -58,7 +58,7 @@ const DeploymentDetails: React.FC = () => {
       icon: string;
     }> = [];
     let primaryEndpt = null;
-    
+
     // Only build endpoints if we have both a deployment and cluster
     if (foundApp && foundCluster) {
       // Function to construct access URLs based on endpoint configuration
@@ -106,16 +106,50 @@ const DeploymentDetails: React.FC = () => {
           };
         });
       }
-      
+
       // Set primary endpoint for health check (usually the main UI endpoint)
       primaryEndpt = builtEndpoints?.length > 0 ? builtEndpoints[0].path : null;
+    }
+
+    // Build configuration display data with names instead of IDs
+    let configDisplay: Array<{ key: string; name: string; value: any }> = [];
+    if (foundApp && foundApp.config) {
+      // Special field name mappings for fields that don't have configOptions
+      const specialFieldNames: Record<string, string> = {
+        deployment_name: "Deployment Name",
+        use_custom_image: "Use Custom Image",
+        custom_image: "Custom Image",
+        private_registry_url: "Private Registry URL",
+        private_registry_username: "Private Registry Username",
+        private_registry_password: "Private Registry Password",
+      };
+
+      configDisplay = Object.entries(foundApp.config).map(([configId, value]) => {
+        // First check if it's a special field
+        if (specialFieldNames[configId]) {
+          return {
+            key: configId,
+            name: specialFieldNames[configId],
+            value: value
+          };
+        }
+
+        // Then check configOptions
+        const configOption = foundApp.application.configOptions?.find(option => option.id === configId);
+        return {
+          key: configId,
+          name: configOption ? configOption.name : configId,
+          value: value
+        };
+      });
     }
 
     return {
       currentDeployment: foundApp,
       cluster: foundCluster,
       appEndpoints: builtEndpoints,
-      primaryEndpoint: primaryEndpt
+      primaryEndpoint: primaryEndpt,
+      configDisplayData: configDisplay
     };
   }, [clusters, clusterId, appId]);
 
@@ -155,21 +189,21 @@ const DeploymentDetails: React.FC = () => {
           <h1 className="text-2xl font-bold">{currentDeployment.name}</h1>
         </div>
         <div className="space-x-2">
-          <Button 
+          <Button
             variant="outline"
             disabled={currentDeployment.status !== stateEnum.RUNNING}
             onClick={() => setShowCredentialsModal(true)}
           >
             <Key className="h-4 w-4 mr-2" /> Get Credentials
           </Button>
-          <Button 
+          <Button
             variant="outline"
             disabled={currentDeployment.status !== stateEnum.RUNNING}
             onClick={() => setShowUpdateConfigDialog(true)}
           >
             <Settings className="h-4 w-4 mr-2"/> Update Configuration
           </Button>
-          <Button 
+          <Button
             variant="destructive"
             onClick={() => setShowDeleteDialog(true)}
           >
@@ -198,9 +232,9 @@ const DeploymentDetails: React.FC = () => {
           <div className="flex flex-col md:flex-row md:items-center gap-6">
             <div className="flex items-center justify-center h-16 w-16 rounded-lg bg-muted shrink-0">
               {currentDeployment.application.logo ? (
-                <img 
-                  src={currentDeployment.application.logo} 
-                  alt={currentDeployment.application.name} 
+                <img
+                  src={currentDeployment.application.logo}
+                  alt={currentDeployment.application.name}
                   className="w-16 h-16 object-contain bg-white rounded-lg p-2"
                 />
               ) : (
@@ -214,8 +248,8 @@ const DeploymentDetails: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <div className="flex items-center gap-2 text-sm">
                     <span className="font-medium text-muted-foreground">Status:</span>
-                    <StatusComponent 
-                      status={currentDeployment.status} 
+                    <StatusComponent
+                      status={currentDeployment.status}
                       errorMessage={currentDeployment.errorMessage}
                     />
                   </div>
@@ -232,11 +266,11 @@ const DeploymentDetails: React.FC = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Embed the health check directly in the overview card when applicable */}
               {currentDeployment.status === stateEnum.RUNNING && primaryEndpoint && (
                 <div className="mt-3 w-full">
-                  <AppHealthCheck 
+                  <AppHealthCheck
                     endpoint={primaryEndpoint}
                     applicationName={currentDeployment.application.name}
                     deploymentStatus={currentDeployment.status}
@@ -279,11 +313,11 @@ const DeploymentDetails: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {Object.entries(currentDeployment.config).length > 0 ? (
+            {configDisplayData.length > 0 ? (
               <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                {Object.entries(currentDeployment.config).map(([key, value]) => (
+                {configDisplayData.map(({ key, name, value }) => (
                   <div key={key} className="py-1 border-b">
-                    <div className="font-medium truncate">{key}</div>
+                    <div className="font-medium truncate">{name}</div>
                     <div className="truncate text-sm text-muted-foreground">
                       {typeof value === 'boolean' 
                         ? value ? 'true' : 'false'

@@ -334,15 +334,6 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
       setIsSubmitting(true);
 
       let finalConfig = { ...config };
-      if (isAirflow) {
-        finalConfig = {
-          ...finalConfig,
-          dags_repository: config.airflowDagRepoUrl,
-          dagsRepositoryBranch: config.airflowDagRepoBranch,
-          dagFolder: config.airflowDagFolder,
-          dagsRepositorySshPrivateKey: config.airflowRepoPrivate ? config.airflowSshKey : "",
-        };
-      }
 
       createDeployment(
         clusterId,

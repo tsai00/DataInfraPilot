@@ -99,7 +99,7 @@ export function validateAirflowConfig(config: Record<string, any>): true | strin
     }
     
     // Skip SSH key if repo is not private
-    if (option.id === "airflowSshKey" && !config.airflowRepoPrivate) {
+    if (option.id === "dags_repository_ssh_private_key" && !config.dags_repository_ssh_private_key) {
       return;
     }
     

@@ -54,7 +54,7 @@ const ConfigOptionField: React.FC<ConfigOptionFieldProps> = ({
       return (
         <div className="space-y-2">
           <Label htmlFor={option.id}>{option.name}</Label>
-          {option.id === "airflowSshKey" || option.id === "private_registry_password" ? (
+          {option.id === "dags_repository_ssh_private_key" || option.id === "private_registry_password" ? (
             <Input
               id={option.id}
               type="password"

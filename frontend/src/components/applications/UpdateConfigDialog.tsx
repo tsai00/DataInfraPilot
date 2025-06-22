@@ -75,15 +75,6 @@ const UpdateConfigDialog: React.FC<UpdateConfigDialogProps> = ({
       }
     });
 
-    // Airflow-specific legacy fields
-    if (application.short_name === "airflow" || application.id === 1) {
-      initial.airflowDagRepoUrl = currentConfig?.airflowDagRepoUrl || currentConfig?.dags_repository || "";
-      initial.airflowDagRepoBranch = currentConfig?.airflowDagRepoBranch || currentConfig?.dagsRepositoryBranch || "main";
-      initial.airflowDagFolder = currentConfig?.airflowDagFolder || currentConfig?.dagFolder || "dags";
-      // Also handle ssh key
-      initial.airflowSshKey = currentConfig?.airflowSshKey || currentConfig?.dagsRepositorySshPrivateKey || "";
-      initial.airflowRepoPrivate = !!currentConfig?.airflowSshKey || !!currentConfig?.dagsRepositorySshPrivateKey;
-    }
     return { ...initial };
   });
 
@@ -154,16 +145,6 @@ const UpdateConfigDialog: React.FC<UpdateConfigDialogProps> = ({
 
     // Prepare final config object as in DeployAppModal
     let finalConfig = { ...config };
-
-    if (isAirflow) {
-      finalConfig = {
-        ...finalConfig,
-        dags_repository: config.airflowDagRepoUrl,
-        dagsRepositoryBranch: config.airflowDagRepoBranch,
-        dagFolder: config.airflowDagFolder,
-        dagsRepositorySshPrivateKey: config.airflowRepoPrivate ? config.airflowSshKey : "",
-      };
-    }
 
     await updateApplication(clusterId, appId, finalConfig);
 

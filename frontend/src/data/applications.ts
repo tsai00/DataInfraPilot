@@ -66,7 +66,7 @@ export const applications: Application[] = [
         },
         // Add DAG repository configuration fields
         {
-          id: "airflowDagRepoUrl",
+          id: "dags_repository",
           name: "DAGs Git Repository URL",
           type: "text",
           description: "Enter the URL of your Git repository containing the Airflow DAGs",
@@ -74,7 +74,7 @@ export const applications: Application[] = [
           default: "",
         },
         {
-          id: "airflowDagRepoBranch",
+          id: "dags_repository_branch",
           name: "Branch Name",
           type: "text",
           description: "Branch to use for DAGs repository",
@@ -82,7 +82,7 @@ export const applications: Application[] = [
           default: "main",
         },
         {
-          id: "airflowDagFolder",
+          id: "dags_repository_subpath",
           name: "DAG Folder Name",
           type: "text",
           description: "Folder in your repo with DAGs",
@@ -90,7 +90,7 @@ export const applications: Application[] = [
           default: "dags",
         },
         {
-          id: "airflowRepoPrivate",
+          id: "dags_repository_private",
           name: "Repository is private",
           type: "boolean",
           description: "Enable if your repository requires SSH key authentication",
@@ -98,14 +98,14 @@ export const applications: Application[] = [
           default: false,
         },
         {
-          id: "airflowSshKey",
+          id: "dags_repository_ssh_private_key",
           name: "SSH Private Key",
           type: "text",
           description: "SSH key for accessing private Git repository (only required if repository is private)",
           required: false,
           default: "",
           conditional: {
-            field: "airflowRepoPrivate",
+            field: "dags_repository_ssh_private_key",
             value: true
           }
         },

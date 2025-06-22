@@ -5,7 +5,6 @@ from typing import Any
 
 import requests
 from pydantic import BaseModel, Field
-
 from src.core.apps.actions.base_post_install_action import BasePrePostInstallAction
 from src.core.apps.actions.create_secret_action import CreateSecretAction
 from src.core.apps.base_application import (
@@ -35,9 +34,9 @@ class AirflowConfig(BaseModel):
     private_registry_image_tag: str | None = None
     node_selector: dict | None = Field(default=None)
     dags_repository: str = Field(pattern=r'^https:\/\/.{10,}\.git$')
-    dags_repository_ssh_private_key: str = Field(default=None, alias='dagsRepositorySshPrivateKey')
-    dags_repository_branch: str = Field(default='main', alias='dagsRepositoryBranch')
-    dags_repository_subpath: str = Field(default='dags', alias='dagsRepositorySubpath')
+    dags_repository_ssh_private_key: str = Field(default=None)
+    dags_repository_branch: str = Field(default='main')
+    dags_repository_subpath: str = Field(default='dags')
     executor: AirflowExecutor = AirflowExecutor.CeleryExecutor
     flower_enabled: bool = False
     pgbouncer_enabled: bool = False
