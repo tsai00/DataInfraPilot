@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING, Any
 from src.core.utils import setup_logger
 
 if TYPE_CHECKING:
-    from src.core.kubernetes import ClusterConfiguration, KubernetesCluster
+    from src.core.kubernetes.configuration import ClusterConfiguration
+    from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 
 
 class BaseProvider(ABC):

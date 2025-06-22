@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel
 from src.core.apps.base_application import AccessEndpoint, AccessEndpointConfig, AccessEndpointType, BaseApplication
-from src.core.kubernetes import HelmChart
+from src.core.kubernetes.chart_config import HelmChart
 
 
 class GrafanaConfig(BaseModel):

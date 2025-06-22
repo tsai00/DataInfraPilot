@@ -16,7 +16,8 @@ from hcloud.ssh_keys import SSHKey
 from hcloud.volumes import Volume
 from src.core.config import PATH_TO_K3S_YAML_CONFIGS
 from src.core.exceptions import ProjectNotEmptyError, ResourceUnavailableError
-from src.core.kubernetes import ClusterConfiguration, KubernetesCluster
+from src.core.kubernetes.configuration import ClusterConfiguration
+from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 from src.core.providers.base_provider import BaseProvider
 from src.core.template_loader import template_loader
 from src.core.utils import generate_password

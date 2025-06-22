@@ -1,7 +1,7 @@
 from typing import override
 
 from src.core.apps.actions.base_post_install_action import BasePrePostInstallAction
-from src.core.kubernetes import KubernetesCluster
+from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 
 
 class CreateSecretAction(BasePrePostInstallAction):

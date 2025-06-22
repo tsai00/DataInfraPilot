@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from src.core.kubernetes import KubernetesCluster
+    from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 
 
 class BasePrePostInstallAction(ABC):

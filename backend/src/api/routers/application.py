@@ -1,10 +1,11 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+
 from src.api.schemas import ApplicationSchema
 from src.core.apps.airflow_application import AccessEndpoint
 from src.core.apps.application_factory import ApplicationFactory
-from src.core.kubernetes import ClusterManager
+from src.core.kubernetes.cluster_manager import ClusterManager
 from src.core.utils import setup_logger
 
 router = APIRouter()

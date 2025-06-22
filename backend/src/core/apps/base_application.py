@@ -12,7 +12,8 @@ if TYPE_CHECKING:
     import logging
 
     from src.core.apps.actions.base_post_install_action import BasePrePostInstallAction
-    from src.core.kubernetes import HelmChart, KubernetesCluster
+    from src.core.kubernetes.chart_config import HelmChart
+    from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
 
 
 @dataclass

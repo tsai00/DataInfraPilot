@@ -1,4 +1,4 @@
-from src.core.kubernetes import HelmChart
+from src.core.kubernetes.chart_config import HelmChart
 
 cluster_autoscaler_chart = HelmChart(
     name='cluster-autoscaler', repo_url='https://kubernetes.github.io/autoscaler', version='9.46.6'
