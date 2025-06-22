@@ -2,11 +2,10 @@ from functools import lru_cache
 from typing import Any
 
 from pydantic import BaseModel, Field
-
 from src.core.apps.actions.apply_template_action import ApplyTemplateAction
 from src.core.apps.actions.base_post_install_action import BasePrePostInstallAction
 from src.core.apps.base_application import AccessEndpoint, AccessEndpointConfig, AccessEndpointType, BaseApplication
-from src.core.kubernetes.chart_config import HelmChart
+from src.core.kubernetes import HelmChart
 
 
 class SparkConfig(BaseModel):

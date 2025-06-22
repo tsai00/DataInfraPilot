@@ -10,8 +10,7 @@ from src.core.apps.application_factory import ApplicationFactory
 from src.core.apps.base_application import AccessEndpointType
 from src.core.deployment_status import DeploymentStatus
 from src.core.exceptions import ResourceUnavailableError
-from src.core.kubernetes.configuration import ClusterConfiguration
-from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
+from src.core.kubernetes import ClusterConfiguration, KubernetesCluster
 from src.core.providers.base_provider import BaseProvider
 from src.core.providers.provider_factory import ProviderFactory
 from src.core.utils import setup_logger

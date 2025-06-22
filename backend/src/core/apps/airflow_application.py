@@ -14,7 +14,7 @@ from src.core.apps.base_application import (
     BaseApplication,
     VolumeRequirement,
 )
-from src.core.kubernetes.chart_config import HelmChart
+from src.core.kubernetes import HelmChart
 from src.core.utils import generate_password
 
 

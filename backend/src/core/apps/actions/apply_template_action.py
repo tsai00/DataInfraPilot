@@ -1,7 +1,7 @@
 from typing import Any, override
 
 from src.core.apps.actions.base_post_install_action import BasePrePostInstallAction
-from src.core.kubernetes.kubernetes_cluster import KubernetesCluster
+from src.core.kubernetes import KubernetesCluster
 from src.core.template_loader import template_loader
 
 
