@@ -2,7 +2,6 @@ from functools import lru_cache
 from typing import Any
 
 from pydantic import BaseModel
-
 from src.core.apps.base_application import AccessEndpoint, AccessEndpointConfig, AccessEndpointType, BaseApplication
 from src.core.kubernetes.chart_config import HelmChart
 
@@ -62,15 +61,30 @@ class GrafanaApplication(BaseApplication):
             if accessible_ep.required and ep_name not in configured_map:
                 raise ValueError(f"Required endpoint '{ep_name}' is not configured.")
 
-        common_annotations = {
-            'traefik.ingress.kubernetes.io/router.entrypoints': 'web',
-            'traefik.ingress.kubernetes.io/router.priority': '10',
-        }
-
         web_ui_access_endpoint = next(iter([x for x in access_endpoint_configs if x.name == 'web-ui']))
 
         web_ui_config = self._generate_endpoint_helm_values(web_ui_access_endpoint, cluster_base_ip, namespace)
 
+        use_https = web_ui_access_endpoint.access_type in (AccessEndpointType.SUBDOMAIN, AccessEndpointType.DOMAIN_PATH)
+
+        common_annotations = {
+            'traefik.ingress.kubernetes.io/router.entrypoints': 'websecure' if use_https else 'web',
+            'traefik.ingress.kubernetes.io/router.priority': '10',
+            'cert-manager.io/cluster-issuer': 'acme-prod',
+        }
+
+        helm_ingress_hosts = []
+        helm_ingress_tls = []
+
+        if web_ui_config['hosts']:
+            host_entry = web_ui_config['hosts'][0]
+            hostname = host_entry['name']
+
+            helm_ingress_hosts.append(hostname)
+
+            if host_entry.get('tls', {}).get('enabled'):
+                secret_name = host_entry['tls']['secretName']
+                helm_ingress_tls.append({'hosts': [hostname], 'secretName': secret_name})
         return {
             'ingress': {
                 'enabled': True,
@@ -78,7 +92,8 @@ class GrafanaApplication(BaseApplication):
                 'pathType': 'Prefix',
                 'annotations': common_annotations,
                 'path': web_ui_config['path'],
-                'hosts': web_ui_config['hosts'],
+                'hosts': helm_ingress_hosts,
+                'tls': helm_ingress_tls,
             },
             'grafana.ini': {'server': {'root_url': web_ui_config['base_url'], 'serve_from_sub_path': True}},
         }
@@ -96,7 +111,7 @@ class GrafanaApplication(BaseApplication):
                     'tls': {'enabled': True, 'secretName': f'{namespace}-{endpoint_config.name}-tls'},
                 }
             ]
-            base_url = f'http://{endpoint_config.value}'
+            base_url = f'https://{endpoint_config.value}'
         elif endpoint_config.access_type == AccessEndpointType.DOMAIN_PATH:
             path_value = endpoint_config.value[endpoint_config.value.find('/') :]
             hosts = [
@@ -105,7 +120,7 @@ class GrafanaApplication(BaseApplication):
                     'tls': {'enabled': True, 'secretName': f'{namespace}-{endpoint_config.name}-tls'},
                 }
             ]
-            base_url = f'http://{endpoint_config.value}'
+            base_url = f'https://{endpoint_config.value}'
         elif endpoint_config.access_type == AccessEndpointType.CLUSTER_IP_PATH:
             path_value = endpoint_config.value
             hosts = []
