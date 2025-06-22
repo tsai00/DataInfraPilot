@@ -304,20 +304,27 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
       const formattedEndpoints = endpointConfigs.map(config => {
         let formattedValue = config.value;
 
-        // For paths, ensure they start with a '/'
-        if ((config.access_type === AccessEndpointType.DOMAIN_PATH || AccessEndpointType.CLUSTER_IP_PATH) && !formattedValue.startsWith('/')) {
-          formattedValue = `/${formattedValue}`;
-        }
+        console.log("formattedValue endpoint: " + formattedValue)
 
-        // For subdomains, include the full domain name if it's not already included
-        if (config.access_type === AccessEndpointType.SUBDOMAIN && cluster?.domainName) {
-          if (!formattedValue.includes('.')) {
-            formattedValue = `${formattedValue}.${cluster.domainName}`;
+        if (config.access_type === AccessEndpointType.SUBDOMAIN) {
+          // For subdomains, include the full domain name if it's not already included
+          if (cluster?.domainName && !formattedValue.includes('.')) {
+            formattedValue = `${formattedValue.replace('/', '')}.${cluster.domainName}`;
           }
-        } else if (config.access_type === AccessEndpointType.DOMAIN_PATH && cluster?.domainName) {
-          formattedValue = `${cluster.domainName}${formattedValue}`;
+        } else if (config.access_type === AccessEndpointType.DOMAIN_PATH) {
+          // For domain paths, ensure they start with a '/' and prepend domain
+          if (!formattedValue.startsWith('/')) {
+            formattedValue = `/${formattedValue}`;
+          }
+          if (cluster?.domainName) {
+            formattedValue = `${cluster.domainName}${formattedValue}`;
+          }
+        } else if (config.access_type === AccessEndpointType.CLUSTER_IP_PATH) {
+          // For cluster IP paths, ensure they start with a '/'
+          if (!formattedValue.startsWith('/')) {
+            formattedValue = `/${formattedValue}`;
+          }
         }
-
 
         return {
           ...config,

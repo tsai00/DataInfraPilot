@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -44,7 +43,7 @@ const AccessConfigStep: React.FC<AccessConfigStepProps> = ({
     // Initialize enabled state for optional endpoints
     const initialEnabledState: Record<string, boolean> = {};
     filteredEndpoints.forEach((endpoint) => {
-      initialEnabledState[endpoint.name] = endpoint.required || 
+      initialEnabledState[endpoint.name] = endpoint.required ||
         endpointConfigs.some(config => config.name === endpoint.name);
     });
     setEnabledEndpoints(initialEnabledState);
@@ -52,10 +51,10 @@ const AccessConfigStep: React.FC<AccessConfigStepProps> = ({
 
   const updateEndpointConfig = (name: string, field: keyof AccessEndpointConfig, value: string) => {
     console.log(`Updating endpoint config for ${name}: ${field} = ${value}`);
-    
+
     const updatedConfigs = [...endpointConfigs];
     const configIndex = updatedConfigs.findIndex(config => config.name === name);
-    
+
     if (configIndex >= 0) {
       updatedConfigs[configIndex] = {
         ...updatedConfigs[configIndex],
@@ -75,7 +74,7 @@ const AccessConfigStep: React.FC<AccessConfigStepProps> = ({
         console.log(`Created new config:`, newConfig);
       }
     }
-    
+
     console.log(`All endpoint configs:`, updatedConfigs);
     setEndpointConfigs(updatedConfigs);
   };
@@ -112,7 +111,7 @@ const AccessConfigStep: React.FC<AccessConfigStepProps> = ({
     <div className="space-y-6 py-4">
       <div className="space-y-4">
         <h3 className="font-medium">Configure Application Access</h3>
-        
+
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -122,10 +121,10 @@ const AccessConfigStep: React.FC<AccessConfigStepProps> = ({
               </TabsTrigger>
             ))}
           </TabsList>
-          
+
           {filteredEndpoints.map((endpoint, index) => (
             <TabsContent key={endpoint.name} value={index.toString()} className="mt-4">
-              <EndpointAccessForm 
+              <EndpointAccessForm
                 endpoint={endpoint}
                 config={getEndpointConfig(endpoint.name)}
                 hasDomain={hasDomain}
@@ -163,13 +162,13 @@ const EndpointAccessForm: React.FC<EndpointAccessFormProps> = ({
 }) => {
   const accessType = config?.access_type || endpoint.default_access;
   const value = config?.value || endpoint.default_value;
-  
+
   if (!enabled && !endpoint.required) {
     return (
       <div className="border rounded-lg p-4 bg-secondary/10">
         <div className="flex items-center space-x-2">
-          <Checkbox 
-            id={`enable-${endpoint.name}`} 
+          <Checkbox
+            id={`enable-${endpoint.name}`}
             checked={enabled}
             onCheckedChange={(checked) => onToggleEnabled(!!checked)}
           />
@@ -179,25 +178,32 @@ const EndpointAccessForm: React.FC<EndpointAccessFormProps> = ({
     );
   }
 
-  // Process the value to ensure it's in the expected format for each access type
-  const processedValue = 
-    accessType === AccessEndpointType.SUBDOMAIN 
-      ? (value.includes('.') ? value.split('.')[0] : value) // Only the subdomain part
-      : (value.startsWith('/') ? value : `/${value}`); // Ensure path starts with /
+  // Get the raw input value (what user types)
+  const getInputValue = () => {
+    if (accessType === AccessEndpointType.SUBDOMAIN) {
+      // For subdomain: show only the subdomain part, no domain, no slashes
+      return value.includes('.') ? value.split('.')[0] : value.replace(/^\/+/, '');
+    } else {
+      // For paths: show without the leading slash (since it's in the prefix)
+      return value.replace(/^\/+/, '');
+    }
+  };
+
+  const inputValue = getInputValue();
 
   return (
     <div className="border rounded-lg p-4 bg-secondary/10">
       {!endpoint.required && (
         <div className="flex items-center space-x-2 mb-4">
-          <Checkbox 
-            id={`enable-${endpoint.name}`} 
+          <Checkbox
+            id={`enable-${endpoint.name}`}
             checked={enabled}
             onCheckedChange={(checked) => onToggleEnabled(!!checked)}
           />
           <Label htmlFor={`enable-${endpoint.name}`}>Enable {endpoint.description}</Label>
         </div>
       )}
-      
+
       {hasDomain ? (
         <>
           <div className="space-y-4">
@@ -229,9 +235,10 @@ const EndpointAccessForm: React.FC<EndpointAccessFormProps> = ({
                   <div className="flex items-center space-x-2">
                     <Input
                       id={`subdomain-${endpoint.name}`}
-                      value={processedValue}
+                      value={inputValue}
                       onChange={(e) => {
                         console.log(`Subdomain input changed to: ${e.target.value}`);
+                        // For subdomain, store value without any slashes or domain
                         onChange('value', e.target.value);
                       }}
                       placeholder="app"
@@ -245,7 +252,7 @@ const EndpointAccessForm: React.FC<EndpointAccessFormProps> = ({
                 <Alert variant="warning" className="mt-4">
                   <Info className="h-4 w-4" />
                   <AlertDescription>
-                    You will need to create a DNS record for {processedValue || "your-subdomain"}.{cluster.domainName} pointing to the cluster IP {cluster.access_ip} once the application is deployed.
+                    You will need to create a DNS record for {inputValue || "your-subdomain"}.{cluster.domainName} pointing to the cluster IP {cluster.access_ip} once the application is deployed.
                   </AlertDescription>
                 </Alert>
               </div>
@@ -258,12 +265,13 @@ const EndpointAccessForm: React.FC<EndpointAccessFormProps> = ({
                 </label>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-muted-foreground">
-                    {accessType === AccessEndpointType.DOMAIN_PATH ? cluster.domainName : cluster.access_ip}
+                    {accessType === AccessEndpointType.DOMAIN_PATH ? cluster.domainName : cluster.access_ip}/
                   </span>
                   <Input
                     id={`path-${endpoint.name}`}
-                    value={processedValue.startsWith('/') ? processedValue.slice(1) : processedValue}
+                    value={inputValue}
                     onChange={(e) => {
+                      // For paths, ensure they start with / when stored
                       const newValue = e.target.value.startsWith('/') ? e.target.value : '/' + e.target.value;
                       console.log(`Path input changed to: ${newValue}`);
                       onChange('value', newValue);
@@ -285,8 +293,9 @@ const EndpointAccessForm: React.FC<EndpointAccessFormProps> = ({
             <span className="text-sm text-muted-foreground">{cluster.access_ip}/</span>
             <Input
               id={`path-${endpoint.name}`}
-              value={processedValue.startsWith('/') ? processedValue.slice(1) : processedValue}
+              value={inputValue}
               onChange={(e) => {
+                // For paths, ensure they start with / when stored
                 const newValue = e.target.value.startsWith('/') ? e.target.value : '/' + e.target.value;
                 console.log(`Path input changed to: ${newValue}`);
                 onChange('value', newValue);
@@ -302,4 +311,3 @@ const EndpointAccessForm: React.FC<EndpointAccessFormProps> = ({
 };
 
 export default AccessConfigStep;
-
