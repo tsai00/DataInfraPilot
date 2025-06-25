@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState } from "react";
-import { AlertTriangle, Key, Copy, Check } from "lucide-react";
+import { AlertTriangle, Key, Copy, Check, Eye, EyeOff } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -37,15 +36,16 @@ const CredentialsModal: React.FC<CredentialsModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     const fetchCredentials = async () => {
       if (!open) return;
-      
+
       setLoading(true);
       setError(null);
-      
+
       try {
         const data = await getDeploymentCredentials(clusterId, deploymentId);
         setCredentials(data);
@@ -73,7 +73,7 @@ const CredentialsModal: React.FC<CredentialsModalProps> = ({
           title: "Copied!",
           description: `${field} copied to clipboard`,
         });
-        
+
         // Reset copied status after 2 seconds
         setTimeout(() => {
           setCopiedField(null);
@@ -125,9 +125,9 @@ const CredentialsModal: React.FC<CredentialsModalProps> = ({
                 <div className="text-sm font-medium text-muted-foreground">Username</div>
                 <div className="font-mono bg-muted p-2 rounded-sm mt-1 text-sm flex justify-between items-center">
                   <span>{credentials.username}</span>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="h-8 px-2"
                     onClick={() => copyToClipboard(credentials.username, "Username")}
                   >
@@ -142,19 +142,35 @@ const CredentialsModal: React.FC<CredentialsModalProps> = ({
               <div>
                 <div className="text-sm font-medium text-muted-foreground">Password</div>
                 <div className="font-mono bg-muted p-2 rounded-sm mt-1 text-sm flex justify-between items-center">
-                  <span>{credentials.password}</span>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 px-2"
-                    onClick={() => copyToClipboard(credentials.password, "Password")}
-                  >
-                    {copiedField === "Password" ? (
-                      <Check className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
+                  <span>
+                    {showPassword ? credentials.password : '•'.repeat(credentials.password.length)}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2"
+                      onClick={() => copyToClipboard(credentials.password, "Password")}
+                    >
+                      {copiedField === "Password" ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
