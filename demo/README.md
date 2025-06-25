@@ -1,6 +1,13 @@
 # Demo Project (Scraping ETL)
 
-This demo project includes a simple ETL pipeline designed to gather real estate data from 2 sources.
+This demo provides a sample data pipeline to showcase how DataInfraPilot can deploy infrastructure required for running small data projects.
+
+## Technology Stack
+- **Database**: PostgreSQL
+- **Data Processing**: Python (pandas)
+- **Infrastructure**: Kubernetes (deployed via DataInfraPilot)
+
+The demo project includes a simple scraping ETL pipeline designed to gather real estate data from 2 sources.
 
 The pipeline consists from the following steps:
 1. Scrape data from the source and store it into Azure Data Lake Storage (ADLS)
