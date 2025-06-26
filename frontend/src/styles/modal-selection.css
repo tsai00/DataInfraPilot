@@ -1,0 +1,29 @@
+
+/* Modal selection styling */
+.modal-selectable-item {
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  cursor: pointer;
+  position: relative;
+}
+
+.modal-selectable-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.modal-selectable-item.selected {
+  border-color: #0284c7;
+  background-color: rgba(2, 132, 199, 0.05);
+  box-shadow: 0 0 0 1px #0284c7;
+}
+
+/* Default styles for dark mode */
+@media (prefers-color-scheme: dark) {
+  .modal-selectable-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  
+  .modal-selectable-item.selected {
+    background-color: rgba(2, 132, 199, 0.1);
+  }
+}

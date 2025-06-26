@@ -1,0 +1,26 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: traefik-dashboard
+  namespace: kube-system
+spec:
+  entryPoints:
+    - {{ 'websecure' if enable_https else 'web' }}
+  routes:
+    - match: >-
+      {% if enable_https %}
+        Host("{{ domain_name }}") && PathPrefix(`/traefik`)
+      {% else %}
+        PathPrefix(`/traefik`)
+      {% endif %}
+      kind: Rule
+      middlewares:
+        - name: {{ middleware_name }}
+          namespace: kube-system
+      services:
+        - name: api@internal
+          kind: TraefikService
+  {% if enable_https %}
+  tls:
+    secretName: {{ certificate_secret_name }}
+  {% endif %}

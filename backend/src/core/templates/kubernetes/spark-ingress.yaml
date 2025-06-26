@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: spark-ingress
+  namespace: {{ namespace }}
+  annotations:
+    "traefik.ingress.kubernetes.io/router.entrypoints": "web"
+    "traefik.ingress.kubernetes.io/router.priority": "10"
+    "traefik.ingress.kubernetes.io/router.middlewares": "{{ namespace }}-spark-strip-prefix@kubernetescrd"
+spec:
+  ingressClassName: "traefik"
+  rules:
+    - http:
+        paths:
+          - backend:
+              service:
+                name: {{ cluster_name | lower | replace(" ", "") }}-master-svc
+                port:
+                  number: 8080
+            path: {{ web_ui_path }}
+            pathType: Prefix

@@ -1,0 +1,21 @@
+apiVersion: spark.apache.org/v1alpha1
+kind: SparkCluster
+metadata:
+  name: {{ cluster_name | lower | replace(" ", "") }}
+  namespace: {{ namespace }}
+spec:
+  runtimeVersions:
+    sparkVersion: {{ version }}
+  clusterTolerations:
+    instanceConfig:
+      initWorkers: {{ min_workers }}
+      minWorkers: {{ min_workers }}
+      maxWorkers: {{ max_workers }}
+  sparkConf:
+    spark.kubernetes.container.image: "apache/spark:{{ version }}"
+    spark.master.ui.title: {{ cluster_name }}
+    spark.master.rest.enabled: "true"
+    spark.master.rest.host: "0.0.0.0"
+    spark.ui.reverseProxy: "true"
+    spark.ui.reverseProxyUrl: {{ web_ui_path }}
+    spark.jars.packages: "org.bouncycastle:bcpkix-jdk15on:1.70,org.bouncycastle:bcprov-ext-jdk15on:1.70,org.bouncycastle:bcutil-jdk15on:1.70"

@@ -1,0 +1,20 @@
+#cloud-config
+
+timezone: Europe/Prague
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - open-iscsi
+  - nfs-client
+  - nfs-common
+
+runcmd:
+  - >
+    curl -sfL https://get.k3s.io | 
+    K3S_TOKEN="{{ k3s_token }}" 
+    INSTALL_K3S_VERSION="{{ k3s_version }}"
+    K3S_URL=https://{{ master_ip }}:6443 
+    INSTALL_K3S_EXEC="agent --node-name=$HOSTNAME --node-label="pool={{ pool_name }}"" 
+    sh -
