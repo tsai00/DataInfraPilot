@@ -86,7 +86,7 @@ const AppHealthCheck: React.FC<AppHealthCheckProps> = ({
         <span className="font-medium">
           {healthStatus === "checking" && "Checking application..."}
           {healthStatus === "healthy" && "Application is ready"}
-          {healthStatus === "unhealthy" && "Application is not responsive"}
+          {healthStatus === "unhealthy" && "Application is not responsive (if it's a first deployment, please wait few minutes)"}
         </span>
       </div>
       {lastChecked && (
