@@ -16,6 +16,7 @@ import AccessConfigStep from "./DeployAppModal/AccessConfigStep";
 import AirflowDeployConfig from "./appConfigs/airflow";
 import GrafanaDeployConfig from "./appConfigs/grafana";
 import SparkDeployConfig from "./appConfigs/spark";
+import PrefectDeployConfig from "./appConfigs/prefect";
 import { getApplicationAccessEndpoints, checkEndpointExistence } from "@/services/api";
 import AppSelectionStep from "./DeployAppModal/AppSelectionStep";
 import AppConfigStep from "./DeployAppModal/AppConfigStep";
@@ -25,7 +26,8 @@ import StorageConfigStep from "./DeployAppModal/StorageConfigStep";
 const appDeployModules: Record<string, any> = {
   airflow: AirflowDeployConfig,
   grafana: GrafanaDeployConfig,
-  spark: SparkDeployConfig
+  spark: SparkDeployConfig,
+  prefect: PrefectDeployConfig
 };
 
 interface DeployAppModalProps {

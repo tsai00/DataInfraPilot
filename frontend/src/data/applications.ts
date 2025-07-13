@@ -161,5 +161,13 @@ export const applications: Application[] = [
           default: 3,
         },
       ],
-    }
+    },
+    {
+      id: 4,
+      short_name: "prefect",
+      name: "Prefect",
+      description: "Orchestration tool.",
+      logo: "/prefect-logo.svg",
+      configOptions: [],
+    },
   ];

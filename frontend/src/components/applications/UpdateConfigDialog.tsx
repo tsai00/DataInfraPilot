@@ -20,11 +20,14 @@ import { Input } from "@/components/ui/input";
 import AirflowDeployConfig from "./appConfigs/airflow";
 import GrafanaDeployConfig from "./appConfigs/grafana";
 import SparkDeployConfig from "./appConfigs/spark";
+import PrefectDeployConfig from "./appConfigs/prefect";
+
 
 const appDeployModules: Record<string, any> = {
   airflow: AirflowDeployConfig,
   grafana: GrafanaDeployConfig,
-  spark: SparkDeployConfig
+  spark: SparkDeployConfig,
+  prefect: PrefectDeployConfig
 };
 
 interface UpdateConfigDialogProps {
