@@ -124,7 +124,7 @@ class BaseApplication(ABC):
     def post_installation_actions(self) -> list[BasePrePostInstallAction]:
         return []
 
-    def run_pre_install_actions(
+    async def run_pre_install_actions(
         self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]
     ) -> None:
         for action in self.pre_installation_actions:
@@ -132,9 +132,9 @@ class BaseApplication(ABC):
                 self._logger.warning(f'Skipping pre-install action: {action.name} as its condition is not met')
             else:
                 self._logger.info(f'Running pre-install action: {action.name}')
-                action.run(cluster, namespace, config_values)
+                await action.run(cluster, namespace, config_values)
 
-    def run_post_install_actions(
+    async def run_post_install_actions(
         self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]
     ) -> None:
         for action in self.post_installation_actions:
@@ -142,4 +142,4 @@ class BaseApplication(ABC):
                 self._logger.warning(f'Skipping post-install action: {action.name} as its condition is not met')
             else:
                 self._logger.info(f'Running post-install action: {action.name}')
-                action.run(cluster, namespace, config_values)
+                await action.run(cluster, namespace, config_values)

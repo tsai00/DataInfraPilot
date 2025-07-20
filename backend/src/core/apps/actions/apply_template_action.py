@@ -11,18 +11,22 @@ class ApplyTemplateAction(BasePrePostInstallAction):
         name: str,
         template_name: str,
         template_module: str | None,
+        values: dict | None = None,
         with_custom_objects: bool = False,
         condition: bool = True,
     ) -> None:
         self.template_name = template_name
         self.template_module = template_module
         self.with_custom_objects = with_custom_objects
+        self.values = values or {}
 
         super().__init__(name=name, condition=condition)
 
     @override
-    def run(self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]) -> None:
-        values = {namespace: namespace, **config_values}
+    async def run(self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]) -> None:
+        values = {'namespace': namespace, **config_values, **self.values}
+
+        print(f'Applying action with values: {values}')
 
         with template_loader.render_to_temp_file(
             self.template_name, values, self.template_module
