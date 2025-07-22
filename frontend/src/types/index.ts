@@ -76,6 +76,11 @@ export type Application = {
   configOptions: ConfigOption[];
   versions?: string[];
   volumeRequirements?: VolumeRequirement[];
+  recommendedResources?: {
+    nodes: string;
+    ram: string;
+    cpu: string;
+  };
 };
 
 export type VolumeRequirement = {

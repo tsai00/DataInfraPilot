@@ -9,18 +9,16 @@ import { useClusterStore } from "@/store";
 
 interface AppConfigStepProps {
   selectedApp: Application;
-  appModule: any;
   config: Record<string, any>;
   updateConfig: (optionId: string, value: any) => void;
   clusterId: string;
 }
 
 const AppConfigStep: React.FC<AppConfigStepProps> = ({
-    selectedApp,
-    appModule,
-    config,
-    updateConfig,
-    clusterId
+  selectedApp,
+  config,
+  updateConfig,
+  clusterId
 }) => {
   const { clusters } = useClusterStore();
   const [deploymentNameError, setDeploymentNameError] = useState<string>("");
@@ -77,7 +75,7 @@ const AppConfigStep: React.FC<AppConfigStepProps> = ({
             </p>
             <div className="mt-2 px-3 py-1 rounded-lg bg-muted/100 border text-xs flex flex-row items-center gap-2 text-muted-foreground">
                 <div className="flex flex-row items-center gap-2">
-                <span className="font-medium">Minimal recommended resources:</span>&nbsp;{appModule?.appRecommendedResources.nodes} nodes • {appModule?.appRecommendedResources.ram} RAM • {appModule?.appRecommendedResources.cpu}
+                <span className="font-medium">Minimal recommended resources:</span>&nbsp;{selectedApp.recommendedResources?.nodes || "1"} nodes • {selectedApp.recommendedResources?.ram || "1 GB"} RAM • {selectedApp.recommendedResources?.cpu || "1 vCPU"}
                 </div>
             </div>
             </div>
@@ -103,7 +101,7 @@ const AppConfigStep: React.FC<AppConfigStepProps> = ({
         <div className="space-y-4">
         <h3 className="font-medium">Configuration Options</h3>
         <div className="space-y-6 border rounded-lg p-4 bg-secondary/10">
-            {(appModule?.configOptions || selectedApp?.configOptions || [])
+            {(selectedApp?.configOptions || [])
             .filter((opt: ConfigOption) => shouldShowField(opt))
             .map((opt: ConfigOption) => {
                 console.log(`Rendering field: ${opt.id}, shouldShow: ${shouldShowField(opt)}`);
