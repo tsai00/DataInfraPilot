@@ -109,6 +109,7 @@ class HetznerProvider(BaseProvider):
                 ip_range='10.0.0.0/16',
                 subnets=[NetworkSubnet(ip_range='10.0.1.0/24', network_zone='eu-central', type='cloud')],
             )
+            self.client.networks.get_by_id(network.id).change_protection(delete=True)
         except APIException as e:
             # TODO: add general exception handler, mapping Hetzner error (uniqueness_error, protected, ...)
             if e.code == 'uniqueness_error':
@@ -160,6 +161,8 @@ class HetznerProvider(BaseProvider):
                 ssh_keys=ssh_keys,
                 public_net=ServerCreatePublicNetwork(enable_ipv4=enable_public_ip, enable_ipv6=enable_public_ip),
             )
+
+            self.client.servers.get_by_id(response.server.id).change_protection(delete=True, rebuild=True)
         except APIException as e:
             if e.code == 'uniqueness_error':
                 self._logger.warning(f'Server with name "{name}" already exists')
@@ -336,11 +339,12 @@ class HetznerProvider(BaseProvider):
 
     async def create_volume(self, name: str, size: int, region: str | None = None) -> None:
         try:
-            self.client.volumes.create(
+            volume = self.client.volumes.create(
                 name=name,
                 size=size,
                 location=Location(name=region or 'fsn1'),
             )
+            self.client.volumes.get_by_id(volume.volume.id).change_protection(delete=True)
         except APIException as e:
             # TODO: add general exception handler, mapping Hetzner error (uniqueness_error, protected, ...)
             if e.code == 'uniqueness_error':
@@ -373,6 +377,9 @@ class HetznerProvider(BaseProvider):
 
         for x in servers + placement_groups + networks + ssh_keys:
             try:
+                if hasattr(x, 'change_protection'):
+                    x.change_protection(delete=False)
+
                 x.delete()
                 self._logger.info(f'Removed resource {x}')
             except APIException as e:
