@@ -134,21 +134,23 @@ export const applications: Application[] = [
       configOptions: [
         ...commonConfigOptions,
         {
-          id: "admin_username",
-          name: "Admin Username",
-          type: "text",
-          description: "Default admin username for Grafana",
+          id: "version",
+          name: "Grafana Version",
+          type: "select",
+          description: "Version of Grafana to deploy",
           required: true,
-          default: "admin",
+          default: "11.6",
+          options: [],
+          applicationId: 2
         },
         {
-          id: "admin_password",
-          name: "Admin Password",
-          type: "text",
-          description: "Default admin password for Grafana",
+          id: "number_of_replicas",
+          name: "Number of replicas",
+          type: "number",
+          description: "Number of Grafana replicas (for higher / lower load)",
           required: true,
-          default: "",
-        }
+          default: 1,
+        },
       ],
     },
     {

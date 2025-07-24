@@ -8,6 +8,7 @@ from src.core.kubernetes.chart_config import HelmChart
 
 class GrafanaConfig(BaseModel):
     version: str = '11.6'
+    number_of_replicas: int = 1
 
 
 class GrafanaApplication(BaseApplication):
@@ -133,6 +134,7 @@ class GrafanaApplication(BaseApplication):
     @property
     def chart_values(self) -> dict[str, Any]:
         values = {
+            'image': {'tag': self._config.version},
             'persistence': {
                 'enabled': True,
                 'type': 'pvc',
@@ -140,6 +142,7 @@ class GrafanaApplication(BaseApplication):
                 'size': '10Gi',
                 'storageClassName': 'hcloud-volumes',
             },
+            'replicas': self._config.number_of_replicas,
             'rbac': {
                 'namespaced': True  # allows deploying multiple instances on one cluster
             },
