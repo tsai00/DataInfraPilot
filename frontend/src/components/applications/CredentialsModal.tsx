@@ -90,9 +90,24 @@ const CredentialsModal: React.FC<CredentialsModalProps> = ({
     );
   };
 
+  const formatPasswordDisplay = (password: string, show: boolean) => {
+    if (show) {
+      // When showing password, truncate if too long and add ellipsis
+      if (password.length > 30) {
+        return password.substring(0, 30) + "...";
+      }
+      return password;
+    } else {
+      // When hiding password, show dots but limit the visual length
+      const dotsToShow = Math.min(password.length, 20);
+      const dots = '•'.repeat(dotsToShow);
+      return dots;
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-w-[90vw]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Key className="h-5 w-5" />
@@ -122,13 +137,13 @@ const CredentialsModal: React.FC<CredentialsModalProps> = ({
           {credentials && !loading && (
             <div className="space-y-3 border rounded-md p-3">
               <div>
-                <div className="text-sm font-medium text-muted-foreground">Username</div>
-                <div className="font-mono bg-muted p-2 rounded-sm mt-1 text-sm flex justify-between items-center">
-                  <span>{credentials.username}</span>
+                <div className="text-sm font-medium text-muted-foreground mb-1">Username</div>
+                <div className="bg-muted p-2 rounded-sm flex items-center gap-2 min-w-0">
+                  <span className="font-mono text-sm flex-1 min-w-0 break-all">{credentials.username}</span>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-2"
+                    className="h-8 w-8 p-0 flex-shrink-0"
                     onClick={() => copyToClipboard(credentials.username, "Username")}
                   >
                     {copiedField === "Username" ? (
@@ -140,16 +155,18 @@ const CredentialsModal: React.FC<CredentialsModalProps> = ({
                 </div>
               </div>
               <div>
-                <div className="text-sm font-medium text-muted-foreground">Password</div>
-                <div className="font-mono bg-muted p-2 rounded-sm mt-1 text-sm flex justify-between items-center">
-                  <span>
-                    {showPassword ? credentials.password : '•'.repeat(credentials.password.length)}
-                  </span>
-                  <div className="flex items-center gap-1">
+                <div className="text-sm font-medium text-muted-foreground mb-1">Password</div>
+                <div className="bg-muted p-2 rounded-sm flex items-center gap-2 min-w-0">
+                  <div className="font-mono text-sm flex-1 min-w-0 overflow-hidden">
+                    <div className="truncate" title={showPassword ? credentials.password : "Hidden password"}>
+                      {formatPasswordDisplay(credentials.password, showPassword)}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 px-2"
+                      className="h-8 w-8 p-0"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? (
@@ -161,7 +178,7 @@ const CredentialsModal: React.FC<CredentialsModalProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 px-2"
+                      className="h-8 w-8 p-0"
                       onClick={() => copyToClipboard(credentials.password, "Password")}
                     >
                       {copiedField === "Password" ? (
