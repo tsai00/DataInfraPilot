@@ -310,7 +310,7 @@ class ClusterManager:
         application_instance = ApplicationFactory.get_application(deployment_from_db.application_id, deployment_config)
 
         self.storage.update_deployment(
-            deployment_from_db.application_id, {'status': DeploymentStatus.UPDATING, 'config': deployment_config}
+            deployment_id, {'status': DeploymentStatus.UPDATING, 'config': deployment_config}
         )
 
         try:
@@ -319,12 +319,10 @@ class ClusterManager:
             )
 
             self._logger.info(f'Successfully updated application {application_instance.name} {cluster_from_db.name}')
-            self.storage.update_deployment(deployment_from_db.application_id, {'status': DeploymentStatus.RUNNING})
+            self.storage.update_deployment(deployment_id, {'status': DeploymentStatus.RUNNING})
         except Exception as e:
             self._logger.exception('Error while updating application', exc_info=True)
-            self.storage.update_deployment(
-                deployment_from_db.application_id, {'status': DeploymentStatus.FAILED, 'error_message': str(e)}
-            )
+            self.storage.update_deployment(deployment_id, {'status': DeploymentStatus.FAILED, 'error_message': str(e)})
 
     async def remove_deployment(self, deployment_id: int) -> None:
         deployment_from_db = self.get_deployment(deployment_id)
