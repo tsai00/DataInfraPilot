@@ -81,6 +81,8 @@ docker-compose up
 ```
 ---
 
+Additionally, an SSH key pair is required to use it for server access. Create one under ~/.ssh directory (this directory will be mounted to the Docker container), and you will be prompted for the path when creating a new cluster. 
+
 ## Screenshots
 ### Cluster provisioning
 ![image info](docs/create_cluster_modal_1.png)
