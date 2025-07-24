@@ -139,7 +139,7 @@ export type ConfigOption = {
 };
 
 export type Deployment = {
-  id: string;
+  id: number;
   name: string;
   application: Application;
   status: stateEnum;

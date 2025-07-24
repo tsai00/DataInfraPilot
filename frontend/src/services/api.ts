@@ -72,6 +72,7 @@ export interface CreateDeploymentRequest extends UpdateDeploymentRequest {
 interface CreateDeploymentResponse {
   result: string;
   status: stateEnum;
+  id: number;
 }
 
 export interface ApiDeployment {

@@ -315,7 +315,6 @@ export const useClusterStore = create<ClusterState>()(
       },
 
       createDeployment: async (clusterId, application, config, nodePool, volumes = [], endpoints) => {
-        const deploymentId = `deployment-${Math.random().toString(36).substring(2, 9)}`;
         const currentCluster = get().clusters.find(c => c.id === clusterId);
 
         const deploymentVolumes: DeploymentVolume[] = [];
@@ -370,29 +369,6 @@ export const useClusterStore = create<ClusterState>()(
           });
         }
 
-        const newDeployment: Deployment = {
-          id: deploymentId,
-          name: config.deployment_name || `${application.name} Deployment`,
-          application,
-          status: stateEnum.DEPLOYING,
-          config,
-          deployedAt: new Date().toISOString(),
-          nodePool,
-          volumes: deploymentVolumes.length > 0 ? deploymentVolumes : undefined,
-          accessEndpoints: endpoints
-        };
-
-        set((state) => ({
-          clusters: state.clusters.map((c) =>
-            c.id === clusterId
-              ? {
-                  ...c,
-                  deployments: [...c.deployments, newDeployment],
-                }
-              : c
-          ),
-        }));
-
         const apiPayload: api.CreateDeploymentRequest = {
           name: config.deployment_name || `${application.name} Deployment`,
           application_id: application.id.toString(),
@@ -408,6 +384,29 @@ export const useClusterStore = create<ClusterState>()(
         
         try {
           const response = await api.createDeployment(clusterId, apiPayload);
+
+          const newDeployment: Deployment = {
+            id: response.id,
+            name: config.deployment_name || `${application.name} Deployment`,
+            application,
+            status: stateEnum.DEPLOYING,
+            config,
+            deployedAt: new Date().toISOString(),
+            nodePool,
+            volumes: deploymentVolumes.length > 0 ? deploymentVolumes : undefined,
+            accessEndpoints: endpoints
+          };
+
+          set((state) => ({
+            clusters: state.clusters.map((c) =>
+              c.id === clusterId
+                ? {
+                    ...c,
+                    deployments: [...c.deployments, newDeployment],
+                  }
+                : c
+            ),
+          }));
           
           if (currentCluster) {
             const newActivity: DomainActivity = {
