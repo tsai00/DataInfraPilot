@@ -13,6 +13,7 @@ from src.core.apps.application_factory import ApplicationFactory, ApplicationMet
 from src.core.apps.grafana_application import GrafanaApplication, GrafanaConfig
 from src.core.apps.prefect_application import PrefectApplication, PrefectConfig
 from src.core.apps.spark_application import SparkApplication, SparkConfig
+from src.core.apps.superset_application import SupersetApplication, SupersetConfig
 from src.core.utils import setup_logger
 
 logger = setup_logger('APIMain')
@@ -57,6 +58,11 @@ async def register_applications() -> None:
         app_id=4,
         app_class=PrefectApplication,
         config_class=PrefectConfig,
+    )
+    ApplicationFactory.register_application(
+        app_id=5,
+        app_class=SupersetApplication,
+        config_class=SupersetConfig,
     )
 
     logger.info('Applications registration complete.')
