@@ -1,6 +1,9 @@
+import re
 from functools import lru_cache
 from typing import Any
 
+import requests
+from packaging.version import Version
 from pydantic import BaseModel
 from src.core.apps.base_application import AccessEndpoint, AccessEndpointConfig, AccessEndpointType, BaseApplication
 from src.core.kubernetes.chart_config import HelmChart
@@ -28,8 +31,15 @@ class GrafanaApplication(BaseApplication):
     @classmethod
     @lru_cache
     def get_available_versions(cls) -> list[str]:
-        # TODO: replace with actual version list + move to base class
-        return ['2.10.3']
+        try:
+            r = requests.get('https://api.github.com/repos/grafana/grafana/releases?per_page=100', timeout=15).json()
+        except Exception:
+            cls._logger.exception('Failed to retrieve available versions for Grafana')
+            return ['11.6']
+
+        versions = [x['tag_name'].replace('v', '') for x in r if re.search(r'^v\d{1,2}\.\d\.\d$', x['tag_name'])][:30]
+
+        return sorted(versions, key=Version, reverse=True)
 
     @classmethod
     def get_volume_requirements(cls) -> list:
