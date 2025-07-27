@@ -176,7 +176,25 @@ class ClusterManager:
 
         self.storage.delete_volume(volume_id)
 
-    async def create_deployment(self, cluster_id: int, deployment_create: DeploymentCreateSchema) -> None:
+    async def create_deployment_entry(self, cluster_id: int, deployment_create: DeploymentCreateSchema) -> int:
+        node_pool = deployment_create.node_pool if deployment_create.node_pool != 'noselection' else None
+
+        deployment = Deployment(
+            cluster_id=cluster_id,
+            name=deployment_create.name,
+            application_id=deployment_create.application_id,
+            status=DeploymentStatus.DEPLOYING,
+            installed_at=datetime.now(),
+            node_pool=node_pool,
+            config=deployment_create.config,
+            endpoints=[x.to_dict() for x in deployment_create.endpoints],
+        )
+
+        return self.storage.create_deployment(deployment)
+
+    async def create_deployment(
+        self, cluster_id: int, deployment_id: int, deployment_create: DeploymentCreateSchema
+    ) -> None:
         # volume_requirements = deployment_create.volumes or []
         node_pool = deployment_create.node_pool if deployment_create.node_pool != 'noselection' else None
 
@@ -223,19 +241,6 @@ class ClusterManager:
         #     else:
         #         raise ValueError(f"Unknown volume requirement type: {volume_requirement.volume_type}")
 
-        deployment = Deployment(
-            cluster_id=cluster_from_db.id,
-            name=deployment_create.name,
-            application_id=deployment_create.application_id,
-            status=DeploymentStatus.DEPLOYING,
-            installed_at=datetime.now(),
-            node_pool=node_pool,
-            config=deployment_config,
-            endpoints=[x.to_dict() for x in deployment_create.endpoints],
-        )
-
-        deployment_id = self.storage.create_deployment(deployment)
-
         try:
             application_instance = ApplicationFactory.get_application(
                 deployment_create.application_id, deployment_config
@@ -263,16 +268,16 @@ class ClusterManager:
         helm_chart_values = {**helm_chart_values, **access_endpoints_values}
 
         try:
-            application_instance.run_pre_install_actions(cluster, namespace, deployment_config)
+            await application_instance.run_pre_install_actions(cluster, namespace, deployment_config)
 
             await cluster.install_or_upgrade_chart(helm_chart, helm_chart_values, namespace)
 
             self._logger.info(
-                f'Successfully deployed application {deployment.application_id} to cluster {cluster_from_db.name}'
+                f'Successfully deployed app {deployment_create.application_id} to cluster {cluster_from_db.name}'
             )
             self.storage.update_deployment(deployment_id, {'status': DeploymentStatus.RUNNING})
 
-            application_instance.run_post_install_actions(
+            await application_instance.run_post_install_actions(
                 cluster, namespace, {**deployment_config, **access_endpoints_values}
             )
         except Exception as e:
@@ -310,7 +315,7 @@ class ClusterManager:
         application_instance = ApplicationFactory.get_application(deployment_from_db.application_id, deployment_config)
 
         self.storage.update_deployment(
-            deployment_from_db.application_id, {'status': DeploymentStatus.UPDATING, 'config': deployment_config}
+            deployment_id, {'status': DeploymentStatus.UPDATING, 'config': deployment_config}
         )
 
         try:
@@ -319,12 +324,10 @@ class ClusterManager:
             )
 
             self._logger.info(f'Successfully updated application {application_instance.name} {cluster_from_db.name}')
-            self.storage.update_deployment(deployment_from_db.application_id, {'status': DeploymentStatus.RUNNING})
+            self.storage.update_deployment(deployment_id, {'status': DeploymentStatus.RUNNING})
         except Exception as e:
             self._logger.exception('Error while updating application', exc_info=True)
-            self.storage.update_deployment(
-                deployment_from_db.application_id, {'status': DeploymentStatus.FAILED, 'error_message': str(e)}
-            )
+            self.storage.update_deployment(deployment_id, {'status': DeploymentStatus.FAILED, 'error_message': str(e)})
 
     async def remove_deployment(self, deployment_id: int) -> None:
         deployment_from_db = self.get_deployment(deployment_id)

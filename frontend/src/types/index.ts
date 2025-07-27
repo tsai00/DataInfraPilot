@@ -76,6 +76,11 @@ export type Application = {
   configOptions: ConfigOption[];
   versions?: string[];
   volumeRequirements?: VolumeRequirement[];
+  recommendedResources?: {
+    nodes: string;
+    ram: string;
+    cpu: string;
+  };
 };
 
 export type VolumeRequirement = {
@@ -134,7 +139,7 @@ export type ConfigOption = {
 };
 
 export type Deployment = {
-  id: string;
+  id: number;
   name: string;
   application: Application;
   status: stateEnum;

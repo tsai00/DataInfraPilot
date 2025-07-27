@@ -6,7 +6,7 @@ import VolumeSelectionField from './VolumeSelectionField';
 interface StorageConfigStepProps {
   selectedApp: Application;
   providerId: string;
-  updateVolumeSelection;
+  updateVolumeSelection: (volumeType?: string, size?: number, name?: string) => void;
 }
 
 const StorageConfigStep: React.FC<StorageConfigStepProps> = ({

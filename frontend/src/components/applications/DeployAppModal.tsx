@@ -10,23 +10,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { StepProgress } from "@/components/StepProgress";
 import { useClusterStore } from "@/store";
-import { Application, ConfigOption, AccessEndpoint, AccessEndpointConfig, AccessEndpointType } from "@/types";
+import { Application, AccessEndpoint, AccessEndpointConfig, AccessEndpointType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import AccessConfigStep from "./DeployAppModal/AccessConfigStep";
-import AirflowDeployConfig from "./appConfigs/airflow";
-import GrafanaDeployConfig from "./appConfigs/grafana";
-import SparkDeployConfig from "./appConfigs/spark";
 import { getApplicationAccessEndpoints, checkEndpointExistence } from "@/services/api";
+import {
+  validateApplicationConfig,
+  getInitialConfig,
+} from "@/utils/applicationConfig.ts";
 import AppSelectionStep from "./DeployAppModal/AppSelectionStep";
 import AppConfigStep from "./DeployAppModal/AppConfigStep";
 import NodePoolConfigStep from "./DeployAppModal/NodePoolConfigStep";
 import StorageConfigStep from "./DeployAppModal/StorageConfigStep";
-
-const appDeployModules: Record<string, any> = {
-  airflow: AirflowDeployConfig,
-  grafana: GrafanaDeployConfig,
-  spark: SparkDeployConfig
-};
 
 interface DeployAppModalProps {
   open: boolean;
@@ -71,8 +66,6 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
   
   const cluster = clusters.find((c) => c.id === clusterId);
   const workerNodePools = cluster?.nodePools || [];
-
-  const appModule = selectedApp ? appDeployModules[selectedApp.short_name] : undefined;
 
   // Check for deployment name duplicates
   const deploymentNameError = React.useMemo(() => {
@@ -136,15 +129,8 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
   useEffect(() => {
     if (selectedApp) {
       console.log("Select app: " + JSON.stringify(selectedApp))
-      const module = appDeployModules[selectedApp.short_name];
-      const filteredOpts = module?.configOptions || selectedApp.configOptions;
       const initialConfig = {
-        ...filteredOpts.reduce((acc, option) => {
-          if (option.default !== undefined) {
-            acc[option.id] = option.default;
-          }
-          return acc;
-        }, {} as Record<string, any>)
+        ...getInitialConfig(selectedApp),
       };
 
       setConfig(initialConfig);
@@ -239,7 +225,7 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
         return;
       }
 
-      const result = appDeployModules[selectedApp.short_name].validateConfig(config);
+      const result = validateApplicationConfig(selectedApp, config);
 
       if (result !== true) {
         toast({
@@ -303,8 +289,6 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
       // Format endpoint configs for the backend
       const formattedEndpoints = endpointConfigs.map(config => {
         let formattedValue = config.value;
-
-        console.log("formattedValue endpoint: " + formattedValue)
 
         if (config.access_type === AccessEndpointType.SUBDOMAIN) {
           // For subdomains, include the full domain name if it's not already included
@@ -387,13 +371,11 @@ const DeployAppModal: React.FC<DeployAppModalProps> = ({
           {step === "selection" ? (
             <AppSelectionStep
               applications={applications}
-              appDeployModules={appDeployModules}
               handleAppSelect={handleAppSelect}
             />
           ) : step === "configuration" ? (
             <AppConfigStep
               selectedApp={selectedApp}
-              appModule={appModule}
               config={config}
               updateConfig={updateConfig}
               clusterId={clusterId}

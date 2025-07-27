@@ -16,16 +16,7 @@ import ConfigOptionField from "./DeployAppModal/ConfigOptionField";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 
-// Import per-app deploy configs (mirroring DeployAppModal)
-import AirflowDeployConfig from "./appConfigs/airflow";
-import GrafanaDeployConfig from "./appConfigs/grafana";
-import SparkDeployConfig from "./appConfigs/spark";
-
-const appDeployModules: Record<string, any> = {
-  airflow: AirflowDeployConfig,
-  grafana: GrafanaDeployConfig,
-  spark: SparkDeployConfig
-};
+import { validateApplicationConfig, shouldShowConfigOption } from "@/utils/applicationConfig.ts";
 
 interface UpdateConfigDialogProps {
   open: boolean;
@@ -47,12 +38,6 @@ const UpdateConfigDialog: React.FC<UpdateConfigDialogProps> = ({
   const { updateDeployment: updateApplication, clusters } = useClusterStore();
   const { toast } = useToast();
 
-  // Find the app's module-based config
-  const appModule = useMemo(
-    () => appDeployModules[application.short_name],
-    [application.short_name]
-  );
-
   // Find the current cluster and deployment
   const currentCluster = clusters.find(c => c.id === clusterId);
   const currentDeployment = currentCluster?.deployments.find(d => d.id === appId);
@@ -60,8 +45,7 @@ const UpdateConfigDialog: React.FC<UpdateConfigDialogProps> = ({
   // Prepopulate config form values from currentConfig (deployed app)
   const [config, setConfig] = useState<Record<string, any>>(() => {
     // If configOptions have default values, fill them in on top of currentConfig
-    const opts: ConfigOption[] =
-      appModule?.configOptions || application.configOptions || [];
+    const opts: ConfigOption[] = application.configOptions || [];
     let initial: Record<string, any> = {};
 
     // Add deployment name
@@ -132,7 +116,7 @@ const UpdateConfigDialog: React.FC<UpdateConfigDialogProps> = ({
       return;
     }
 
-    const result = appModule.validateConfig(config);
+    const result = validateApplicationConfig(application, config);
 
     if (result !== true) {
       toast({
@@ -144,7 +128,7 @@ const UpdateConfigDialog: React.FC<UpdateConfigDialogProps> = ({
     }
 
     // Prepare final config object as in DeployAppModal
-    let finalConfig = { ...config };
+    const finalConfig = { ...config };
 
     await updateApplication(clusterId, appId, finalConfig);
 
@@ -157,8 +141,7 @@ const UpdateConfigDialog: React.FC<UpdateConfigDialogProps> = ({
   };
 
   // Find configOptions to render fields for
-  const configOptions: ConfigOption[] =
-    appModule?.configOptions || application.configOptions || [];
+  const configOptions: ConfigOption[] = application.configOptions || [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -1,5 +1,8 @@
 
-import { Application } from "@/types";
+import { Application, ConfigOption } from "@/types";
+
+// Common configuration options for all applications
+const commonConfigOptions: ConfigOption[] = [];
 
 export const applications: Application[] = [
     {
@@ -8,6 +11,11 @@ export const applications: Application[] = [
       name: "Apache Airflow",
       description: "Platform to programmatically author, schedule and monitor workflows",
       logo: "/airflow-logo.png",
+      recommendedResources: {
+        nodes: "2",
+        ram: "4 GB",
+        cpu: "2 vCPU",
+      },
       volumeRequirements: [
         {
           id: "1",
@@ -17,6 +25,7 @@ export const applications: Application[] = [
         }
       ],
       configOptions: [
+        ...commonConfigOptions,
         {
           id: "version",
           name: "Airflow Version",
@@ -117,7 +126,32 @@ export const applications: Application[] = [
       name: "Grafana",
       description: "Multi-platform open source analytics and interactive visualization web application.",
       logo: "/grafana-logo.png",
-      configOptions: [],
+      recommendedResources: {
+        nodes: "2",
+        ram: "2 GB",
+        cpu: "1 vCPU",
+      },
+      configOptions: [
+        ...commonConfigOptions,
+        {
+          id: "version",
+          name: "Grafana Version",
+          type: "select",
+          description: "Version of Grafana to deploy",
+          required: true,
+          default: "11.6",
+          options: [],
+          applicationId: 2
+        },
+        {
+          id: "number_of_replicas",
+          name: "Number of replicas",
+          type: "number",
+          description: "Number of Grafana replicas (for higher / lower load)",
+          required: true,
+          default: 1,
+        },
+      ],
     },
     {
       id: 3,
@@ -125,7 +159,13 @@ export const applications: Application[] = [
       name: "Apache Spark",
       description: "Tool for running Big Data jobs.",
       logo: "/spark-logo.png",
+      recommendedResources: {
+        nodes: "2",
+        ram: "2 GB",
+        cpu: "1 vCPU",
+      },
       configOptions: [
+        ...commonConfigOptions,
         {
           id: "version",
           name: "Spark Version",
@@ -161,5 +201,51 @@ export const applications: Application[] = [
           default: 3,
         },
       ],
-    }
+    },
+    {
+      id: 4,
+      short_name: "prefect",
+      name: "Prefect",
+      description: "Orchestration tool",
+      logo: "/prefect-logo.svg",
+      recommendedResources: {
+        nodes: "2",
+        ram: "2 GB",
+        cpu: "1 vCPU",
+      },
+      configOptions: [
+        ...commonConfigOptions,
+        {
+          id: "admin_username",
+          name: "Admin Username",
+          type: "text",
+          description: "Default admin username for Grafana",
+          required: true,
+          default: "admin",
+        },
+        {
+          id: "admin_password",
+          name: "Admin Password",
+          type: "text",
+          description: "Default admin password for Grafana",
+          required: true,
+          default: "",
+        }
+      ],
+    },
+    // {
+    //   id: 5,
+    //   short_name: "superset",
+    //   name: "Superset",
+    //   description: "Visualisation.",
+    //   logo: "/superset-logo.svg",
+    //   recommendedResources: {
+    //     nodes: "2",
+    //     ram: "2 GB",
+    //     cpu: "1 vCPU",
+    //   },
+    //   configOptions: [
+    //     ...commonConfigOptions,
+    //   ],
+    // },
   ];

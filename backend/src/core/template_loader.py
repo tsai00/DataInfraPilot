@@ -6,19 +6,19 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, Template, meta
 from jinja2.exceptions import TemplateNotFound
-
 from src.core.utils import setup_logger
 
 
 class TemplateLoader:
     _TEMPLATE_SUBFOLDERS = ('kubernetes', 'traefik')
 
-    def __init__(self) -> None:
+    def __init__(self, templates_dir: Path | None = None) -> None:
         self._logger = setup_logger('TemplateLoader')
 
-        templates_dir = Path(__file__).parent.resolve() / 'templates'
+        if templates_dir is None:
+            templates_dir = Path(__file__).parent.resolve() / 'templates'
 
-        if not templates_dir.is_dir():
+        if not templates_dir.is_dir() or not templates_dir.exists():
             raise FileNotFoundError(
                 f'Templates directory not found at: {templates_dir}. '
                 "Please ensure a 'templates' folder exists next to your script."

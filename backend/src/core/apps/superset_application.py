@@ -1,45 +1,34 @@
-import re
 from functools import lru_cache
 from typing import Any
 
-import requests
-from packaging.version import Version
 from pydantic import BaseModel
 from src.core.apps.base_application import AccessEndpoint, AccessEndpointConfig, AccessEndpointType, BaseApplication
 from src.core.kubernetes.chart_config import HelmChart
 
 
-class GrafanaConfig(BaseModel):
-    version: str = '11.6'
-    number_of_replicas: int = 1
+class SupersetConfig(BaseModel):
+    version: str = '4.1.3'
 
 
-class GrafanaApplication(BaseApplication):
+class SupersetApplication(BaseApplication):
     _helm_chart = HelmChart(
-        name='grafana',
-        repo_url='https://grafana.github.io/helm-charts',
-        version='8.12.1',
+        name='superset',
+        repo_url='http://apache.github.io/superset/',
+        version='0.14.2',
     )
 
-    credentials_secret_name = 'grafana'  # noqa: S105 (not a secret)
+    credentials_secret_name = 'superset'  # noqa: S105 (not a secret)
 
-    def __init__(self, config: GrafanaConfig) -> None:
+    def __init__(self, config: SupersetConfig) -> None:
         self._config = config
 
-        super().__init__('Grafana')
+        super().__init__('Superset')
 
     @classmethod
     @lru_cache
     def get_available_versions(cls) -> list[str]:
-        try:
-            r = requests.get('https://api.github.com/repos/grafana/grafana/releases?per_page=100', timeout=15).json()
-        except Exception:
-            cls._logger.exception('Failed to retrieve available versions for Grafana')
-            return ['11.6']
-
-        versions = [x['tag_name'].replace('v', '') for x in r if re.search(r'^v\d{1,2}\.\d\.\d$', x['tag_name'])][:30]
-
-        return sorted(versions, key=Version, reverse=True)
+        # TODO: replace with actual version list + move to base class
+        return ['2.10.3']
 
     @classmethod
     def get_volume_requirements(cls) -> list:
@@ -50,9 +39,9 @@ class GrafanaApplication(BaseApplication):
         return [
             AccessEndpoint(
                 name='web-ui',
-                description='Grafana Web UI',
+                description='Superset Web UI',
                 default_access=AccessEndpointType.CLUSTER_IP_PATH,
-                default_value='/grafana',
+                default_value='/superset',
                 required=True,
             )
         ]
@@ -105,8 +94,20 @@ class GrafanaApplication(BaseApplication):
                 'path': web_ui_config['path'],
                 'hosts': helm_ingress_hosts,
                 'tls': helm_ingress_tls,
-            },
-            'grafana.ini': {'server': {'root_url': web_ui_config['base_url'], 'serve_from_sub_path': True}},
+                'extraHostsRaw': [
+                    {
+                        'http': {
+                            'paths': [
+                                {
+                                    'path': web_ui_config['path'],
+                                    'pathType': 'Prefix',
+                                    'backend': {'service': {'name': 'superset', 'port': {'name': 'http'}}},
+                                }
+                            ]
+                        }
+                    }
+                ],
+            }
         }
 
     def _generate_endpoint_helm_values(
@@ -144,18 +145,31 @@ class GrafanaApplication(BaseApplication):
     @property
     def chart_values(self) -> dict[str, Any]:
         values = {
-            'image': {'tag': self._config.version},
-            'persistence': {
-                'enabled': True,
-                'type': 'pvc',
-                'accessModes': ['ReadWriteOnce'],
-                'size': '10Gi',
-                'storageClassName': 'hcloud-volumes',
+            'image': {
+                'tag': self._config.version,
             },
-            'replicas': self._config.number_of_replicas,
-            'rbac': {
-                'namespaced': True  # allows deploying multiple instances on one cluster
-            },
+            'extraSecretEnv': {'SUPERSET_SECRET_KEY': 'hyfSKeVsfW40F2+kU+bhodC3p8JSzuHcU4adic00vh+607Sbndjeq8qH'},
+            'bootstrapScript': """
+              #!/bin/bash
+              
+              # Install system-level dependencies
+              apt-get update && apt-get install -y \
+                python3-dev \
+                default-libmysqlclient-dev \
+                build-essential \
+                pkg-config
+            
+              # Install required Python packages
+              pip install \
+                authlib \
+                psycopg2-binary \
+                mysqlclient \
+            
+              # Create bootstrap file if it doesn't exist
+              if [ ! -f ~/bootstrap ]; then
+                echo "Running Superset with uid {{ .Values.runAsUser }}" > ~/bootstrap
+              fi
+            """,  # noqa: W293
         }
 
         return values

@@ -28,6 +28,8 @@ import { Separator } from "@/components/ui/separator";
 import { StepProgress } from "@/components/StepProgress";
 import { Switch } from "@/components/ui/switch";
 import { calculateClusterEstimatedCost, calculateClusterCostRange, getCostForPeriod } from "@/utils/costCalculations";
+import ProviderConfig from "./ProviderConfig";
+import ControlPlaneConfig from "./ControlPlaneConfig";
 
 interface CreateClusterModalProps {
   open: boolean;
@@ -153,28 +155,28 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
     }
   }, [currentStep]);
 
-  // Handle SSH key path change
-  const handlePrivateKeyPathChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newPrivateKeyPath = e.target.value;
-    setSshPrivateKeyPath(newPrivateKeyPath);
-
-    // Automatically update the public key path to match the private key path with .pub suffix
-    if (!newPrivateKeyPath.endsWith('.pub')) {
-      setSshPublicKeyPath(`${newPrivateKeyPath}.pub`);
-    }
-  };
-
   useEffect(() => {
     if (selectedProvider) {
       const availableNodeTypes = selectedProvider.nodeTypes;
       if (availableNodeTypes.length > 0 && selectedProvider.regions.length > 0) {
-        setControlPlane({
-          id: "control-plane",
-          name: "control-plane",
-          nodeType: availableNodeTypes[0],
-          count: 1,
-          region: selectedProvider.regions[0]
-        });
+        // For DigitalOcean, control plane is managed, so we create a dummy control plane entry
+        if (selectedProvider.id === "digitalocean") {
+          setControlPlane({
+            id: "control-plane-managed",
+            name: "managed-control-plane",
+            nodeType: availableNodeTypes[0], // This won't be used for cost calculation
+            count: 0, // Managed control plane doesn't count towards cost
+            region: selectedProvider.regions[0]
+          });
+        } else {
+          setControlPlane({
+            id: "control-plane",
+            name: "control-plane",
+            nodeType: availableNodeTypes[0],
+            count: 1,
+            region: selectedProvider.regions[0]
+          });
+        }
 
         // Only add default node pool during initial setup
         if (nodePools.length === 0 && isInitialSetup) {
@@ -426,10 +428,20 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
         return;
       }
 
+      // Provider-specific validation
       if (selectedProvider.id === "hetzner" && (!sshPrivateKeyPath.trim() || !sshPublicKeyPath.trim() || !providerApiToken.trim())) {
         uiToast({
           title: "Missing information",
           description: "Please fill in all required fields including SSH key paths and Hetzner Cloud API token.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (selectedProvider.id === "digitalocean" && !providerApiToken.trim()) {
+        uiToast({
+          title: "Missing information",
+          description: "Please provide your DigitalOcean API token.",
           variant: "destructive",
         });
         return;
@@ -494,10 +506,20 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       return;
     }
 
+    // Provider-specific validation for submit
     if (selectedProvider.id === "hetzner" && (!sshPrivateKeyPath || !sshPublicKeyPath || !providerApiToken)) {
       uiToast({
         title: "Missing information",
         description: "Please provide SSH key paths and Hetzner Cloud API token.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedProvider.id === "digitalocean" && !providerApiToken) {
+      uiToast({
+        title: "Missing information",
+        description: "Please provide your DigitalOcean API token.",
         variant: "destructive",
       });
       return;
@@ -527,14 +549,20 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
     setIsSubmitting(true);
 
     try {
+      const providerConfig: any = {
+        providerApiToken: providerApiToken
+      };
+
+      // Add SSH key paths only for Hetzner
+      if (selectedProvider.id === "hetzner") {
+        providerConfig.sshPrivateKeyPath = sshPrivateKeyPath;
+        providerConfig.sshPublicKeyPath = sshPublicKeyPath;
+      }
+
       await createCluster({
         name,
         provider: selectedProvider,
-        providerConfig: {
-          sshPrivateKeyPath: selectedProvider.id === "hetzner" ? sshPrivateKeyPath : undefined,
-          sshPublicKeyPath: selectedProvider.id === "hetzner" ? sshPublicKeyPath : undefined,
-          providerApiToken:  selectedProvider.id === "hetzner" ? providerApiToken : undefined
-        },
+        providerConfig,
         version,
         access_ip: "Not available yet",
         controlPlane,
@@ -628,68 +656,6 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
     return version ? version.label : value;
   };
 
-  const renderHetznerConfigFields = () => {
-    if (selectedProvider?.id !== "hetzner") return null;
-
-    return (
-      <>
-        <div className="border rounded-lg p-4 space-y-4 mt-4">
-          <h3 className="font-medium">Hetzner Cloud Configuration</h3>
-          <div>
-            <Label htmlFor="hetzner-token" className="mb-2 block">
-              Hetzner Cloud API Token
-            </Label>
-            <Input
-              id="provider-api-token"
-              value={providerApiToken}
-              onChange={(e) => setProviderApiToken(e.target.value)}
-              type="password"
-              placeholder="Enter your Hetzner Cloud API token"
-              className="mb-1"
-            />
-            <p className="text-xs text-muted-foreground">
-              The API token used to create resources in your Hetzner Cloud account
-            </p>
-          </div>
-        </div>
-
-        <div className="border rounded-lg p-4 space-y-4 mt-4">
-          <h3 className="font-medium">SSH Key Configuration</h3>
-          <div>
-            <Label htmlFor="ssh-private-key" className="mb-2 block">
-              SSH Private Key Path
-            </Label>
-            <Input
-              id="ssh-private-key"
-              value={sshPrivateKeyPath}
-              onChange={handlePrivateKeyPathChange}
-              placeholder="~/.ssh/id_rsa"
-              className="mb-1"
-            />
-            <p className="text-xs text-muted-foreground">
-              Path to your SSH private key file on your local machine
-            </p>
-          </div>
-
-          <div>
-            <Label htmlFor="ssh-public-key" className="mb-2 block">
-              SSH Public Key Path
-            </Label>
-            <Input
-              id="ssh-public-key"
-              value={sshPublicKeyPath}
-              onChange={(e) => setSshPublicKeyPath(e.target.value)}
-              placeholder="~/.ssh/id_rsa.pub"
-              className="mb-1"
-            />
-            <p className="text-xs text-muted-foreground">
-              Path to your SSH public key file on your local machine
-            </p>
-          </div>
-        </div>
-      </>
-    );
-  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -781,96 +747,29 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                 </p>
               </div>
 
-              {renderHetznerConfigFields()}
+              {selectedProvider && (
+                <ProviderConfig
+                  provider={selectedProvider}
+                  providerApiToken={providerApiToken}
+                  onProviderApiTokenChange={setProviderApiToken}
+                  sshPrivateKeyPath={sshPrivateKeyPath}
+                  onSshPrivateKeyPathChange={setSshPrivateKeyPath}
+                  sshPublicKeyPath={sshPublicKeyPath}
+                  onSshPublicKeyPathChange={setSshPublicKeyPath}
+                />
+              )}
             </div>
           )}
 
           {currentStep === 2 && selectedProvider && (
             <div className="space-y-6 py-2 animate-fade-in">
-              <div className="border rounded-lg p-4">
-                <h3 className="font-medium mb-4">Control Plane Configuration</h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="control-plane-region" className="mb-2 block">
-                      Region
-                    </Label>
-                    <Select
-                      onValueChange={(value) => handleControlPlaneRegionSelect(value)}
-                      value={controlPlane?.region?.id || ""}
-                    >
-                      <SelectTrigger id="control-plane-region">
-                        <SelectValue placeholder="Select a region" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {selectedProvider.regions.map((region) => (
-                          <SelectItem key={region.id} value={region.id}>
-                            <div className="flex items-center">
-                              <span className="text-lg mr-2">{region.flag}</span>
-                              <span>{region.name}, {region.location}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label className="mb-2 block">Node Type</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {availableNodeTypes.map((nodeType) => (
-                        <div
-                          key={nodeType.id}
-                          className={`modal-selectable-item p-4 border-2 ${
-                            controlPlane?.nodeType.id === nodeType.id 
-                              ? "border-k8s-blue bg-k8s-light/20" 
-                              : "border-transparent"
-                          }`}
-                          onClick={() =>
-                            handleControlPlaneNodeTypeSelect(nodeType.id)
-                          }
-                        >
-                          <div className="flex justify-between">
-                            <div>
-                              <h4 className="font-medium">{nodeType.name}</h4>
-                              <p className="text-xs text-muted-foreground">
-                                {nodeType.description}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm font-medium">
-                                {nodeType.hourlyCost} €/hr
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="control-plane-count" className="mb-2 block">
-                      Node Count
-                    </Label>
-                    <div className="flex items-center">
-                      <Input
-                        id="control-plane-count"
-                        type="number"
-                        value="1"
-                        disabled
-                        className="w-20 mx-2 text-center"
-                      />
-                      <p className="ml-4 text-sm text-muted-foreground">
-                        Fixed at 1 control plane node
-                      </p>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1 flex items-center">
-                      <Info className="h-3 w-3 mr-1" />
-                      Currently, only single control plane node is supported
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <ControlPlaneConfig
+                provider={selectedProvider}
+                controlPlane={controlPlane}
+                onRegionSelect={handleControlPlaneRegionSelect}
+                onNodeTypeSelect={handleControlPlaneNodeTypeSelect}
+                showManagedInfo={selectedProvider.id === "digitalocean"}
+              />
 
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium">Worker Node Pools</h3>
@@ -1029,7 +928,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                               +
                             </Button>
                             <p className="ml-4 text-sm text-muted-foreground">
-                              {(pool.nodeType.hourlyCost * pool.count * 24 * 30).toFixed(2)} €/month
+                              {(pool.nodeType.hourlyCost * pool.count * 24 * 30).toFixed(2)} {selectedProvider.id === 'hetzner' ? '€' : '$'}/month
                             </p>
                           </div>
                         ) : (
@@ -1090,13 +989,13 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                               <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Cost range:</span>
                                 <span>
-                                  {(pool.nodeType.hourlyCost * (pool.autoscaling?.minNodes || 0)).toFixed(4)}-{(pool.nodeType.hourlyCost * (pool.autoscaling?.maxNodes || 1)).toFixed(4)} €/hr
+                                  {(pool.nodeType.hourlyCost * (pool.autoscaling?.minNodes || 0)).toFixed(4)}-{(pool.nodeType.hourlyCost * (pool.autoscaling?.maxNodes || 1)).toFixed(4)} {selectedProvider.id === 'hetzner' ? '€' : '$'}/hr
                                 </span>
                               </div>
                               <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Monthly estimate:</span>
                                 <span>
-                                  {(pool.nodeType.hourlyCost * (pool.autoscaling?.minNodes || 0) * 24 * 30).toFixed(2)}-{(pool.nodeType.hourlyCost * (pool.autoscaling?.maxNodes || 1) * 24 * 30).toFixed(2)} €/month
+                                  {(pool.nodeType.hourlyCost * (pool.autoscaling?.minNodes || 0) * 24 * 30).toFixed(2)}-{(pool.nodeType.hourlyCost * (pool.autoscaling?.maxNodes || 1) * 24 * 30).toFixed(2)} {selectedProvider.id === 'hetzner' ? '€' : '$'}/month
                                 </span>
                               </div>
                             </div>
@@ -1120,8 +1019,8 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                   <p className="text-sm">
                     Estimated cost: <span className="font-medium">
                       {estimatedCost.min.hourly !== estimatedCost.max.hourly ?
-                        `${estimatedCost.min.hourly.toFixed(4)}-${estimatedCost.max.hourly.toFixed(4)} €/hr` :
-                        `${estimatedCost.max.hourly.toFixed(4)} €/hr`}
+                        `${estimatedCost.min.hourly.toFixed(4)}-${estimatedCost.max.hourly.toFixed(4)} ${selectedProvider.id === 'hetzner' ? '€' : '$'}/hr` :
+                        `${estimatedCost.max.hourly.toFixed(4)} ${selectedProvider.id === 'hetzner' ? '€' : '$'}/hr`}
                     </span>
                   </p>
                 )}
@@ -1312,26 +1211,18 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                 </CardContent>
               </Card>
 
-              {selectedProvider.id === "hetzner" && (
-                <>
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">Hetzner Configuration</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pb-3">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">API Token:</span>
-                        <span className="font-medium">••••••••••••••••</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">SSH Configuration</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pb-3">
-                      <div className="space-y-2">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">{selectedProvider.name} Configuration</CardTitle>
+                </CardHeader>
+                <CardContent className="pb-3">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">API Token:</span>
+                      <span className="font-medium">••••••••••••••••</span>
+                    </div>
+                    {selectedProvider.id === "hetzner" && (
+                      <>
                         <div className="flex justify-between">
                           <span className="text-sm text-muted-foreground">Private Key:</span>
                           <span className="font-medium">{sshPrivateKeyPath}</span>
@@ -1340,11 +1231,11 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                           <span className="text-sm text-muted-foreground">Public Key:</span>
                           <span className="font-medium">{sshPublicKeyPath}</span>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </>
-              )}
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
 
               <Card>
                 <CardHeader className="pb-2">
@@ -1352,21 +1243,39 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                 </CardHeader>
                 <CardContent className="pb-3">
                   <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Node Type:</span>
-                      <span className="font-medium">{controlPlane.nodeType.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Region:</span>
-                      <div className="flex items-center">
-                        <span className="text-lg mr-2">{controlPlane.region?.flag}</span>
-                        <span className="font-medium">{controlPlane.region?.name}, {controlPlane.region?.location}</span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Count:</span>
-                      <span className="font-medium">1</span>
-                    </div>
+                    {selectedProvider.id === "digitalocean" ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Type:</span>
+                          <span className="font-medium text-green-600">Managed by DigitalOcean</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Region:</span>
+                          <div className="flex items-center">
+                            <span className="text-lg mr-2">{controlPlane.region?.flag}</span>
+                            <span className="font-medium">{controlPlane.region?.name}, {controlPlane.region?.location}</span>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Node Type:</span>
+                          <span className="font-medium">{controlPlane.nodeType.name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Region:</span>
+                          <div className="flex items-center">
+                            <span className="text-lg mr-2">{controlPlane.region?.flag}</span>
+                            <span className="font-medium">{controlPlane.region?.name}, {controlPlane.region?.location}</span>
+                          </div>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Count:</span>
+                          <span className="font-medium">1</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -1467,8 +1376,8 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                     </span>
                     <span className="text-lg font-bold text-primary">
                       {estimatedCost.min.hourly !== estimatedCost.max.hourly ?
-                        `${estimatedCost.min.hourly.toFixed(4)}-${estimatedCost.max.hourly.toFixed(4)} €/hr` :
-                        `${estimatedCost.max.hourly.toFixed(4)} €/hr`}
+                        `${estimatedCost.min.hourly.toFixed(4)}-${estimatedCost.max.hourly.toFixed(4)} ${selectedProvider.id === 'hetzner' ? '€' : '$'}/hr` :
+                        `${estimatedCost.max.hourly.toFixed(4)} ${selectedProvider.id === 'hetzner' ? '€' : '$'}/hr`}
                     </span>
                   </div>
                   <div className="flex justify-between items-center bg-soft-purple/20 p-2 rounded-lg mt-2">
@@ -1478,16 +1387,24 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                     </span>
                     <span className="text-lg font-bold text-primary">
                       {estimatedCost.min.monthly !== estimatedCost.max.monthly ?
-                        `${estimatedCost.min.monthly.toFixed(2)}-${estimatedCost.max.monthly.toFixed(2)} €/month` :
-                        `${estimatedCost.max.monthly.toFixed(2)} €/month`}
+                        `${estimatedCost.min.monthly.toFixed(2)}-${estimatedCost.max.monthly.toFixed(2)} ${selectedProvider.id === 'hetzner' ? '€' : '$'}/month` :
+                        `${estimatedCost.max.monthly.toFixed(2)} ${selectedProvider.id === 'hetzner' ? '€' : '$'}/month`}
                     </span>
                   </div>
 
                   <div className="text-xs text-muted-foreground mt-2 space-y-1">
-                    <div className="flex justify-between">
-                      <span>Control Plane (1 node):</span>
-                      <span>{(controlPlane?.nodeType.hourlyCost * 24 * 30).toFixed(2)} €/month</span>
-                    </div>
+                    {selectedProvider?.id !== "digitalocean" && controlPlane && (
+                      <div className="flex justify-between">
+                        <span>Control Plane (1 node):</span>
+                        <span>{(controlPlane.nodeType.hourlyCost * 24 * 30).toFixed(2)} {selectedProvider.id === 'hetzner' ? '€' : '$'}/month</span>
+                      </div>
+                    )}
+                    {selectedProvider?.id === "digitalocean" && (
+                      <div className="flex justify-between">
+                        <span>Control Plane (managed):</span>
+                        <span className="text-green-600">Free</span>
+                      </div>
+                    )}
                     {nodePools.map((pool) => (
                       <div key={pool.id} className="flex justify-between">
                         <span>{pool.name} {pool.autoscaling?.enabled ?
@@ -1495,10 +1412,10 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                           `(${pool.count} ${pool.count === 1 ? 'node' : 'nodes'})`}:</span>
                         {pool.autoscaling?.enabled ? (
                           <span>
-                            {(pool.nodeType.hourlyCost * pool.autoscaling.minNodes * 24 * 30).toFixed(2)}-{(pool.nodeType.hourlyCost * pool.autoscaling.maxNodes * 24 * 30).toFixed(2)} €/month
+                            {(pool.nodeType.hourlyCost * pool.autoscaling.minNodes * 24 * 30).toFixed(2)}-{(pool.nodeType.hourlyCost * pool.autoscaling.maxNodes * 24 * 30).toFixed(2)} {selectedProvider?.id === 'hetzner' ? '€' : '$'}/month
                           </span>
                         ) : (
-                          <span>{(pool.nodeType.hourlyCost * pool.count * 24 * 30).toFixed(2)} €/month</span>
+                          <span>{(pool.nodeType.hourlyCost * pool.count * 24 * 30).toFixed(2)} {selectedProvider?.id === 'hetzner' ? '€' : '$'}/month</span>
                         )}
                       </div>
                     ))}
@@ -1518,11 +1435,11 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
               </Button>
             )}
             {currentStep < 5 ? (
-              <Button onClick={nextStep} disabled={nameError && currentStep === 1}>
+              <Button onClick={nextStep} disabled={Boolean(nameError && currentStep === 1)}>
                 Next
               </Button>
             ) : (
-              <Button onClick={handleSubmit} disabled={isSubmitting || nameError} className="bg-green-600 hover:bg-green-700">
+              <Button onClick={handleSubmit} disabled={isSubmitting || Boolean(nameError)} className="bg-green-600 hover:bg-green-700">
                 Create Cluster
               </Button>
             )}

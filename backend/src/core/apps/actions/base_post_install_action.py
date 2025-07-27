@@ -15,7 +15,7 @@ class BasePrePostInstallAction(ABC):
         self._validate()
 
     @abstractmethod
-    def run(self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]) -> None:
+    async def run(self, cluster: KubernetesCluster, namespace: str, config_values: dict[str, Any]) -> None:
         pass
 
     @abstractmethod

@@ -92,9 +92,11 @@ async def create_deployment(
 ) -> dict:
     logger.debug(f'Received request to deploy app: {deployment}')
 
-    background_tasks.add_task(cluster_manager.create_deployment, cluster_id, deployment)
+    deployment_id = await cluster_manager.create_deployment_entry(cluster_id, deployment)
 
-    return {'result': 'ok', 'status': DeploymentStatus.CREATING}
+    background_tasks.add_task(cluster_manager.create_deployment, cluster_id, deployment_id, deployment)
+
+    return {'result': 'ok', 'status': DeploymentStatus.CREATING, 'id': deployment_id}
 
 
 # NOTE: this endpoint must be before update_deployment to avoid issue with overlapping path

@@ -15,7 +15,7 @@ class CreateSecretAction(BasePrePostInstallAction):
         super().__init__(name=name, condition=condition)
 
     @override
-    def run(self, cluster: KubernetesCluster, namespace: str, *args, **kwargs) -> None:
+    async def run(self, cluster: KubernetesCluster, namespace: str, *args, **kwargs) -> None:
         cluster.create_secret(self.secret_name, namespace, self.secret_data, self.secret_type)
 
     def _validate(self) -> None:

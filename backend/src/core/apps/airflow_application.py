@@ -4,6 +4,7 @@ from functools import lru_cache
 from typing import Any
 
 import requests
+from packaging.version import Version
 from pydantic import BaseModel, Field
 from src.core.apps.actions.base_post_install_action import BasePrePostInstallAction
 from src.core.apps.actions.create_secret_action import CreateSecretAction
@@ -214,7 +215,10 @@ class AirflowApplication(BaseApplication):
         except Exception:
             cls._logger.exception('Failed to retrieve available versions for Airflow')
             return ['2.11.0']
-        return [x['tag_name'] for x in r if bool(re.search(r'^2\.\d{1,2}\.\d$', x['tag_name']))][:5]
+
+        versions = [x['tag_name'].replace('v', '') for x in r if re.search(r'^\d{1,2}\.\d\.\d$', x['tag_name'])][:30]
+
+        return sorted(versions, key=Version, reverse=True)
 
     @property
     def chart_values(self) -> dict[str, Any]:

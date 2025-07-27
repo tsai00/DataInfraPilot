@@ -5,14 +5,15 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi_utils.tasks import repeat_every
-
 from src.api.routers.application import router as application_router
 from src.api.routers.cluster import router as cluster_router
 from src.api.routers.volume import router as volume_router
 from src.core.apps.airflow_application import AirflowApplication, AirflowConfig
 from src.core.apps.application_factory import ApplicationFactory, ApplicationMetadata
 from src.core.apps.grafana_application import GrafanaApplication, GrafanaConfig
+from src.core.apps.prefect_application import PrefectApplication, PrefectConfig
 from src.core.apps.spark_application import SparkApplication, SparkConfig
+from src.core.apps.superset_application import SupersetApplication, SupersetConfig
 from src.core.utils import setup_logger
 
 logger = setup_logger('APIMain')
@@ -52,6 +53,16 @@ async def register_applications() -> None:
         app_id=3,
         app_class=SparkApplication,
         config_class=SparkConfig,
+    )
+    ApplicationFactory.register_application(
+        app_id=4,
+        app_class=PrefectApplication,
+        config_class=PrefectConfig,
+    )
+    ApplicationFactory.register_application(
+        app_id=5,
+        app_class=SupersetApplication,
+        config_class=SupersetConfig,
     )
 
     logger.info('Applications registration complete.')

@@ -5,20 +5,18 @@ import { Card, CardContent } from '@/components/ui/card';
 
 interface AppSelectionStepProps {
   applications: Application[];
-  appDeployModules: Record<string, any>;
-  handleAppSelect;
+  handleAppSelect: (app: Application) => void;
 }
 
 const AppSelectionStep: React.FC<AppSelectionStepProps> = ({
   applications,
-  appDeployModules,
   handleAppSelect
 }) => {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
       {applications.map((app) => {
-        const module = appDeployModules[app.short_name];
+        const resources = app.recommendedResources || { nodes: "1", ram: "1 GB", cpu: "1 vCPU" };
         return (
           <Card
             key={app.id}
@@ -40,7 +38,7 @@ const AppSelectionStep: React.FC<AppSelectionStepProps> = ({
                   <div className="mt-2 flex items-center justify-center">
                     <div className="mt-2 px-3 py-1 rounded-lg bg-muted/40 border text-xs flex flex-row items-center gap-2 text-muted-foreground">
                       <div className="flex flex-row items-center gap-2">
-                        {module?.appRecommendedResources.nodes} nodes • {module?.appRecommendedResources.ram} RAM • {module?.appRecommendedResources.cpu}
+                        {resources.nodes} nodes • {resources.ram} RAM • {resources.cpu}
                       </div>
                     </div>
                   </div>

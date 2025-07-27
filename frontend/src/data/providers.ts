@@ -62,5 +62,84 @@ export const providers: Provider[] = [
         hourlyCost: 0.054,    // in EUR
       },
     ]
-  }
+  },
+  // {
+  //   id: "digitalocean",
+  //   name: "DigitalOcean",
+  //   logo: "/digital-ocean-logo.png",
+  //   description: "Simple cloud computing, built for developers",
+  //   regions: [
+  //     {
+  //       id: "nyc1",
+  //       name: "New York 1",
+  //       location: "United States",
+  //       flag: "🇺🇸",
+  //     },
+  //     {
+  //       id: "sfo3",
+  //       name: "San Francisco 3",
+  //       location: "United States",
+  //       flag: "🇺🇸",
+  //     },
+  //     {
+  //       id: "ams3",
+  //       name: "Amsterdam 3",
+  //       location: "Netherlands",
+  //       flag: "🇳🇱",
+  //     },
+  //     {
+  //       id: "sgp1",
+  //       name: "Singapore 1",
+  //       location: "Singapore",
+  //       flag: "🇸🇬",
+  //     },
+  //     {
+  //       id: "lon1",
+  //       name: "London 1",
+  //       location: "United Kingdom",
+  //       flag: "🇬🇧",
+  //     },
+  //     {
+  //       id: "fra1",
+  //       name: "Frankfurt 1",
+  //       location: "Germany",
+  //       flag: "🇩🇪",
+  //     },
+  //   ],
+  //   volumeCostGbPerHour: 0.010, // $0.10 per GB per month / (30 * 24)
+  //   nodeTypes: [
+  //     {
+  //       id: "s-2vcpu-2gb",
+  //       name: "Basic 2GB",
+  //       cpu: 2,
+  //       memory: 2,
+  //       description: "2 vCPU, 2 GB RAM",
+  //       hourlyCost: 0.018, // $0.018/hr
+  //     },
+  //     {
+  //       id: "s-2vcpu-4gb",
+  //       name: "Basic 4GB",
+  //       cpu: 2,
+  //       memory: 4,
+  //       description: "2 vCPU, 4 GB RAM",
+  //       hourlyCost: 0.036, // $0.036/hr
+  //     },
+  //     {
+  //       id: "s-4vcpu-8gb",
+  //       name: "Basic 8GB",
+  //       cpu: 4,
+  //       memory: 8,
+  //       description: "4 vCPU, 8 GB RAM",
+  //       hourlyCost: 0.071, // $0.071/hr
+  //     },
+  //     {
+  //       id: "s-8vcpu-16gb",
+  //       name: "Basic 16GB",
+  //       cpu: 8,
+  //       memory: 16,
+  //       description: "8 vCPU, 16 GB RAM",
+  //       hourlyCost: 0.143, // $0.143/hr
+  //     },
+  //   ]
+  // }
 ];
