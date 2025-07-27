@@ -233,19 +233,19 @@ export const applications: Application[] = [
         }
       ],
     },
-    {
-      id: 5,
-      short_name: "superset",
-      name: "Superset",
-      description: "Visualisation.",
-      logo: "/superset-logo.svg",
-      recommendedResources: {
-        nodes: "2",
-        ram: "2 GB",
-        cpu: "1 vCPU",
-      },
-      configOptions: [
-        ...commonConfigOptions,
-      ],
-    },
+    // {
+    //   id: 5,
+    //   short_name: "superset",
+    //   name: "Superset",
+    //   description: "Visualisation.",
+    //   logo: "/superset-logo.svg",
+    //   recommendedResources: {
+    //     nodes: "2",
+    //     ram: "2 GB",
+    //     cpu: "1 vCPU",
+    //   },
+    //   configOptions: [
+    //     ...commonConfigOptions,
+    //   ],
+    // },
   ];
