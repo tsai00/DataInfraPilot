@@ -79,6 +79,9 @@ class ClusterManager:
                     enable_https=False,
                 )
 
+            if cluster_config.additional_components.pg_operator.enabled:
+                cluster.install_pg_operator()
+
             # Check if only control-plane node was requested
             if len(cluster_config.pools) > 1:
                 # TODO: remove hardcoded node name

@@ -46,8 +46,13 @@ export type TraefikDashboardConfig = {
   password: string;
 };
 
+export type PgOperatorConfig = {
+  enabled: boolean;
+};
+
 export type ClusterAdditionalComponents = {
   traefik_dashboard: TraefikDashboardConfig;
+  pg_operator: PgOperatorConfig
 }
 
 export type Cluster = {

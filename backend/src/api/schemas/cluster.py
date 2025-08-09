@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from pydantic import BaseModel, Field
-
 from src.api.schemas.deployment import DeploymentSchema
 
 
@@ -11,12 +10,18 @@ class TraefikDashboardConfig(BaseModel):
     password: str = Field(min_length=4, max_length=20)
 
 
+class PgOperator(BaseModel):
+    enabled: bool = Field(default=False)
+
+
 class ClusterAdditionalComponents(BaseModel):
     traefik_dashboard: TraefikDashboardConfig
+    pg_operator: PgOperator
 
     def to_dict(self) -> dict:
         return {
             'traefik_dashboard': self.traefik_dashboard.model_dump(),
+            'pg_operator': self.pg_operator.model_dump(),
         }
 
 

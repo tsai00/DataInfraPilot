@@ -88,6 +88,9 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       enabled: true,
       username: "admin",
       password: ""
+    },
+    pg_operator: {
+      enabled: false
     }
   });
 
@@ -143,6 +146,9 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
           enabled: true,
           username: "admin",
           password: ""
+        },
+        pg_operator: {
+          enabled: false
         }
       });
     }
@@ -393,7 +399,7 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
       traefik_dashboard: {
         ...prev.traefik_dashboard,
         enabled
-      }
+      },
     }));
   };
 
@@ -414,6 +420,16 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
         ...prev.traefik_dashboard,
         password
       }
+    }));
+  };
+
+  const handlePgOperatorToggle = (enabled: boolean) => {
+    setAdditionalComponents(prev => ({
+      ...prev,
+      pg_operator: {
+        ...prev.pg_operator,
+        enabled
+      },
     }));
   };
 
@@ -1169,6 +1185,28 @@ const CreateClusterModal: React.FC<CreateClusterModalProps> = ({
                         </div>
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-4">
+                <Card className="border rounded-lg">
+                  <CardContent className="pt-6 pb-4">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="space-y-2 flex-1">
+                        <h4 className="font-medium flex items-center">
+                          <ToggleRight className="h-5 w-5 mr-2 text-primary" />
+                          Postgres Operator
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          Provides interface for running Postgres clusters directly on Kubernetes
+                        </p>
+                      </div>
+                      <Switch
+                        checked={additionalComponents.pg_operator.enabled}
+                        onCheckedChange={handlePgOperatorToggle}
+                      />
+                    </div>
                   </CardContent>
                 </Card>
               </div>

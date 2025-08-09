@@ -281,6 +281,11 @@ class KubernetesCluster:
         except Exception:
             self._logger.exception(f'Failed to install {provider.capitalize()} CSI', exc_info=True)
 
+    def install_pg_operator(self) -> None:
+        self._client.install_from_remote(
+            'https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.26/releases/cnpg-1.26.1.yaml'
+        )
+
     def install_cloud_controller(self, provider: str) -> None:
         path_to_template = template_loader.get_template(f'{provider}-cloud-controller.yaml', 'kubernetes')
 

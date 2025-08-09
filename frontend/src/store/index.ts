@@ -193,6 +193,9 @@ export const useClusterStore = create<ClusterState>()(
                 enabled: clusterData.additionalComponents?.traefik_dashboard?.enabled || false,
                 username: clusterData.additionalComponents?.traefik_dashboard?.username || '',
                 password: clusterData.additionalComponents?.traefik_dashboard?.password || ''
+              },
+              pg_operator: {
+                enabled: clusterData.additionalComponents?.pg_operator?.enabled || false
               }
             }
           };
