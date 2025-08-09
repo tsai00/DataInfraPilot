@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+import requests
 import urllib3
 import yaml
 from kubernetes import client, config, utils
@@ -59,6 +60,15 @@ class KubernetesClient:
         self._logger.debug(f'Cordoning node: {node_name}')
         self._clients.core.patch_node(node_name, body)
         self._logger.info(f'Node {node_name} cordoned successfully!')
+
+    def install_from_remote(self, remote_url: str) -> None:
+        try:
+            response = requests.get(remote_url, timeout=30)
+            content = response.content.decode('utf-8')
+            utils.create_from_yaml(self._clients.api, yaml_objects=yaml.safe_load_all(content))
+            self._logger.info(f'Successfully installed YAML from {remote_url}')
+        except Exception:
+            self._logger.exception(f'Failed to install YAML from {remote_url}', exc_info=True)
 
     def install_from_yaml(self, path_to_yaml: Path, with_custom_objects: bool = False) -> None:
         if path_to_yaml.is_dir():

@@ -260,6 +260,19 @@ const ClusterDetails: React.FC = () => {
                       </span>
                     </div>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Postgres Operator:</span>
+                    <div className="flex items-center gap-1">
+                      {cluster.additionalComponents?.pg_operator?.enabled ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-gray-400" />
+                      )}
+                      <span className="text-sm">
+                        {cluster.additionalComponents?.pg_operator?.enabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
               <Separator />

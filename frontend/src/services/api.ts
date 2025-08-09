@@ -22,8 +22,13 @@ interface ApiTraefikDashboardConfig {
   password?: string;
 }
 
+interface ApiPgOperatorConfig {
+  enabled: boolean;
+}
+
 interface ApiClusterAdditionalComponents {
   traefik_dashboard: ApiTraefikDashboardConfig;
+  pg_operator: ApiPgOperatorConfig;
 }
 
 export interface ClusterCreateRequest {
@@ -267,6 +272,9 @@ export function mapApiClusterToUICluster(apiCluster: ApiCluster, providers: Prov
       username: apiCluster.additional_components?.traefik_dashboard?.username || '',
       password: apiCluster.additional_components?.traefik_dashboard?.password || ''
     },
+    pg_operator: {
+      enabled: apiCluster.additional_components?.pg_operator?.enabled || false,
+    }
   }
 
   return {
